@@ -253,7 +253,7 @@ func main() {
 	router.Get("/health", healthCheck)
 
 	// Profiling endpoint (accessible at /debug/pprof/) - only for local dev
-	if adressString == "127.0.0.1" && environment == "dev" {
+	if environment == "dev" {
 		go func() {
 			log.Println("Profiling server started at http://localhost:6060/debug/pprof/")
 			log.Fatal(http.ListenAndServe("localhost:6060", nil))
