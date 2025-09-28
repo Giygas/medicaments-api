@@ -90,7 +90,7 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicament/id/1", "/medicament/id/1", http.StatusOK},
 		{"Test medicament/id/999999", "/medicament/id/999999", http.StatusNotFound},
 		{"Test generiques/group/a", "/generiques/group/a", http.StatusBadRequest},
-		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusNotFound},
+		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusBadRequest},
 		{"Test health", "/health", http.StatusOK},
 	}
 
