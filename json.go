@@ -3,7 +3,8 @@ package main
 import (
 	"compress/gzip"
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -11,7 +12,7 @@ import (
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("Failed to marshal JSON response: %v", payload)
+		slog.Error("Failed to marshal JSON response", "error", err, "payload_type", fmt.Sprintf("%T", payload))
 		w.WriteHeader(500)
 		return
 	}

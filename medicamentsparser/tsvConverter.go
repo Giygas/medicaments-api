@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"os"
 	"strconv"
@@ -129,12 +129,14 @@ func makeGeneriques(wg *sync.WaitGroup) []entities.Generique {
 
 		cis, cisError := strconv.Atoi(fields[2])
 		if cisError != nil {
-			log.Fatalf("Error converting to int cis in %s, Generiques file ERROR: %s", fields[2], cisError)
+			slog.Error("Error converting to int cis in generiques file", "cis", fields[2], "error", cisError)
+			os.Exit(1)
 		}
 
 		group, groupErr := strconv.Atoi(fields[0])
 		if groupErr != nil {
-			log.Fatalf("Error converting to int group in %s, Generiques file ERROR: %s", fields[0], groupErr)
+			slog.Error("Error converting to int group in generiques file", "group", fields[0], "error", groupErr)
+			os.Exit(1)
 		}
 
 		var generiqueType string

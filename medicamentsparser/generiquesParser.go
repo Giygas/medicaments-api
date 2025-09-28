@@ -2,7 +2,7 @@ package medicamentsparser
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 
@@ -26,7 +26,8 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	// generiques file: [groupid]:[]cis of medicaments in the same group
 	generiquesFile, err := generiqueFileToJSON()
 	if err != nil {
-		log.Fatalf("Failed to read generiques file: %v", err)
+		slog.Error("Failed to read generiques file", "error", err)
+		os.Exit(1)
 	}
 
 	// The medsType is a map where the key are the medicament cis and the value is the
@@ -40,7 +41,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		// Convert the string index to integer
 		groupInt, convErr := strconv.Atoi(i)
 		if err != nil {
-			log.Println("An error ocurred converting the generiques group to integer", convErr)
+			slog.Error("An error occurred converting the generiques group to integer", "error", convErr, "group_id", i)
 			continue
 		}
 
@@ -56,16 +57,16 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	// Write debug file
 	marshalledGeneriques, err := json.MarshalIndent(generiques, "", " ")
 	if err != nil {
-		log.Printf("Error marshalling generiques: %v", err)
+		slog.Error("Error marshalling generiques", "error", err)
 	} else {
 		if writeErr := os.WriteFile("src/GeneriquesFull.json", marshalledGeneriques, 0644); writeErr != nil {
-			log.Printf("Error writing GeneriquesFull.json: %v", writeErr)
+			slog.Error("Error writing GeneriquesFull.json", "error", writeErr)
 		} else {
-			log.Println("GeneriquesFull.json created")
+			slog.Info("GeneriquesFull.json created")
 		}
 	}
 
-	log.Println("Generiques parsing completed")
+	slog.Info("Generiques parsing completed", "count", len(generiques))
 	return generiques, generiquesMap
 }
 

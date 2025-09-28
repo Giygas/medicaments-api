@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -40,18 +40,20 @@ func scheduleMedicaments() {
 
 	// Initial load
 	if err := updateData(); err != nil {
-		log.Fatal("Failed to perform initial data load:", err)
+		slog.Error("Failed to perform initial data load", "error", err)
+		os.Exit(1)
 	}
 
 	// Schedule updates
 	_, err := s.Every(1).Days().At("06:00;18:00").Do(func() {
 		if err := updateData(); err != nil {
-			log.Printf("Failed to update data: %v", err)
+			slog.Error("Failed to update data", "error", err)
 		}
 	})
 
 	if err != nil {
-		log.Fatal("Failed to schedule updates:", err)
+		slog.Error("Failed to schedule updates", "error", err)
+		os.Exit(1)
 	}
 
 	s.StartAsync()
@@ -64,7 +66,7 @@ func scheduleMedicaments() {
 		for range ticker.C {
 			lastUpdate := GetLastUpdated()
 			if time.Since(lastUpdate) > 25*time.Hour {
-				log.Println("WARNING: Data hasn't been updated in over 25 hours")
+				slog.Warn("Data hasn't been updated in over 25 hours")
 			}
 		}
 	}()
@@ -79,7 +81,7 @@ func GetMedicaments() []entities.Medicament {
 		}
 	}
 
-	log.Printf("Warning: Medicaments list is empty or invalid")
+	slog.Warn("Medicaments list is empty or invalid")
 
 	return []entities.Medicament{}
 }
@@ -91,7 +93,7 @@ func GetGeneriques() []entities.GeneriqueList {
 		}
 	}
 
-	log.Printf("Warning: GeneriqueList is empty or invalid")
+	slog.Warn("GeneriqueList is empty or invalid")
 
 	return []entities.GeneriqueList{}
 }
@@ -103,7 +105,7 @@ func GetMedicamentsMap() map[int]entities.Medicament {
 		}
 	}
 
-	log.Printf("Warning: MedicamentsMap is empty or invalid")
+	slog.Warn("MedicamentsMap is empty or invalid")
 
 	return make(map[int]entities.Medicament)
 }
@@ -115,7 +117,7 @@ func GetGeneriquesMap() map[int]entities.Generique {
 		}
 	}
 
-	log.Printf("Warning: GeneriquesMap is empty or invalid")
+	slog.Warn("GeneriquesMap is empty or invalid")
 
 	return make(map[int]entities.Generique)
 
@@ -127,7 +129,7 @@ func GetLastUpdated() time.Time {
 		}
 	}
 
-	log.Printf("Warning: could not get the last updated value")
+	slog.Warn("Could not get the last updated value")
 
 	return time.Time{}
 }
@@ -139,7 +141,7 @@ func IsUpdating() bool {
 func updateData() error {
 	// Prevent concurrent updates
 	if !dataContainer.updating.CompareAndSwap(false, true) {
-		log.Println("Update already in progress, skipping...")
+		slog.Info("Update already in progress, skipping...")
 		return nil
 	}
 	defer dataContainer.updating.Store(false)
@@ -166,8 +168,7 @@ func updateData() error {
 	dataContainer.lastUpdated.Store(time.Now())
 
 	elapsed := time.Since(start)
-	log.Printf("Database update completed in %s. Loaded %d medicaments", elapsed, len(newMedicaments))
-	os.Stdout.Sync()
+	slog.Info("Database update completed", "duration", elapsed.String(), "medicament_count", len(newMedicaments))
 
 	return nil
 }
@@ -186,14 +187,16 @@ func init() {
 		// If failed, try loading from executable directory
 		ex, err := os.Executable()
 		if err != nil {
-			log.Fatal(err)
+			slog.Error("Failed to get executable path", "error", err)
+			os.Exit(1)
 		}
 
 		exPath := filepath.Dir(ex)
 
 		err = os.Chdir(exPath)
 		if err != nil {
-			log.Fatal(err)
+			slog.Error("Failed to change directory", "error", err)
+			os.Exit(1)
 		}
 
 	}
@@ -201,10 +204,14 @@ func init() {
 }
 
 func main() {
+	// Initialize slog for structured logging to console and file
+	logger := setupSlog()
+	slog.SetDefault(logger)
 
 	portString := os.Getenv("PORT")
 	if portString == "" {
-		log.Fatal("PORT is not found in the environment")
+		slog.Error("PORT is not found in the environment")
+		os.Exit(1)
 	}
 	adressString := os.Getenv("ADDRESS")
 	if adressString == "" {
@@ -220,7 +227,7 @@ func main() {
 	router.Use(middleware.RedirectSlashes)
 	router.Use(middleware.RequestID)
 	router.Use(realIPMiddleware)
-	router.Use(middleware.Logger)
+	router.Use(slogMiddleware)
 	router.Use(middleware.Recoverer)
 	router.Use(blockDirectAccessMiddleware)
 
@@ -255,8 +262,11 @@ func main() {
 	// Profiling endpoint (accessible at /debug/pprof/) - only for local dev
 	if environment == "dev" {
 		go func() {
-			log.Println("Profiling server started at http://localhost:6060/debug/pprof/")
-			log.Fatal(http.ListenAndServe("localhost:6060", nil))
+			slog.Info("Profiling server started at http://localhost:6060/debug/pprof/")
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				slog.Error("Profiling server failed", "error", err)
+				os.Exit(1)
+			}
 		}()
 	}
 
@@ -289,13 +299,14 @@ func main() {
 		fmt.Printf("Will be accessible via nginx at: http://your-server/medicamentsfr\n")
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server failed to start: %v\n", err)
+			slog.Error("Server failed to start", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	// Block until a signal is received
 	<-quit
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
 	// Create a context with timeout for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -303,20 +314,20 @@ func main() {
 
 	// Attempt graceful shutdown
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		slog.Error("Server forced to shutdown", "error", err)
 		// If graceful shutdown fails, force close
 		if err := server.Close(); err != nil {
-			log.Printf("Server close error: %v", err)
+			slog.Error("Server close error", "error", err)
 		}
 	} else {
-		log.Println("Server exited gracefully")
+		slog.Info("Server exited gracefully")
 	}
 
 	// Wait a bit for any ongoing requests to complete
-	log.Println("Waiting for ongoing requests to complete...")
+	slog.Info("Waiting for ongoing requests to complete...")
 	time.Sleep(2 * time.Second)
 
-	log.Println("Server shutdown complete")
+	slog.Info("Server shutdown complete")
 }
 
 // Health check endpoint
