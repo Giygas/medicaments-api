@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
@@ -205,7 +206,7 @@ func init() {
 
 func main() {
 	// Initialize slog for structured logging to console and file
-	logger := setupSlog()
+	logger := logging.SetupLogger("logs")
 	slog.SetDefault(logger)
 
 	portString := os.Getenv("PORT")
@@ -227,7 +228,7 @@ func main() {
 	router.Use(middleware.RedirectSlashes)
 	router.Use(middleware.RequestID)
 	router.Use(realIPMiddleware)
-	router.Use(slogMiddleware)
+	router.Use(logging.LoggingMiddleware(logger))
 	router.Use(middleware.Recoverer)
 	router.Use(blockDirectAccessMiddleware)
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -84,6 +85,8 @@ func downloadAndParseAll() error {
 	wg.Wait()
 
 	if len(errors) > 0 {
+		logger := logging.SetupLogger("logs")
+		logger.Error("Download errors occurred", "errors", errors)
 		return fmt.Errorf("download errors: %v", errors)
 	}
 

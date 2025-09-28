@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 )
 
-// setupSlog configures slog to log to both console and file
-func setupSlog() *slog.Logger {
+// SetupLogger configures slog to log to both console and file
+func SetupLogger(logDir string) *slog.Logger {
 	// Create logs directory if it doesn't exist
-	if err := os.MkdirAll("logs", 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
 		// If we can't create logs directory, just log to console
 		slog.Error("Failed to create logs directory", "error", err)
 		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -19,7 +19,7 @@ func setupSlog() *slog.Logger {
 	}
 
 	// Open log file for appending
-	logFile, err := os.OpenFile(filepath.Join("logs", "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join(logDir, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error("Failed to open log file", "error", err)
 		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
