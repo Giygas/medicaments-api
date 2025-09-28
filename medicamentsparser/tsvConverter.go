@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 )
 
@@ -92,7 +91,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	logging.Info("Presentations file conversion completed", "records_count", len(jsonRecords))
+	fmt.Println("Presentations file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -173,7 +172,7 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 		_ = os.WriteFile("src/Generiques.json", jsonGeneriques, 0644)
 	}
 
-	logging.Info("Generiques file conversion completed", "records_count", len(jsonRecords))
+	fmt.Println("Generiques file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -219,7 +218,7 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	logging.Info("Compositions file conversion completed", "records_count", len(jsonRecords))
+	fmt.Println("Compositions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -263,7 +262,7 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	logging.Info("Specialites file conversion completed", "records_count", len(jsonRecords))
+	fmt.Println("Specialites file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -304,7 +303,7 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	logging.Info("Conditions file conversion completed", "records_count", len(jsonRecords))
+	fmt.Println("Conditions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 

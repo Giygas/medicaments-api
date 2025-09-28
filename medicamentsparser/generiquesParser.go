@@ -48,7 +48,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 
 		// Convert the string index to integer
 		groupInt, convErr := strconv.Atoi(i)
-		if err != nil {
+		if convErr != nil {
 			logging.Error("An error occurred converting the generiques group to integer", "error", convErr, "group_id", i)
 			continue
 		}
@@ -69,12 +69,10 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	} else {
 		if writeErr := os.WriteFile("src/GeneriquesFull.json", marshalledGeneriques, 0644); writeErr != nil {
 			logging.Error("Error writing GeneriquesFull.json", "error", writeErr)
-		} else {
-			logging.Info("GeneriquesFull.json created")
 		}
 	}
 
-	logging.Info("Generiques parsing completed", "count", len(generiques))
+	fmt.Println("Generiques parsing completed", "count", len(generiques))
 	return generiques, generiquesMap, nil
 }
 
