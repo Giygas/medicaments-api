@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 )
@@ -51,11 +52,14 @@ func serveAllMedicaments(w http.ResponseWriter, r *http.Request) {
 }
 
 func servePagedMedicaments(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(chi.URLParam(r, "pageNumber"))
+
+	pageNumber := chi.URLParam(r, "pageNumber")
+
+	page, err := strconv.Atoi(pageNumber)
 
 	if err != nil || page < 1 {
+		logging.Warn("Unusual user input", "pageNumber", pageNumber)
 		respondWithError(w, 400, "Invalid page number")
-
 		return
 	}
 
@@ -76,10 +80,7 @@ func servePagedMedicaments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > totalItems {
-		end = totalItems
-	}
+	end := min(start+pageSize, totalItems)
 
 	result := struct {
 		Data       []entities.Medicament `json:"data"`
@@ -99,6 +100,7 @@ func servePagedMedicaments(w http.ResponseWriter, r *http.Request) {
 }
 
 func findMedicament(w http.ResponseWriter, r *http.Request) {
+
 	userPattern := chi.URLParam(r, "element")
 	if len(userPattern) < 3 {
 		respondWithError(w, 400, "Search term must be at least 3 characters")
@@ -106,6 +108,7 @@ func findMedicament(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(userPattern) > 50 || !regexp.MustCompile(`^[a-zA-Z0-9 ]+$`).MatchString(userPattern) {
+		logging.Warn("Suspicious user pattern", "userPattern", userPattern)
 		respondWithError(w, 400, "Invalid search term: must be alphanumeric with spaces, max 50 chars")
 		return
 	}
@@ -172,6 +175,7 @@ func findMedicamentByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func findGeneriques(w http.ResponseWriter, r *http.Request) {
+
 	userPattern := chi.URLParam(r, "libelle")
 
 	if len(userPattern) < 3 {
@@ -180,6 +184,7 @@ func findGeneriques(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(userPattern) > 50 || !regexp.MustCompile(`^[a-zA-Z0-9 ]+$`).MatchString(userPattern) {
+		logging.Warn("Suspicious user pattern", "userPattern", userPattern)
 		respondWithError(w, 400, "Invalid search term: must be alphanumeric with spaces, max 50 chars")
 		return
 	}
@@ -217,7 +222,7 @@ func findGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if groupID <= 0 || groupID >= 100000 {
-		respondWithError(w, 404, "Invalid group ID: must be a positive integer less than 100000")
+		respondWithError(w, 400, "Invalid group ID: must be a positive integer less than 100000")
 		return
 	}
 

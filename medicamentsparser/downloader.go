@@ -37,7 +37,6 @@ func downloadAndParseFile(filepath string, url string) error {
 			return fmt.Errorf("failed to write to file %s: %w", filepath, err)
 		}
 	}
-	fmt.Println("Downloaded: " + filepath)
 	return nil
 }
 
@@ -85,10 +84,11 @@ func downloadAndParseAll() error {
 	wg.Wait()
 
 	if len(errors) > 0 {
-		logger := logging.SetupLogger("logs")
-		logger.Error("Download errors occurred", "errors", errors)
+		logging.Error("Download errors occurred", "errors", errors)
 		return fmt.Errorf("download errors: %v", errors)
 	}
+
+	logging.Info("Files downloaded and parsed successfully")
 
 	return nil
 }

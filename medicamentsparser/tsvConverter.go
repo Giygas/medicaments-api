@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 )
 
@@ -92,15 +92,14 @@ func makePresentations(wg *sync.WaitGroup) []entities.Presentation {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Presentations done")
+	fmt.Println("First presentation: ", jsonRecords[0])
 	return jsonRecords
 }
 
 func makeGeneriques(wg *sync.WaitGroup) []entities.Generique {
+
 	if wg != nil {
 		defer wg.Done()
-	} else {
-		fmt.Println("Second creation of generiques for the mapping of the medicaments")
 	}
 
 	tsvFile, err := os.Open("files/Generiques.txt")
@@ -129,13 +128,13 @@ func makeGeneriques(wg *sync.WaitGroup) []entities.Generique {
 
 		cis, cisError := strconv.Atoi(fields[2])
 		if cisError != nil {
-			slog.Error("Error converting to int cis in generiques file", "cis", fields[2], "error", cisError)
+			logging.Error("Error converting to int cis in generiques file", "cis", fields[2], "error", cisError)
 			os.Exit(1)
 		}
 
 		group, groupErr := strconv.Atoi(fields[0])
 		if groupErr != nil {
-			slog.Error("Error converting to int group in generiques file", "group", fields[0], "error", groupErr)
+			logging.Error("Error converting to int group in generiques file", "group", fields[0], "error", groupErr)
 			os.Exit(1)
 		}
 
@@ -171,11 +170,12 @@ func makeGeneriques(wg *sync.WaitGroup) []entities.Generique {
 	if err != nil {
 		fmt.Println(fmt.Errorf("error marshalling generiques: %w", err))
 	}
+
 	if wg != nil {
-		fmt.Println("Generiques done")
 		_ = os.WriteFile("src/Generiques.json", jsonGeneriques, 0644)
 	}
 
+	fmt.Println("First generique: ", jsonRecords[0])
 	return jsonRecords
 }
 
@@ -221,7 +221,7 @@ func makeCompositions(wg *sync.WaitGroup) []entities.Composition {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Compositions done")
+	fmt.Println("First composition: ", jsonRecords[0])
 	return jsonRecords
 }
 
@@ -265,7 +265,7 @@ func makeSpecialites(wg *sync.WaitGroup) []entities.Specialite {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Specialites done")
+	fmt.Println("First specialite: ", jsonRecords[0])
 	return jsonRecords
 }
 
@@ -306,7 +306,7 @@ func makeConditions(wg *sync.WaitGroup) []entities.Condition {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Conditions done")
+	fmt.Println("First condition: ", jsonRecords[0])
 	return jsonRecords
 }
 

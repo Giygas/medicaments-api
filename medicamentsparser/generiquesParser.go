@@ -2,16 +2,17 @@ package medicamentsparser
 
 import (
 	"encoding/json"
-	"log/slog"
 	"os"
 	"strconv"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 )
 
 var medsType map[int]string
 
 func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique) {
+
 	var err error
 
 	// allGeneriques: []Generique
@@ -26,7 +27,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	// generiques file: [groupid]:[]cis of medicaments in the same group
 	generiquesFile, err := generiqueFileToJSON()
 	if err != nil {
-		slog.Error("Failed to read generiques file", "error", err)
+		logging.Error("Failed to read generiques file", "error", err)
 		os.Exit(1)
 	}
 
@@ -41,7 +42,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		// Convert the string index to integer
 		groupInt, convErr := strconv.Atoi(i)
 		if err != nil {
-			slog.Error("An error occurred converting the generiques group to integer", "error", convErr, "group_id", i)
+			logging.Error("An error occurred converting the generiques group to integer", "error", convErr, "group_id", i)
 			continue
 		}
 
@@ -57,16 +58,16 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	// Write debug file
 	marshalledGeneriques, err := json.MarshalIndent(generiques, "", " ")
 	if err != nil {
-		slog.Error("Error marshalling generiques", "error", err)
+		logging.Error("Error marshalling generiques", "error", err)
 	} else {
 		if writeErr := os.WriteFile("src/GeneriquesFull.json", marshalledGeneriques, 0644); writeErr != nil {
-			slog.Error("Error writing GeneriquesFull.json", "error", writeErr)
+			logging.Error("Error writing GeneriquesFull.json", "error", writeErr)
 		} else {
-			slog.Info("GeneriquesFull.json created")
+			logging.Info("GeneriquesFull.json created")
 		}
 	}
 
-	slog.Info("Generiques parsing completed", "count", len(generiques))
+	logging.Info("Generiques parsing completed", "count", len(generiques))
 	return generiques, generiquesMap
 }
 

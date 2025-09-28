@@ -4,15 +4,17 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/giygas/medicamentsfr/logging"
 )
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+
 	data, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("Failed to marshal JSON response", "error", err, "payload_type", fmt.Sprintf("%T", payload))
+		logging.Error("Failed to marshal JSON response", "error", err, "payload_type", fmt.Sprintf("%T", payload))
 		w.WriteHeader(500)
 		return
 	}

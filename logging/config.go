@@ -12,19 +12,21 @@ func SetupLogger(logDir string) *slog.Logger {
 	// Create logs directory if it doesn't exist
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		// If we can't create logs directory, just log to console
-		slog.Error("Failed to create logs directory", "error", err)
-		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))
+		consoleLogger.Error("Failed to create logs directory", "error", err)
+		return consoleLogger
 	}
 
 	// Open log file for appending
 	logFile, err := os.OpenFile(filepath.Join(logDir, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		slog.Error("Failed to open log file", "error", err)
-		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))
+		consoleLogger.Error("Failed to open log file", "error", err)
+		return consoleLogger
 	}
 
 	// Create multi-handler that writes to both console and file

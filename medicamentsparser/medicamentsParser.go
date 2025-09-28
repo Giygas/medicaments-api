@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 )
 
@@ -25,6 +26,7 @@ func validateMedicament(m *entities.Medicament) error {
 }
 
 func ParseAllMedicaments() []entities.Medicament {
+
 	// Download the neccesary files from https://base-donnees-publique.medicaments.gouv.fr/telechargement
 	downloadAndParseAll()
 
@@ -132,14 +134,13 @@ func ParseAllMedicaments() []entities.Medicament {
 		}
 
 		// Get the conditions of this medicament
-
 		if cond, exists := conditionsMap[med.Cis]; exists {
 			medicament.Conditions = cond
 		}
 
 		// Validate the medicament structure
 		if err := validateMedicament(medicament); err != nil {
-			fmt.Printf("Skipping invalid medicament %d: %v\n", med.Cis, err)
+			logging.Warn("Skipping invalid medicament: ", "error", err, "cis", med.Cis)
 			continue
 		}
 
@@ -147,19 +148,18 @@ func ParseAllMedicaments() []entities.Medicament {
 
 	}
 
-	fmt.Println("All medicaments parsed successfully")
+	logging.Info("All medicaments parsed successfully")
 	jsonMedicament, err := json.MarshalIndent(medicamentsSlice, "", "  ")
 	if err != nil {
-		fmt.Printf("error marshalling medicaments: %v\n", err)
+		logging.Error("Error marshalling medicaments", "error", err)
 		return nil
 	}
 
 	err = os.WriteFile("src/Medicaments.json", jsonMedicament, 0644)
 	if err != nil {
-		fmt.Printf("error writing Medicaments.json: %v\n", err)
+		logging.Error("Error writing Medicaments.json", "error", err)
 		return nil
 	}
-	fmt.Println("Medicaments.json created")
 	os.Stdout.Sync()
 
 	conditions = nil
