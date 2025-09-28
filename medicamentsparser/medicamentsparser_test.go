@@ -2,7 +2,6 @@ package medicamentsparser
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
@@ -25,7 +24,7 @@ func TestParseAllMedicaments(t *testing.T) {
 	fmt.Println("Calling ParseAllMedicaments...")
 	medicaments, err := ParseAllMedicaments()
 	if err != nil {
-		log.Fatal("Error parsing Medicaments: ", err)
+		t.Fatalf("Error parsing Medicaments: %v", err)
 	}
 	fmt.Printf("Parsed %d medicaments\n", len(medicaments))
 
@@ -105,8 +104,10 @@ func TestFileReadingErrors(t *testing.T) {
 	// So we'll test with valid empty array
 	os.WriteFile("src/Specialites.json", []byte("[]"), 0644)
 
-	//TODO: handle the error here ( _ is error )
-	specialites, _ := specialitesFileToJSON()
+	specialites, err := specialitesFileToJSON()
+	if err != nil {
+		t.Fatalf("Failed to read specialites file: %v", err)
+	}
 	if len(specialites) != 0 {
 		t.Errorf("Expected empty slice for empty array, got %d items", len(specialites))
 	}
