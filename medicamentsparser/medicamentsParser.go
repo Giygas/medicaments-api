@@ -77,7 +77,28 @@ func ParseAllMedicaments() []entities.Medicament {
 	generiquesChan = nil
 	compositionsChan = nil
 
-	var medicamentsSlice []entities.Medicament
+	// Make lookup maps (this is s O(n) task, but it makes possible searching as O(1))
+	compositionsMap := make(map[int][]entities.Composition)
+	for _, comp := range compositions {
+		compositionsMap[comp.Cis] = append(compositionsMap[comp.Cis], comp)
+	}
+
+	generiquesMap := make(map[int][]entities.Generique)
+	for _, gen := range generiques {
+		generiquesMap[gen.Cis] = append(generiquesMap[gen.Cis], gen)
+	}
+
+	presentationsMap := make(map[int][]entities.Presentation)
+	for _, pres := range presentations {
+		presentationsMap[pres.Cis] = append(presentationsMap[pres.Cis], pres)
+	}
+
+	conditionsMap := make(map[int][]string)
+	for _, cond := range conditions {
+		conditionsMap[cond.Cis] = append(conditionsMap[cond.Cis], cond.Condition)
+	}
+
+	medicamentsSlice := make([]entities.Medicament, 0, len(specialites))
 
 	for _, med := range specialites {
 
@@ -94,32 +115,26 @@ func ParseAllMedicaments() []entities.Medicament {
 		medicament.Titulaire = med.Titulaire
 		medicament.SurveillanceRenforcee = med.SurveillanceRenforcee
 
+		// Using map for O(1) lookup
 		// Get all the compositions of this medicament
-		for _, v := range compositions {
-			if med.Cis == v.Cis {
-				medicament.Composition = append(medicament.Composition, v)
-			}
+		if comps, exists := compositionsMap[med.Cis]; exists {
+			medicament.Composition = comps
 		}
 
 		// Get all the generiques of this medicament
-		for _, v := range generiques {
-			if med.Cis == v.Cis {
-				medicament.Generiques = append(medicament.Generiques, v)
-			}
+		if gen, exists := generiquesMap[med.Cis]; exists {
+			medicament.Generiques = gen
 		}
 
 		// Get all the presentations of this medicament
-		for _, v := range presentations {
-			if med.Cis == v.Cis {
-				medicament.Presentation = append(medicament.Presentation, v)
-			}
+		if pres, exists := presentationsMap[med.Cis]; exists {
+			medicament.Presentation = pres
 		}
 
 		// Get the conditions of this medicament
-		for _, v := range conditions {
-			if med.Cis == v.Cis {
-				medicament.Conditions = append(medicament.Conditions, v.Condition)
-			}
+
+		if cond, exists := conditionsMap[med.Cis]; exists {
+			medicament.Conditions = cond
 		}
 
 		// Validate the medicament structure
