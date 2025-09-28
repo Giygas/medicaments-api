@@ -2,6 +2,7 @@ CODE_REVIEW.md
 AGENTS.md
 logs/
 server_config.txt
+nginx_config_updated.txt
 **/files/*.txt
 */files/*.txt
 files/

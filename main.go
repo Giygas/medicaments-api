@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/giygas/medicamentsfr/config"
 	"github.com/giygas/medicamentsfr/logging"
 	"github.com/giygas/medicamentsfr/medicamentsparser"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 	_ "net/http/pprof"
@@ -190,6 +190,13 @@ func updateData() error {
 
 func init() {
 
+	// Load and validate configuration
+	cfg, err := config.Load()
+	if err != nil {
+		logging.Error("Configuration validation failed", "error", err)
+		os.Exit(1)
+	}
+
 	// Initialize stores with empty data
 	dataContainer.medicaments.Store(make([]entities.Medicament, 0))
 	dataContainer.generiques.Store(make([]entities.GeneriqueList, 0))
@@ -198,7 +205,7 @@ func init() {
 	dataContainer.lastUpdated.Store(time.Time{})
 
 	// Get the working directory and read the env variables
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		// If failed, try loading from executable directory
 		ex, err := os.Executable()
@@ -216,27 +223,28 @@ func init() {
 		}
 
 	}
+
+	// Log configuration on startup
+	logging.Info("Configuration loaded successfully",
+		"port", cfg.Port,
+		"address", cfg.Address,
+		"env", cfg.Env,
+		"log_level", cfg.LogLevel)
+
 	go scheduleMedicaments()
 }
 
 func main() {
 
-	// Initialize slog for structured logging to console and file
-	logging.InitLogger("logs")
-
-	portString := os.Getenv("PORT")
-	if portString == "" {
-		logging.Error("PORT is not found in the environment")
+	// Load and validate configuration
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Configuration validation failed: %v\n", err)
 		os.Exit(1)
 	}
-	adressString := os.Getenv("ADDRESS")
-	if adressString == "" {
-		adressString = "127.0.0.1" // default to localhost
-	}
-	environment := os.Getenv("ENV")
-	if environment == "" {
-		environment = "dev" //default as dev
-	}
+
+	// Initialize slog for structured logging to console and file
+	logging.InitLogger("logs")
 
 	router := chi.NewRouter()
 
@@ -247,20 +255,13 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(blockDirectAccessMiddleware)
 
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
+	// CORS headers are now handled by nginx configuration
 
 	router.Use(rateLimitHandler)
 
 	server := &http.Server{
 		Handler:      router,
-		Addr:         adressString + ":" + portString,
+		Addr:         cfg.Address + ":" + cfg.Port,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -276,7 +277,7 @@ func main() {
 	router.Get("/health", healthCheck)
 
 	// Profiling endpoint (accessible at /debug/pprof/) - only for local dev
-	if environment == "dev" {
+	if cfg.Env == "dev" {
 		go func() {
 			fmt.Println("Profiling server started at http://localhost:6060/debug/pprof/")
 			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
@@ -311,7 +312,7 @@ func main() {
 
 	// Start the server in a goroutine
 	go func() {
-		logging.Info("Starting server at: ", adressString, portString)
+		logging.Info("Starting server at: ", cfg.Address, cfg.Port)
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logging.Error("Server failed to start", "error", err)
