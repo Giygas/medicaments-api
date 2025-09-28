@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicamentsfr/config"
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 )
@@ -227,4 +229,132 @@ func TestRateLimiter(t *testing.T) {
 	}
 
 	fmt.Println("Rate limiter test completed")
+}
+
+func TestRequestSizeMiddleware(t *testing.T) {
+	fmt.Println("Testing request size middleware...")
+
+	// Create test configuration
+	cfg := &config.Config{
+		MaxRequestBody: 1024, // 1KB for testing
+		MaxHeaderSize:  512,  // 512 bytes for testing
+		Port:           "8002",
+		Address:        "127.0.0.1",
+		Env:            "test",
+		LogLevel:       "info",
+	}
+
+	// Test handler that simply returns 200 OK
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Wrap the test handler with our middleware
+	middleware := requestSizeMiddleware(cfg)
+	protectedHandler := middleware(testHandler)
+
+	t.Run("Valid request - small body", func(t *testing.T) {
+		body := []byte("small request body")
+		req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("Valid request - no content length", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("Invalid request - body too large via Content-Length", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/test", nil)
+		req.Header.Set("Content-Length", "2048") // Larger than MaxRequestBody (1024)
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusRequestEntityTooLarge {
+			t.Errorf("Expected status 413, got %d", w.Code)
+		}
+
+		// Check response body contains error message
+		if w.Body.Len() == 0 {
+			t.Error("Expected error response body, got empty")
+		}
+	})
+
+	t.Run("Invalid request - headers too large", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+
+		// Add many large headers to exceed MaxHeaderSize (512 bytes)
+		for i := 0; i < 20; i++ {
+			req.Header.Set(fmt.Sprintf("X-Large-Header-%d", i), fmt.Sprintf("%0200d", i))
+		}
+
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusRequestHeaderFieldsTooLarge {
+			t.Errorf("Expected status 431, got %d", w.Code)
+		}
+
+		// Check response body contains error message
+		if w.Body.Len() == 0 {
+			t.Error("Expected error response body, got empty")
+		}
+	})
+
+	t.Run("Valid request - exact size limit", func(t *testing.T) {
+		body := make([]byte, 1024) // Exactly MaxRequestBody
+		req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+		req.Header.Set("Content-Length", "1024")
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("Invalid request - body just over limit", func(t *testing.T) {
+		body := make([]byte, 1025) // Just over MaxRequestBody
+		req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+		req.Header.Set("Content-Length", "1025")
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusRequestEntityTooLarge {
+			t.Errorf("Expected status 413, got %d", w.Code)
+		}
+	})
+
+	t.Run("Invalid Content-Length header", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/test", nil)
+		req.Header.Set("Content-Length", "invalid")
+		w := httptest.NewRecorder()
+
+		protectedHandler.ServeHTTP(w, req)
+
+		// Should pass through when Content-Length is invalid (can't parse)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for invalid Content-Length, got %d", w.Code)
+		}
+	})
+
+	fmt.Println("Request size middleware test completed")
 }
