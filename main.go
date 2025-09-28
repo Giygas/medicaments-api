@@ -229,7 +229,9 @@ func init() {
 		"port", cfg.Port,
 		"address", cfg.Address,
 		"env", cfg.Env,
-		"log_level", cfg.LogLevel)
+		"log_level", cfg.LogLevel,
+		"max_request_body", cfg.MaxRequestBody,
+		"max_header_size", cfg.MaxHeaderSize)
 
 	go scheduleMedicaments()
 }
@@ -254,6 +256,7 @@ func main() {
 	router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
 	router.Use(middleware.Recoverer)
 	router.Use(blockDirectAccessMiddleware)
+	router.Use(requestSizeMiddleware(cfg))
 
 	// CORS headers are now handled by nginx configuration
 

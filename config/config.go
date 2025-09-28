@@ -11,19 +11,23 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Port     string
-	Address  string
-	Env      string
-	LogLevel string
+	Port           string
+	Address        string
+	Env            string
+	LogLevel       string
+	MaxRequestBody int64 // Maximum request body size in bytes
+	MaxHeaderSize  int64 // Maximum header size in bytes
 }
 
 // Load loads and validates configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:     getEnvWithDefault("PORT", "8002"),
-		Address:  getEnvWithDefault("ADDRESS", "127.0.0.1"),
-		Env:      getEnvWithDefault("ENV", "dev"),
-		LogLevel: getEnvWithDefault("LOG_LEVEL", "info"),
+		Port:           getEnvWithDefault("PORT", "8002"),
+		Address:        getEnvWithDefault("ADDRESS", "127.0.0.1"),
+		Env:            getEnvWithDefault("ENV", "dev"),
+		LogLevel:       getEnvWithDefault("LOG_LEVEL", "info"),
+		MaxRequestBody: getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576), // 1MB default
+		MaxHeaderSize:  getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),  // 1MB default
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -53,6 +57,16 @@ func validateConfig(cfg *Config) error {
 	// Validate LOG_LEVEL
 	if err := validateLogLevel(cfg.LogLevel); err != nil {
 		return fmt.Errorf("invalid LOG_LEVEL: %w", err)
+	}
+
+	// Validate MAX_REQUEST_BODY
+	if err := validateSizeLimit(cfg.MaxRequestBody, "MAX_REQUEST_BODY"); err != nil {
+		return fmt.Errorf("invalid MAX_REQUEST_BODY: %w", err)
+	}
+
+	// Validate MAX_HEADER_SIZE
+	if err := validateSizeLimit(cfg.MaxHeaderSize, "MAX_HEADER_SIZE"); err != nil {
+		return fmt.Errorf("invalid MAX_HEADER_SIZE: %w", err)
 	}
 
 	return nil
@@ -143,10 +157,33 @@ func validateLogLevel(logLevel string) error {
 	return fmt.Errorf("LOG_LEVEL must be one of: %v, got: %s", validLevels, logLevel)
 }
 
+// validateSizeLimit validates size limit configuration values
+func validateSizeLimit(size int64, configName string) error {
+	if size <= 0 {
+		return fmt.Errorf("%s must be positive, got: %d", configName, size)
+	}
+
+	if size > 100*1024*1024 { // 100MB
+		return fmt.Errorf("%s is too large (max 100MB), got: %d bytes", configName, size)
+	}
+
+	return nil
+}
+
 // getEnvWithDefault gets an environment variable with a default value
 func getEnvWithDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getInt64EnvWithDefault gets an environment variable as int64 with a default value
+func getInt64EnvWithDefault(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }
@@ -158,6 +195,8 @@ func GetEnvVars() []string {
 		"ADDRESS",
 		"ENV",
 		"LOG_LEVEL",
+		"MAX_REQUEST_BODY",
+		"MAX_HEADER_SIZE",
 	}
 }
 
