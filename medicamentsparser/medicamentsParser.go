@@ -11,7 +11,7 @@ import (
 	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
 )
 
-func validateMedicament(m *entities.Medicament) error {
+func validateMedicamenti(m *entities.Medicament) error {
 	if m.Cis <= 0 {
 		return fmt.Errorf("invalid CIS: %d", m.Cis)
 	}
@@ -25,7 +25,7 @@ func validateMedicament(m *entities.Medicament) error {
 	return nil
 }
 
-func ParseAllMedicaments() []entities.Medicament {
+func ParseAllMedicaments() ([]entities.Medicament, error) {
 
 	// Download the neccesary files from https://base-donnees-publique.medicaments.gouv.fr/telechargement
 	downloadAndParseAll()
@@ -39,25 +39,56 @@ func ParseAllMedicaments() []entities.Medicament {
 	specialitesChan := make(chan []entities.Specialite)
 	generiquesChan := make(chan []entities.Generique)
 	compositionsChan := make(chan []entities.Composition)
+	errorChan := make(chan error, 5)
 
 	go func() {
-		conditionsChan <- makeConditions(&wg)
+		result, err := makeConditions(&wg)
+		if err != nil {
+			logging.Error("Failed to parse conditions", "error", err)
+			errorChan <- err
+			return
+		}
+		conditionsChan <- result
 	}()
 
 	go func() {
-		presentationsChan <- makePresentations(&wg)
+		result, err := makePresentations(&wg)
+		if err != nil {
+			logging.Error("Failed to parse presentations", "error", err)
+			errorChan <- err
+			return
+		}
+		presentationsChan <- result
 	}()
 
 	go func() {
-		specialitesChan <- makeSpecialites(&wg)
+		result, err := makeSpecialites(&wg)
+		if err != nil {
+			logging.Error("Failed to parse specialites", "error", err)
+			errorChan <- err
+			return
+		}
+		specialitesChan <- result
 	}()
 
 	go func() {
-		generiquesChan <- makeGeneriques(&wg)
+		result, err := makeGeneriques(&wg)
+		if err != nil {
+			logging.Error("Failed to parse generiques", "error", err)
+			errorChan <- err
+			return
+		}
+		generiquesChan <- result
 	}()
 
 	go func() {
-		compositionsChan <- makeCompositions(&wg)
+		result, err := makeCompositions(&wg)
+		if err != nil {
+			logging.Error("Failed to parse compositions", "error", err)
+			errorChan <- err
+			return
+		}
+		compositionsChan <- result
 	}()
 
 	wg.Wait()
@@ -139,7 +170,7 @@ func ParseAllMedicaments() []entities.Medicament {
 		}
 
 		// Validate the medicament structure
-		if err := validateMedicament(medicament); err != nil {
+		if err := validateMedicamenti(medicament); err != nil {
 			logging.Warn("Skipping invalid medicament: ", "error", err, "cis", med.Cis)
 			continue
 		}
@@ -152,13 +183,13 @@ func ParseAllMedicaments() []entities.Medicament {
 	jsonMedicament, err := json.MarshalIndent(medicamentsSlice, "", "  ")
 	if err != nil {
 		logging.Error("Error marshalling medicaments", "error", err)
-		return nil
+		return nil, err
 	}
 
 	err = os.WriteFile("src/Medicaments.json", jsonMedicament, 0644)
 	if err != nil {
 		logging.Error("Error writing Medicaments.json", "error", err)
-		return nil
+		return nil, err
 	}
 	os.Stdout.Sync()
 
@@ -168,5 +199,5 @@ func ParseAllMedicaments() []entities.Medicament {
 	generiques = nil
 	compositions = nil
 
-	return medicamentsSlice
+	return medicamentsSlice, nil
 }

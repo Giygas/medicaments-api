@@ -2,6 +2,7 @@ package medicamentsparser
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -11,12 +12,15 @@ import (
 
 var medsType map[int]string
 
-func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique) {
+func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
 
 	var err error
 
 	// allGeneriques: []Generique
-	allGeneriques := makeGeneriques(nil)
+	allGeneriques, err := makeGeneriques(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse generiques: %w", err)
+	}
 
 	// Create a map of all the generiques to reduce algorithm complexity
 	generiquesMap := make(map[int]entities.Generique)
@@ -28,12 +32,15 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	generiquesFile, err := generiqueFileToJSON()
 	if err != nil {
 		logging.Error("Failed to read generiques file", "error", err)
-		os.Exit(1)
+		return nil, nil, fmt.Errorf("failed to read generiques file: %w", err)
 	}
 
 	// The medsType is a map where the key are the medicament cis and the value is the
 	// type of generique
-	medsType = createMedicamentGeneriqueType()
+	medsType, err = createMedicamentGeneriqueType()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create medicament generique type mapping: %w", err)
+	}
 
 	var generiques []entities.GeneriqueList
 
@@ -68,7 +75,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	}
 
 	logging.Info("Generiques parsing completed", "count", len(generiques))
-	return generiques, generiquesMap
+	return generiques, generiquesMap, nil
 }
 
 func createGeneriqueComposition(medicamentComposition *[]entities.Composition) []entities.GeneriqueComposition {

@@ -2,6 +2,7 @@ package medicamentsparser
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
@@ -22,7 +23,10 @@ func TestParseAllMedicaments(t *testing.T) {
 	// Since downloadAndParseAll is private, we test with existing files
 	// In a real scenario, ensure test files are present
 	fmt.Println("Calling ParseAllMedicaments...")
-	medicaments := ParseAllMedicaments()
+	medicaments, err := ParseAllMedicaments()
+	if err != nil {
+		log.Fatal("Error parsing Medicaments: ", err)
+	}
 	fmt.Printf("Parsed %d medicaments\n", len(medicaments))
 
 	if len(medicaments) == 0 {
@@ -65,7 +69,10 @@ func TestGeneriquesParser(t *testing.T) {
 	}
 
 	fmt.Println("Calling GeneriquesParser...")
-	generiques, generiquesMap := GeneriquesParser(&medicaments, &medicamentsMap)
+	generiques, generiquesMap, err := GeneriquesParser(&medicaments, &medicamentsMap)
+	if err != nil {
+		t.Fatalf("GeneriquesParser failed: %v", err)
+	}
 	fmt.Printf("Generated %d generiques and %d generiquesMap entries\n", len(generiques), len(generiquesMap))
 
 	if len(generiques) == 0 {

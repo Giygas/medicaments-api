@@ -20,6 +20,7 @@ func InitLogger(logDir string) {
 }
 
 // Package-level functions for direct access
+
 func Info(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
 		// Fallback to console logger if not initialized

@@ -157,7 +157,11 @@ func updateData() error {
 	start := time.Now()
 
 	// Parse data into temporary variables (not affecting current data)
-	newMedicaments := medicamentsparser.ParseAllMedicaments()
+	newMedicaments, err := medicamentsparser.ParseAllMedicaments()
+	if err != nil {
+		logging.Error("Failed to parse medicaments", "error", err)
+		return fmt.Errorf("failed to parse medicaments: %w", err)
+	}
 
 	// Create new maps
 	newMedicamentsMap := make(map[int]entities.Medicament)
@@ -165,7 +169,11 @@ func updateData() error {
 		newMedicamentsMap[newMedicaments[i].Cis] = newMedicaments[i]
 	}
 
-	newGeneriques, newGeneriquesMap := medicamentsparser.GeneriquesParser(&newMedicaments, &newMedicamentsMap)
+	newGeneriques, newGeneriquesMap, err := medicamentsparser.GeneriquesParser(&newMedicaments, &newMedicamentsMap)
+	if err != nil {
+		logging.Error("Failed to parse generiques", "error", err)
+		return fmt.Errorf("failed to parse generiques: %w", err)
+	}
 
 	// Atomic swap (zero downtime replacement)
 	dataContainer.medicaments.Store(newMedicaments)
