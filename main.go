@@ -250,10 +250,10 @@ func main() {
 
 	router := chi.NewRouter()
 
-	router.Use(middleware.RedirectSlashes)
 	router.Use(middleware.RequestID)
 	router.Use(realIPMiddleware)
 	router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
+	router.Use(middleware.RedirectSlashes)
 	router.Use(middleware.Recoverer)
 	router.Use(blockDirectAccessMiddleware)
 	router.Use(requestSizeMiddleware(cfg))
@@ -315,7 +315,7 @@ func main() {
 
 	// Start the server in a goroutine
 	go func() {
-		logging.Info("Starting server at: ", cfg.Address, cfg.Port)
+		logging.Info(fmt.Sprintf("Starting server at: %s:%s", cfg.Address, cfg.Port))
 
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logging.Error("Server failed to start", "error", err)
