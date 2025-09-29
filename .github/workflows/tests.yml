@@ -24,15 +24,15 @@ jobs:
       - name: Run Parser Tests
         run: go test ./medicamentsparser -v
 
-       - name: Run Main Tests with Coverage
-         run: go test -coverprofile=coverage.out . -v
+      - name: Run Main Tests with Coverage
+        run: go test -coverprofile=coverage.out . -v
 
-       - name: Generate Coverage Report
-         run: go tool cover -html=coverage.out -o coverage.html
+      - name: Generate Coverage Report
+        run: go tool cover -html=coverage.out -o coverage.html
 
-       - name: Upload Coverage Reports
-         uses: actions/upload-artifact@v4
-         with:
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
           name: coverage-reports
           path: |
             coverage.out
