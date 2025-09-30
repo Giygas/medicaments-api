@@ -1,0 +1,623 @@
+openapi: 3.0.0
+info:
+  title: API Médicaments FR
+  description: |
+    Une API JSON pour récupérer des données sur les médicaments à partir de sources externes analysées.
+    Fournit des points de terminaison pour rechercher, lister et récupérer des médicaments et des génériques.
+    
+    Les données de l'API sont mises à jour deux fois par jour (6h00 et 18h00 heure locale) 
+    à partir de la base de données publique officielle des médicaments français :
+    https://base-donnees-publique.medicaments.gouv.fr
+    
+    Toutes les réponses sont compressées avec gzip et incluent des en-têtes de cache appropriés.
+  version: 1.0.0
+  contact:
+    name: Github
+    url: https://github.com/giygas/medicamentsfr
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  externalDocs:
+    description: Base de données publique des médicaments
+    url: https://base-donnees-publique.medicaments.gouv.fr
+
+servers:
+  - url: https://api.medicaments.fr
+    description: Serveur de production
+
+paths:
+  /database:
+    get:
+      summary: Obtenir tous les médicaments
+      description: Récupérer la liste complète de tous les médicaments dans la base de données
+      tags:
+        - Médicaments
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Medicament'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=21600"
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              schema:
+                type: string
+        '304':
+          description: Not modified (client has cached version)
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /database/{pageNumber}:
+    get:
+      summary: Obtenir les médicaments paginés
+      description: Récupérer les médicaments par pages de 10 éléments chacune
+      tags:
+        - Médicaments
+      parameters:
+        - name: pageNumber
+          in: path
+          required: true
+          description: Page number (starting from 1)
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Medicament'
+                  page:
+                    type: integer
+                    example: 1
+                  pageSize:
+                    type: integer
+                    example: 10
+                  totalItems:
+                    type: integer
+                    example: 15000
+                  maxPage:
+                    type: integer
+                    example: 1500
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=21600"
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+        '400':
+          description: Invalid page number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Page not found (exceeds maximum pages)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /medicament/{element}:
+    get:
+      summary: Rechercher des médicaments par nom
+      description: Rechercher des médicaments par dénomination (insensible à la casse)
+      tags:
+        - Médicaments
+      parameters:
+        - name: element
+          in: path
+          required: true
+          description: Search term (3-50 characters, alphanumeric with spaces)
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 50
+            pattern: '^[a-zA-Z0-9 ]+$'
+          example: "paracetamol"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Medicament'
+                  count:
+                    type: integer
+                    example: 5
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=3600"
+        '400':
+          description: Invalid search term
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No medicaments found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /medicament/id/{cis}:
+    get:
+      summary: Obtenir un médicament par code CIS
+      description: Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité)
+      tags:
+        - Médicaments
+      parameters:
+        - name: cis
+          in: path
+          required: true
+          description: CIS code (positive integer less than 1,000,000,000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 999999999
+          example: 61504672
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicament'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=43200"
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+        '400':
+          description: Invalid CIS code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Medicament not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /generiques/{libelle}:
+    get:
+      summary: Rechercher des groupes génériques par nom
+      description: Rechercher des groupes génériques par libellé (insensible à la casse)
+      tags:
+        - Génériques
+      parameters:
+        - name: libelle
+          in: path
+          required: true
+          description: Search term (3-50 characters, alphanumeric with spaces)
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 50
+            pattern: '^[a-zA-Z0-9 ]+$'
+          example: "paracetamol"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeneriqueList'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=3600"
+        '400':
+          description: Invalid search term
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No generics found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /generiques/group/{groupId}:
+    get:
+      summary: Obtenir un groupe générique par ID
+      description: Récupérer un groupe générique spécifique par son ID de groupe
+      tags:
+        - Génériques
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: Group ID (positive integer less than 100,000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 99999
+          example: 1234
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Generique'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=43200"
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+        '400':
+          description: Invalid group ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Generic group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Point de terminaison de vérification de santé
+      description: Vérifier l'état de santé de l'API et de la base de données
+      tags:
+        - Système
+      responses:
+        '200':
+          description: Healthy system
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  medicament_count:
+                    type: integer
+                    example: 15000
+                  generique_count:
+                    type: integer
+                    example: 5000
+                  last_updated:
+                    type: string
+                    format: date-time
+                    example: "2025-09-30T10:30:00Z"
+                  updating:
+                    type: boolean
+                    example: false
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Medicament:
+      type: object
+      description: Un médicament avec tous les détails
+      properties:
+        cis:
+          type: integer
+          description: Code Identifiant de Spécialité
+          example: 61504672
+        elementPharmaceutique:
+          type: string
+          description: Dénomination pharmaceutique
+          example: "PARACETAMOL MYLAN 1 g, comprimé"
+        formePharmaceutique:
+          type: string
+          description: Forme pharmaceutique
+          example: "comprimé"
+        voiesAdministration:
+          type: array
+          items:
+            type: string
+          description: Voies d'administration
+          example: ["orale"]
+        statusAutorisation:
+          type: string
+          description: Statut d'autorisation
+          example: "Autorisation active"
+        typeProcedure:
+          type: string
+          description: Type de procédure
+          example: "Procédure nationale"
+        etatComercialisation:
+          type: string
+          description: État de commercialisation
+          example: "Commercialisée"
+        dateAMM:
+          type: string
+          description: Date d'autorisation de mise sur le marché
+          example: "2000-01-01"
+        titulaire:
+          type: string
+          description: Titulaire de l'autorisation
+          example: "MYLAN SAS"
+        surveillanceRenforce:
+          type: string
+          description: Surveillance renforcée
+          example: "Non"
+        composition:
+          type: array
+          items:
+            $ref: '#/components/schemas/Composition'
+          description: Composition du médicament
+        generiques:
+          type: array
+          items:
+            $ref: '#/components/schemas/Generique'
+          description: Génériques associés
+        presentation:
+          type: array
+          items:
+            $ref: '#/components/schemas/Presentation'
+          description: Présentations disponibles
+        conditions:
+          type: array
+          items:
+            type: string
+          description: Conditions de prescription
+          example: ["Médicament soumis à prescription médicale"]
+
+    Composition:
+      type: object
+      description: Composition element of a medicament
+      properties:
+        cis:
+          type: integer
+          description: CIS code
+          example: 61504672
+        elementPharmaceutique:
+          type: string
+          description: Pharmaceutical element
+          example: "paracétamol"
+        codeSubstance:
+          type: integer
+          description: Substance code
+          example: 12345
+        denominationSubstance:
+          type: string
+          description: Substance denomination
+          example: "PARACETAMOL"
+        dosage:
+          type: string
+          description: Dosage
+          example: "1,000 g"
+        referenceDosage:
+          type: string
+          description: Reference dosage
+          example: "1,000 g"
+        natureComposant:
+          type: string
+          description: Component nature
+          example: "substance active"
+
+    Generique:
+      type: object
+      description: Generic information for a medicament
+      properties:
+        cis:
+          type: integer
+          description: CIS code
+          example: 61504672
+        group:
+          type: integer
+          description: Generic group ID
+          example: 1234
+        libelle:
+          type: string
+          description: Generic group label
+          example: "PARACETAMOL 1 g, comprimé"
+        type:
+          type: string
+          description: Generic type
+          example: "Princeps"
+
+    Presentation:
+      type: object
+      description: Presentation of a medicament
+      properties:
+        cis:
+          type: integer
+          description: CIS code
+          example: 61504672
+        cip7:
+          type: integer
+          description: CIP-7 code
+          example: 1234567
+        libelle:
+          type: string
+          description: Presentation label
+          example: "PARACETAMOL MYLAN 1 g, comprimé pelliculé, boîte de 8"
+        statusAdministratif:
+          type: string
+          description: Administrative status
+          example: "Présentation active"
+        etatComercialisation:
+          type: string
+          description: Commercialization status
+          example: "Commercialisée"
+        dateDeclaration:
+          type: string
+          description: Declaration date
+          example: "2000-01-01"
+        cip13:
+          type: integer
+          description: CIP-13 code
+          example: 3400912345678
+        agreement:
+          type: string
+          description: Agreement status
+          example: "Oui"
+        tauxRemboursement:
+          type: string
+          description: Reimbursement rate
+          example: "65%"
+        prix:
+          type: number
+          format: float
+          description: Price
+          example: 2.45
+
+    GeneriqueList:
+      type: object
+      description: List of medicaments in a generic group
+      properties:
+        groupID:
+          type: integer
+          description: Generic group ID
+          example: 1234
+        libelle:
+          type: string
+          description: Generic group label
+          example: "PARACETAMOL 1 g, comprimé"
+        medicaments:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneriqueMedicament'
+          description: Medicaments in this generic group
+
+    GeneriqueMedicament:
+      type: object
+      description: Medicament within a generic group
+      properties:
+        cis:
+          type: integer
+          description: CIS code
+          example: 61504672
+        elementPharmaceutique:
+          type: string
+          description: Pharmaceutical denomination
+          example: "PARACETAMOL MYLAN 1 g, comprimé"
+        formePharmaceutique:
+          type: string
+          description: Pharmaceutical form
+          example: "comprimé"
+        type:
+          type: string
+          description: Generic type
+          example: "Princeps"
+        composition:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneriqueComposition'
+          description: Composition for generic grouping
+
+    GeneriqueComposition:
+      type: object
+      description: Composition element for generic grouping
+      properties:
+        elementPharmaceutique:
+          type: string
+          description: Pharmaceutical element
+          example: "paracétamol"
+        substance:
+          type: string
+          description: Substance name
+          example: "PARACETAMOL"
+        dosage:
+          type: string
+          description: Dosage
+          example: "1,000 g"
+
+    Error:
+      type: object
+      description: Réponse d'erreur
+      properties:
+        error:
+          type: string
+          description: Message d'erreur
+          example: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+
+tags:
+  - name: Médicaments
+    description: Points de terminaison liés aux médicaments
+  - name: Génériques
+    description: Points de terminaison des groupes de médicaments génériques
+  - name: Système
+    description: Points de terminaison de santé et d'état du système
