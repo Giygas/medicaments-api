@@ -299,6 +299,20 @@ func main() {
 		http.ServeFile(w, r, "html/index.html")
 	})
 
+	// Serve OpenAPI specification
+	router.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
+		http.ServeFile(w, r, "html/openapi.yaml")
+	})
+
+	// Serve Swagger UI documentation
+	router.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "html/docs.html")
+	})
+
 	// Favicon
 	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		// Long cache for favicon since it rarely changes
