@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/giygas/medicamentsfr/logging"
+	"github.com/giygas/medicaments-api/logging"
 	"golang.org/x/text/encoding/charmap"
 )
 

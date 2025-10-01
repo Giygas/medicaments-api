@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 // TestParseAllMedicaments tests the main parsing function with mock data

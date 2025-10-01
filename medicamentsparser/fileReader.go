@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 func specialitesFileToJSON() ([]entities.Specialite, error) {

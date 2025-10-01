@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/giygas/medicamentsfr/logging"
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 var medsType map[int]string

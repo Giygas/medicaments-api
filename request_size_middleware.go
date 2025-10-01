@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/giygas/medicamentsfr/config"
-	"github.com/giygas/medicamentsfr/logging"
+	"github.com/giygas/medicaments-api/config"
+	"github.com/giygas/medicaments-api/logging"
 )
 
 // requestSizeMiddleware limits the size of incoming requests to prevent memory exhaustion attacks

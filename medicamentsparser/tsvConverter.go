@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {

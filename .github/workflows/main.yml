@@ -22,9 +22,9 @@ jobs:
         run: go mod download
       - name: Build
         run: |
-          GOOS=linux GOARCH=amd64 go build -o medicamentsfr .
-          ls -la medicamentsfr  # Verify binary exists and show size
-          file medicamentsfr    # Show file type to confirm it's executable
+          GOOS=linux GOARCH=amd64 go build -o medicaments-api .
+          ls -la medicaments-api  # Verify binary exists and show size
+          file medicaments-api    # Show file type to confirm it's executable
         
       - name: install ssh keys
         # check this thread to understand why its needed:
@@ -49,16 +49,16 @@ jobs:
             echo "=== Initiating graceful shutdown ==="
             
             # Check if service exists and is running
-            if sudo systemctl is-active --quiet medicamentsfr; then
+            if sudo systemctl is-active --quiet medicaments-api; then
               echo "Service is running, initiating graceful stop..."
               
               # Send graceful stop signal
-              sudo systemctl stop medicamentsfr
+              sudo systemctl stop medicaments-api
               
               # Wait for graceful shutdown (max 40 seconds - your timeout is 30s + buffer)
               echo "Waiting for graceful shutdown to complete..."
               for i in {1..40}; do
-                if ! sudo systemctl is-active --quiet medicamentsfr; then
+                if ! sudo systemctl is-active --quiet medicaments-api; then
                   echo "Service stopped gracefully after ${i} seconds"
                   break
                 fi
@@ -67,9 +67,9 @@ jobs:
               done
               
               # Force stop if still running (shouldn't happen with proper graceful shutdown)
-              if sudo systemctl is-active --quiet medicamentsfr; then
+if sudo systemctl is-active --quiet medicaments-api; then
                 echo "WARNING: Graceful shutdown timed out, forcing stop..."
-                sudo systemctl kill medicamentsfr
+                sudo systemctl kill medicaments-api
                 sleep 2
               fi
               
@@ -78,9 +78,9 @@ jobs:
             fi
             
             # Double-check no processes are left
-            if pgrep -f medicamentsfr > /dev/null; then
+            if pgrep -f medicaments-api > /dev/null; then
               echo "WARNING: Found lingering processes, cleaning up..."
-              pkill -f medicamentsfr
+              pkill -f medicaments-api
               sleep 2
             fi
             
@@ -91,7 +91,7 @@ jobs:
       - name: Copy binary to server
         run: |
           echo "Copying to: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}"
-          scp -v medicamentsfr ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}
+          scp -v medicaments-api ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}
 
       - name: Verify binary was copied
         run: |
@@ -100,11 +100,11 @@ jobs:
             echo "Contents of ${{ secrets.REPO_DIR }}:"
             ls -la ${{ secrets.REPO_DIR }}
             echo ""
-            echo "Specifically looking for medicamentsfr:"
-            ls -la ${{ secrets.REPO_DIR }}/medicamentsfr || echo "BINARY NOT FOUND!"
+            echo "Specifically looking for medicaments-api:"
+            ls -la ${{ secrets.REPO_DIR }}/medicaments-api || echo "BINARY NOT FOUND!"
             echo ""
             echo "File type and permissions:"
-            file ${{ secrets.REPO_DIR }}/medicamentsfr || echo "Cannot check file type - file missing"
+            file ${{ secrets.REPO_DIR }}/medicaments-api || echo "Cannot check file type - file missing"
           EOF
 
       - name: Copy html files
@@ -119,8 +119,8 @@ jobs:
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             cd ${{ secrets.REPO_DIR }}
-            chmod +x medicamentsfr
-            ls -la medicamentsfr  # Verify file is there and executable
+            chmod +x medicaments-api
+            ls -la medicaments-api  # Verify file is there and executable
             ${{ secrets.APP_RESTART }}
           EOF
           

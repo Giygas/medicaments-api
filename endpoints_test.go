@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giygas/medicamentsfr/config"
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/config"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 )
 

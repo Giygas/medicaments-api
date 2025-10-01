@@ -7,8 +7,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/giygas/medicamentsfr/logging"
-	"github.com/giygas/medicamentsfr/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 func validateMedicamenti(m *entities.Medicament) error {

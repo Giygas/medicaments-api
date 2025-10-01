@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/giygas/medicamentsfr/logging"
+	"github.com/giygas/medicaments-api/logging"
 )
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

@@ -10,7 +10,7 @@ src/
 src/*
 .env
 .DS_Store
-/medicamentsfr
+/medicaments-api
 medicamentsparser/files
 medicamentsparser/src
 coverage.html
