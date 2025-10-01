@@ -17,13 +17,13 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  externalDocs:
-    description: Base de données publique des médicaments
-    url: https://base-donnees-publique.medicaments.gouv.fr
+externalDocs:
+  description: Base de données publique des médicaments
+  url: https://base-donnees-publique.medicaments.gouv.fr
 
-servers:
-  - url: https://api.medicaments.fr
-    description: Serveur de production
+# servers:
+#   - url: https://api.medicaments.fr
+#     description: Serveur de production
 
 paths:
   /database:
