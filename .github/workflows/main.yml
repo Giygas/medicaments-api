@@ -67,10 +67,18 @@ jobs:
               done
               
               # Force stop if still running (shouldn't happen with proper graceful shutdown)
-if sudo systemctl is-active --quiet medicaments-api; then
+              if sudo systemctl is-active --quiet medicaments-api; then
                 echo "WARNING: Graceful shutdown timed out, forcing stop..."
                 sudo systemctl kill medicaments-api
                 sleep 2
+                
+                # Check if process is actually gone using pgrep instead of systemctl
+                if pgrep -f medicaments-api > /dev/null; then
+                  echo "ERROR: Processes still running after force kill, cleaning up..."
+                  pkill -9 -f medicaments-api
+                  sleep 2
+                  sudo systemctl reset-failed medicaments-api
+                fi
               fi
               
             else
