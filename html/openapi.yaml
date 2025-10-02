@@ -73,12 +73,6 @@ externalDocs:
   description: Base de données publique des médicaments
   url: https://base-donnees-publique.medicaments.gouv.fr
 
-servers:
-  - url: https://api.medicaments.fr
-    description: Serveur de production
-  - url: http://localhost:8080
-    description: Serveur de développement
-
 paths:
   /database:
     get:
