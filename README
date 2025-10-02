@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![API Status](https://img.shields.io/badge/API-Production-00C853.svg)](https://api.medicaments.fr/health)
+[![API Status](https://img.shields.io/badge/API-Production-00C853.svg)](https://medicamentsapi.giygas.dev/health)
 
 Une API RESTful haute performance qui fournit un accès programmatique aux données publiques
 des médicaments français via parsing concurrent de 5 sources BDPM, atomic zero-downtime updates,
@@ -49,34 +49,34 @@ Médicaments :
 #### Recherche de base
 ```bash
 # Base de données complète (~20MB)
-curl -H "Accept-Encoding: gzip" https://api.medicaments.fr/database
+curl -H "Accept-Encoding: gzip" https://medicamentsapi.giygas.dev/database
 
 # Pagination (10 médicaments par page)
-curl https://api.medicaments.fr/database/1
+curl https://medicamentsapi.giygas.dev/database/1
 
 # Recherche par nom (insensible à la casse, regex supporté)
-curl https://api.medicaments.fr/medicament/paracetamol
+curl https://medicamentsapi.giygas.dev/medicament/paracetamol
 
 # Recherche par CIS (Code Identifiant de Spécialité)
-curl https://api.medicaments.fr/medicament/id/61504672
+curl https://medicamentsapi.giygas.dev/medicament/id/61504672
 ```
 
 #### Génériques
 ```bash
 # Génériques par libellé
-curl https://api.medicaments.fr/generiques/paracetamol
+curl https://medicamentsapi.giygas.dev/generiques/paracetamol
 
 # Groupe générique par ID avec détails complets
-curl https://api.medicaments.fr/generiques/group/1234
+curl https://medicamentsapi.giygas.dev/generiques/group/1234
 ```
 
 #### Monitoring et santé
 ```bash
 # Health check avec métriques système
-curl https://api.medicaments.fr/health
+curl https://medicamentsapi.giygas.dev/health
 
 # Vérification des headers de rate limiting
-curl -I https://api.medicaments.fr/health
+curl -I https://medicamentsapi.giygas.dev/health
 ```
 
 #### JavaScript/TypeScript
@@ -84,7 +84,7 @@ curl -I https://api.medicaments.fr/health
 // Recherche avec gestion des erreurs
 async function searchMedicament(query) {
   try {
-    const response = await fetch(`https://api.medicaments.fr/medicament/${encodeURIComponent(query)}`);
+    const response = await fetch(`https://medicamentsapi.giygas.dev/medicament/${encodeURIComponent(query)}`);
     
     if (!response.ok) {
       if (response.status === 429) {
@@ -104,7 +104,7 @@ async function searchMedicament(query) {
 
 // Pagination
 async function getMedicamentsPage(page = 1) {
-  const response = await fetch(`https://api.medicaments.fr/database/${page}`);
+  const response = await fetch(`https://medicamentsapi.giygas.dev/database/${page}`);
   const data = await response.json();
   console.log(`Page ${data.page} of ${data.maxPage}, ${data.totalItems} total items`);
   return data.data;
@@ -117,7 +117,7 @@ import requests
 from typing import List, Dict, Any
 
 class MedicamentsAPI:
-    BASE_URL = "https://api.medicaments.fr"
+    BASE_URL = "https://medicamentsapi.giygas.dev"
     
     def __init__(self):
         self.session = requests.Session()
@@ -313,10 +313,10 @@ GET /health                     → 8ms  (health check)
 
 ### Accès à la documentation
 
-- **Documentation interactive** : [https://api.medicaments.fr/](https://api.medicaments.fr/)
-- **Swagger UI** : [https://api.medicaments.fr/docs](https://api.medicaments.fr/docs)
-- **OpenAPI spec** : [https://api.medicaments.fr/docs/openapi.yaml](https://api.medicaments.fr/docs/openapi.yaml)
-- **Health check** : [https://api.medicaments.fr/health](https://api.medicaments.fr/health)
+- **Documentation interactive** : [https://medicamentsapi.giygas.dev/](https://medicamentsapi.giygas.dev/)
+- **Swagger UI** : [https://medicamentsapi.giygas.dev/docs](https://medicamentsapi.giygas.dev/docs)
+- **OpenAPI spec** : [https://medicamentsapi.giygas.dev/docs/openapi.yaml](https://medicamentsapi.giygas.dev/docs/openapi.yaml)
+- **Health check** : [https://medicamentsapi.giygas.dev/health](https://medicamentsapi.giygas.dev/health)
 
 ### 📊 Modèle de données
 
@@ -569,9 +569,9 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 ## 📞 Support et contact
 
 ### Obtenir de l'aide
-- **Documentation** : [https://api.medicaments.fr/docs](https://api.medicaments.fr/docs)
+- **Documentation** : [https://medicamentsapi.giygas.dev/docs](https://medicamentsapi.giygas.dev/docs)
 - **Issues** : [GitHub Issues](https://github.com/giygas/medicaments-api/issues)
-- **Health check** : [https://api.medicaments.fr/health](https://api.medicaments.fr/health)
+- **Health check** : [https://medicamentsapi.giygas.dev/health](https://medicamentsapi.giygas.dev/health)
 
 ### Signaler un problème
 Pour signaler un bug ou une anomalie :
@@ -604,7 +604,7 @@ Les données médicales restent soumises à la licence de la **Base de Données 
 Si vous utilisez cette API dans vos projets, merci de citer :
 ```
 Données issues de la Base de Données Publique des Médicaments (BDPM)
-API : https://api.medicaments.fr/
+API : https://medicamentsapi.giygas.dev/
 Source : https://base-donnees-publique.medicaments.gouv.fr
 ```
 
