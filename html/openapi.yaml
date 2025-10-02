@@ -10,13 +10,34 @@ info:
     https://base-donnees-publique.medicaments.gouv.fr
     
     Toutes les réponses sont compressées avec gzip et incluent des en-têtes de cache appropriés.
+    
+    ## Rate Limiting
+    
+    L'API utilise un système de limitation de taux basé sur des tokens pour garantir une utilisation équitable :
+    
+    - **Capacité initiale** : Capacité de tokens par IP
+    - **Taux de recharge** : Taux de recharge des tokens par seconde
+    - **Nettoyage** : Les buckets inactifs sont nettoyés périodiquement
+    
+    Chaque endpoint a un coût en tokens indiqué dans sa description.
+    
+    Coûts approximatifs par endpoint :
+    - Endpoints système (health) : coût très faible
+    - Endpoints de recherche (médicaments, génériques) : coût moyen
+    - Endpoint complet (database) : coût élevé
+    
+    En-têtes de réponse :
+    - `X-RateLimit-Limit`: Capacité maximale de tokens
+    - `X-RateLimit-Remaining`: Tokens restants pour cette IP
+    - `X-RateLimit-Rate`: Taux de recharge des tokens
+    - `Retry-After`: Temps d'attente recommandé si limite dépassée
   version: 1.0.0
   contact:
     name: Github
     url: https://github.com/giygas/medicaments-api
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: AGPL-3.0
+    url: https://www.gnu.org/licenses/agpl-3.0.html
 externalDocs:
   description: Base de données publique des médicaments
   url: https://base-donnees-publique.medicaments.gouv.fr
@@ -32,6 +53,7 @@ paths:
       description: Récupérer la liste complète de tous les médicaments dans la base de données
       tags:
         - Médicaments
+      x-token-cost: 200
       responses:
         '200':
           description: Successful response
@@ -68,6 +90,7 @@ paths:
       description: Récupérer les médicaments par pages de 10 éléments chacune
       tags:
         - Médicaments
+      x-token-cost: 20
       parameters:
         - name: pageNumber
           in: path
@@ -135,6 +158,7 @@ paths:
       description: Rechercher des médicaments par dénomination (insensible à la casse)
       tags:
         - Médicaments
+      x-token-cost: 100
       parameters:
         - name: element
           in: path
@@ -191,6 +215,7 @@ paths:
       description: Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité)
       tags:
         - Médicaments
+      x-token-cost: 100
       parameters:
         - name: cis
           in: path
@@ -242,6 +267,7 @@ paths:
       description: Rechercher des groupes génériques par libellé (insensible à la casse)
       tags:
         - Génériques
+      x-token-cost: 20
       parameters:
         - name: libelle
           in: path
@@ -292,6 +318,7 @@ paths:
       description: Récupérer un groupe générique spécifique par son ID de groupe
       tags:
         - Génériques
+      x-token-cost: 20
       parameters:
         - name: groupId
           in: path
@@ -343,6 +370,7 @@ paths:
       description: Vérifier l'état de santé de l'API et de la base de données
       tags:
         - Système
+      x-token-cost: 5
       responses:
         '200':
           description: Healthy system

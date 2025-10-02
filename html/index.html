@@ -1,583 +1,767 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medicaments API - Accès aux données publiques des médicaments français</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Medicaments API - Accès aux données publiques des médicaments français
+    </title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        :root {
-            --color-primary: #000091;
-            --color-secondary: #6A6AF4;
-            --color-accent: #E1000F;
-            --color-bg: #0A0A0F;
-            --color-surface: #161620;
-            --color-text: #E4E4E7;
-            --color-text-muted: #A1A1AA;
-            --color-border: #27272A;
-        }
+      :root {
+        --color-primary: #000091;
+        --color-secondary: #6a6af4;
+        --color-accent: #e1000f;
+        --color-bg: #0a0a0f;
+        --color-surface: #161620;
+        --color-text: #e4e4e7;
+        --color-text-muted: #a1a1aa;
+        --color-border: #27272a;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background-color: var(--color-bg);
-            color: var(--color-text);
-            line-height: 1.6;
-        }
+      [data-theme="light"] {
+        --color-primary: #000091;
+        --color-secondary: #6a6af4;
+        --color-accent: #e1000f;
+        --color-bg: #ffffff;
+        --color-surface: #f8fafc;
+        --color-text: #1e293b;
+        --color-text-muted: #64748b;
+        --color-border: #e2e8f0;
+      }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+          "Ubuntu", "Cantarell", sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        line-height: 1.6;
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+      }
 
-        header {
-            border-bottom: 1px solid var(--color-border);
-            padding: 1.5rem 0;
-            margin-bottom: 4rem;
-        }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+      }
 
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+      header {
+        border-bottom: 1px solid var(--color-border);
+        padding: 1.5rem 0;
+        margin-bottom: 4rem;
+      }
 
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--color-text);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+      .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-        .logo-accent {
-            color: var(--color-primary);
-        }
+      .theme-switcher {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 50px;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
 
-        nav {
-            display: flex;
-            gap: 2rem;
-        }
+      .theme-switcher:hover {
+        border-color: var(--color-secondary);
+      }
 
-        nav a {
-            color: var(--color-text-muted);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.2s;
-        }
+      .theme-option {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+      }
 
-        nav a:hover {
-            color: var(--color-text);
-        }
+      .theme-option.active {
+        background: var(--color-primary);
+        color: white;
+      }
 
-        .hero {
-            margin-bottom: 6rem;
-            padding: 2rem 0;
-        }
+      .theme-option:not(.active) {
+        background: transparent;
+        color: var(--color-text-muted);
+      }
 
+      .theme-option:not(.active):hover {
+        color: var(--color-text);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-text);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .logo-accent {
+        color: var(--color-primary);
+      }
+
+      nav {
+        display: flex;
+        gap: 2rem;
+      }
+
+      nav a {
+        color: var(--color-text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: color 0.2s;
+      }
+
+      nav a:hover {
+        color: var(--color-text);
+      }
+
+      .hero {
+        margin-bottom: 6rem;
+        padding: 2rem 0;
+      }
+
+      h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
+      }
+
+      .hero h1 {
+        max-width: 900px;
+      }
+
+      .hero-subtitle {
+        font-size: 1.25rem;
+        color: var(--color-text-muted);
+        max-width: 700px;
+        line-height: 1.6;
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: 3rem;
+        margin-top: 3rem;
+        flex-wrap: wrap;
+      }
+
+      .stat {
+        text-align: center;
+      }
+
+      .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        display: block;
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .section {
+        margin-bottom: 6rem;
+      }
+
+      h2 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 2rem;
+        color: var(--color-text);
+      }
+
+      .intro-text {
+        font-size: 1.125rem;
+        line-height: 1.8;
+        color: var(--color-text-muted);
+        max-width: 800px;
+      }
+
+      .functions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .function-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 2rem;
+        transition:
+          all 0.2s,
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .function-card:hover {
+        border-color: var(--color-secondary);
+        transform: translateY(-2px);
+      }
+
+      .function-card h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: var(--color-text);
+      }
+
+      .function-card p {
+        color: var(--color-text-muted);
+        line-height: 1.6;
+      }
+
+      .function-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--color-primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+      }
+
+      .tech-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 2rem;
+      }
+
+      .tech-badge {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        color: var(--color-text);
+        font-weight: 500;
+        transition:
+          all 0.2s,
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .tech-badge:hover {
+        border-color: var(--color-secondary);
+        transform: translateY(-1px);
+      }
+
+      .legal-content {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 2rem;
+        margin-top: 2rem;
+        transition:
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .legal-content h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--color-text);
+      }
+
+      .legal-content p {
+        color: var(--color-text-muted);
+        line-height: 1.8;
+        margin-bottom: 1rem;
+      }
+
+      .legal-content ul {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .legal-content li {
+        color: var(--color-text-muted);
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      .legal-content li:before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: var(--color-primary);
+        font-weight: bold;
+      }
+
+      .legal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+
+      .legal-item {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 3px solid var(--color-primary);
+        transition:
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .legal-label {
+        font-weight: 600;
+        color: var(--color-text);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .legal-value {
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+
+      .legal-value a {
+        color: var(--color-secondary);
+        text-decoration: none;
+      }
+
+      .legal-value a:hover {
+        text-decoration: underline;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 3rem;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 2rem;
+        background: var(--color-primary);
+        color: white !important;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        background: var(--color-secondary);
+        transform: translateY(-2px);
+      }
+
+      .btn-secondary {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        transition:
+          all 0.2s,
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      [data-theme="light"] .btn-secondary {
+        color: black !important;
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--color-secondary);
+        background: var(--color-primary);
+        color: white !important;
+      }
+
+      footer {
+        border-top: 1px solid var(--color-border);
+        padding: 3rem 0;
+        margin-top: 6rem;
+      }
+
+      .footer-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--color-text-muted);
+        font-size: 0.9rem;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .footer-links a {
+        color: var(--color-text-muted);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .footer-links a:hover {
+        color: var(--color-text);
+      }
+
+      @media (max-width: 768px) {
         h1 {
-            font-size: 4rem;
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: 1.5rem;
-            letter-spacing: -0.02em;
-        }
-
-        .hero h1 {
-            max-width: 900px;
+          font-size: 2.5rem;
         }
 
         .hero-subtitle {
-            font-size: 1.25rem;
-            color: var(--color-text-muted);
-            max-width: 700px;
-            line-height: 1.6;
-        }
-
-        .hero-stats {
-            display: flex;
-            gap: 3rem;
-            margin-top: 3rem;
-            flex-wrap: wrap;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--color-primary);
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .section {
-            margin-bottom: 6rem;
-        }
-
-        h2 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
-            color: var(--color-text);
-        }
-
-        .intro-text {
-            font-size: 1.125rem;
-            line-height: 1.8;
-            color: var(--color-text-muted);
-            max-width: 800px;
+          font-size: 1.125rem;
         }
 
         .functions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
+          grid-template-columns: 1fr;
         }
 
-        .function-card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 2rem;
-            transition: all 0.2s;
+        .hero-stats {
+          flex-direction: column;
+          gap: 2rem;
         }
 
-        .function-card:hover {
-            border-color: var(--color-secondary);
-            transform: translateY(-2px);
-        }
-
-        .function-card h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: var(--color-text);
-        }
-
-        .function-card p {
-            color: var(--color-text-muted);
-            line-height: 1.6;
-        }
-
-        .function-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--color-primary);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-
-        .tech-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .tech-badge {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            color: var(--color-text);
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .tech-badge:hover {
-            border-color: var(--color-secondary);
-            transform: translateY(-1px);
-        }
-
-        .legal-content {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        .legal-content h3 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--color-text);
-        }
-
-        .legal-content p {
-            color: var(--color-text-muted);
-            line-height: 1.8;
-            margin-bottom: 1rem;
-        }
-
-        .legal-content ul {
-            list-style: none;
-            padding-left: 0;
-        }
-
-        .legal-content li {
-            color: var(--color-text-muted);
-            padding: 0.5rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-        }
-
-        .legal-content li:before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            color: var(--color-primary);
-            font-weight: bold;
-        }
-
-        .legal-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .legal-item {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 1.5rem;
-            border-left: 3px solid var(--color-primary);
-        }
-
-        .legal-label {
-            font-weight: 600;
-            color: var(--color-text);
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .legal-value {
-            color: var(--color-text-muted);
-            line-height: 1.5;
-        }
-
-        .legal-value a {
-            color: var(--color-secondary);
-            text-decoration: none;
-        }
-
-        .legal-value a:hover {
-            text-decoration: underline;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 1.5rem;
-            margin-top: 3rem;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem 2rem;
-            background: var(--color-primary);
-            color: var(--white);
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            background: var(--color-secondary);
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: var(--color-surface);
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--color-secondary);
-            background: var(--color-primary);
-        }
-
-        footer {
-            border-top: 1px solid var(--color-border);
-            padding: 3rem 0;
-            margin-top: 6rem;
+        nav {
+          display: none;
         }
 
         .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: var(--color-text-muted);
-            font-size: 0.9rem;
+          flex-direction: column;
+          gap: 1.5rem;
+          text-align: center;
         }
 
         .footer-links {
-            display: flex;
-            gap: 2rem;
+          flex-direction: column;
+          gap: 1rem;
         }
 
-        .footer-links a {
-            color: var(--color-text-muted);
-            text-decoration: none;
-            transition: color 0.2s;
+        .button-group {
+          flex-direction: column;
         }
 
-        .footer-links a:hover {
-            color: var(--color-text);
+        .btn {
+          width: 100%;
+          justify-content: center;
         }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2.5rem;
-            }
-
-            .hero-subtitle {
-                font-size: 1.125rem;
-            }
-
-            .functions-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .hero-stats {
-                flex-direction: column;
-                gap: 2rem;
-            }
-
-            nav {
-                display: none;
-            }
-
-            .footer-content {
-                flex-direction: column;
-                gap: 1.5rem;
-                text-align: center;
-            }
-
-            .footer-links {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <header>
-        <div class="container">
-            <div class="header-content">
-                <a href="/" class="logo">
-                    <span class="logo-accent">💊</span> Medicaments API
-                </a>
-                <nav>
-                    <a href="#introduction">Introduction</a>
-                    <a href="#fonctions">Fonctions</a>
-                    <a href="#technologies">Technologies</a>
-                    <a href="#documentation">Documentation</a>
-                    <a href="#legal">Mentions légales</a>
-                </nav>
+      <div class="container">
+        <div class="header-content">
+          <a href="/" class="logo">
+            <span class="logo-accent">💊</span> Medicaments API
+          </a>
+          <div style="display: flex; align-items: center; gap: 2rem">
+            <nav>
+              <a href="#introduction">Introduction</a>
+              <a href="#fonctions">Fonctions</a>
+              <a href="#technologies">Technologies</a>
+              <a href="#documentation">Documentation</a>
+              <a href="#legal">Mentions légales</a>
+            </nav>
+            <div class="theme-switcher" onclick="toggleTheme()">
+              <div
+                class="theme-option active"
+                id="dark-theme"
+                data-theme="dark"
+              >
+                🌙
+              </div>
+              <div class="theme-option" id="light-theme" data-theme="light">
+                ☀️
+              </div>
             </div>
+          </div>
         </div>
+      </div>
     </header>
 
     <main class="container">
-        <section class="hero">
-            <h1>API des Médicaments Français</h1>
-            <p class="hero-subtitle">
-                Accès simplifié aux données publiques des médicaments français. Une API moderne, performante et fiable pour les développeurs et professionnels de santé.
+      <section class="hero">
+        <h1>API des Médicaments Français</h1>
+        <p class="hero-subtitle">
+          Accès simplifié aux données publiques des médicaments français. Une
+          API moderne, performante et fiable pour les développeurs et
+          professionnels de santé.
+        </p>
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-number">20K+</span>
+            <span class="stat-label">Médicaments</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number">2x</span>
+            <span class="stat-label">Mises à jour</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number">100%</span>
+            <span class="stat-label">Données publiques</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="introduction" class="section">
+        <h2>Introduction</h2>
+        <div class="intro-text">
+          <p>
+            Cette API transforme les données officielles de la Base de Données
+            Publique des Médicaments en une interface moderne et facile à
+            utiliser, en fournissant des données propres, structurées et
+            toujours à jour.
+          </p>
+          <br />
+          <p>
+            Idéale pour les développeurs, chercheurs, et professionnels de santé
+            qui ont besoin d'accéder programmatiquement aux informations sur les
+            médicaments disponibles en France.
+          </p>
+        </div>
+      </section>
+
+      <section id="fonctions" class="section">
+        <h2>Fonctionnalités Principales</h2>
+        <div class="functions-grid">
+          <div class="function-card">
+            <div class="function-icon">🔍</div>
+            <h3>Recherche Intelligente</h3>
+            <p>
+              Trouvez des médicaments par nom, identifiant CIS ou groupe
+              générique avec une recherche rapide et précise.
             </p>
-            <div class="hero-stats">
-                <div class="stat">
-                    <span class="stat-number">20K+</span>
-                    <span class="stat-label">Médicaments</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">2x</span>
-                    <span class="stat-label">Mises à jour</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">100%</span>
-                    <span class="stat-label">Données publiques</span>
-                </div>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">📄</div>
+            <h3>Pagination Optimisée</h3>
+            <p>
+              Parcourez la base complète avec un système de pagination efficace
+              et des temps de réponse rapides.
+            </p>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">🔄</div>
+            <h3>Mises à Jour Automatiques</h3>
+            <p>
+              Synchronisation 2 fois par jour pour des données toujours fraîches
+              et à jour.
+            </p>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">⚡</div>
+            <h3>Haute Performance</h3>
+            <p>
+              Réponses rapides grâce à un cache intelligent et une architecture
+              optimisée.
+            </p>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">🔒</div>
+            <h3>Sécurité Renforcée</h3>
+            <p>
+              Protection contre les abus et validation complète des entrées
+              utilisateur.
+            </p>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">📊</div>
+            <h3>Données Complètes</h3>
+            <p>
+              Accès à toutes les informations : compositions, présentations,
+              génériques, conditions.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="technologies" class="section">
+        <h2>Technologies Utilisées</h2>
+        <div class="tech-list">
+          <div class="tech-badge">Go</div>
+          <div class="tech-badge">Architecture Stateless</div>
+          <div class="tech-badge">Cache Mémoire</div>
+          <div class="tech-badge">Sécurité Multicouche</div>
+          <div class="tech-badge">API RESTful</div>
+          <div class="tech-badge">Déploiements Continus</div>
+          <div class="tech-badge">JSON</div>
+          <div class="tech-badge">OpenAPI</div>
+          <div class="tech-badge">HTTPS/TLS</div>
+        </div>
+      </section>
+
+      <section id="documentation" class="section">
+        <h2>Documentation & Code Source</h2>
+        <div class="intro-text">
+          <p>
+            Prêt à commencer ? Consultez notre documentation complète pour
+            intégrer l'API dans vos projets, ou explorez le code source pour
+            comprendre comment ça fonctionne.
+          </p>
+        </div>
+        <div class="button-group">
+          <a href="/docs" class="btn">
+            <span>📖</span>
+            Documentation API
+          </a>
+          <a
+            href="https://github.com/giygas/medicaments-api"
+            target="_blank"
+            class="btn btn-secondary"
+          >
+            <span>💻</span>
+            Code Source
+          </a>
+        </div>
+      </section>
+
+      <section id="legal" class="section">
+        <h2>Mentions Légales</h2>
+        <div class="legal-grid">
+          <div class="legal-item">
+            <div class="legal-label">Source des données</div>
+            <div class="legal-value">
+              <a
+                href="https://base-donnees-publique.medicaments.gouv.fr/telechargement"
+                target="_blank"
+              >
+                Base de Données Publique des Médicaments
+              </a>
             </div>
-        </section>
-
-        <section id="introduction" class="section">
-            <h2>Introduction</h2>
-            <div class="intro-text">
-                <p>
-                    Cette API transforme les données officielles de la Base de Données Publique des Médicaments 
-                    en une interface moderne et facile à utiliser. Fini les fichiers complexes et le parsing fastidieux - 
-                    nous vous fournissons des données propres, structurées et toujours à jour.
-                </p>
-                <br>
-                <p>
-                    Idéale pour les développeurs, chercheurs, et professionnels de santé qui ont besoin 
-                    d'accéder programmatiquement aux informations sur les médicaments disponibles en France.
-                </p>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Licence</div>
+            <div class="legal-value">
+              GNU AGPL v3 - Logiciel libre avec obligation de partage des
+              modifications
             </div>
-        </section>
-
-        <section id="fonctions" class="section">
-            <h2>Fonctionnalités Principales</h2>
-            <div class="functions-grid">
-                <div class="function-card">
-                    <div class="function-icon">🔍</div>
-                    <h3>Recherche Intelligente</h3>
-                    <p>Trouvez des médicaments par nom, identifiant CIS ou groupe générique avec une recherche rapide et précise.</p>
-                </div>
-
-                <div class="function-card">
-                    <div class="function-icon">📄</div>
-                    <h3>Pagination Optimisée</h3>
-                    <p>Parcourez la base complète avec un système de pagination efficace et des temps de réponse rapides.</p>
-                </div>
-
-                <div class="function-card">
-                    <div class="function-icon">🔄</div>
-                    <h3>Mises à Jour Automatiques</h3>
-                    <p>Synchronisation 2 fois par jour pour des données toujours fraîches et à jour.</p>
-                </div>
-
-                <div class="function-card">
-                    <div class="function-icon">⚡</div>
-                    <h3>Haute Performance</h3>
-                    <p>Réponses rapides grâce à un cache intelligent et une architecture optimisée.</p>
-                </div>
-
-                <div class="function-card">
-                    <div class="function-icon">🔒</div>
-                    <h3>Sécurité Renforcée</h3>
-                    <p>Protection contre les abus et validation complète des entrées utilisateur.</p>
-                </div>
-
-                <div class="function-card">
-                    <div class="function-icon">📊</div>
-                    <h3>Données Complètes</h3>
-                    <p>Accès à toutes les informations : compositions, présentations, génériques, conditions.</p>
-                </div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Limites d'utilisation</div>
+            <div class="legal-value">
+              1000 tokens initiaux par IP, recharge de 3 tokens par seconde. Coûts variables par endpoint.
             </div>
-        </section>
-
-        <section id="technologies" class="section">
-            <h2>Technologies Utilisées</h2>
-            <div class="tech-list">
-                <div class="tech-badge">Go</div>
-                <div class="tech-badge">Architecture Stateless</div>
-                <div class="tech-badge">Cache Mémoire</div>
-                <div class="tech-badge">Sécurité Multicouche</div>
-                <div class="tech-badge">API RESTful</div>
-                <div class="tech-badge">Déploiements Continus</div>
-                <div class="tech-badge">JSON</div>
-                <div class="tech-badge">OpenAPI</div>
-                <div class="tech-badge">HTTPS/TLS</div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Mises à jour</div>
+            <div class="legal-value">
+              Les données sont synchronisées automatiquement à 6h et 18h chaque
+              jour
             </div>
-        </section>
-
-        <section id="documentation" class="section">
-            <h2>Documentation & Code Source</h2>
-            <div class="intro-text">
-                <p>
-                    Prêt à commencer ? Consultez notre documentation complète pour intégrer l'API dans vos projets, 
-                    ou explorez le code source pour comprendre comment ça fonctionne.
-                </p>
-            </div>
-            <div class="button-group">
-                <a href="/docs" class="btn">
-                    <span>📖</span>
-                    Documentation API
-                </a>
-                <a href="https://github.com/giygas/medicaments-api" target="_blank" class="btn btn-secondary">
-                    <span>💻</span>
-                    Code Source
-                </a>
-            </div>
-        </section>
-
-        <section id="legal" class="section">
-            <h2>Mentions Légales</h2>
-            <div class="legal-grid">
-                <div class="legal-item">
-                    <div class="legal-label">Source des données</div>
-                    <div class="legal-value">
-                        <a href="https://base-donnees-publique.medicaments.gouv.fr/telechargement" target="_blank">
-                            Base de Données Publique des Médicaments
-                        </a>
-                    </div>
-                </div>
-                <div class="legal-item">
-                    <div class="legal-label">Licence</div>
-                    <div class="legal-value">
-                        GNU AGPL v3 - Logiciel libre avec obligation de partage des modifications
-                    </div>
-                </div>
-                <div class="legal-item">
-                    <div class="legal-label">Limites d'utilisation</div>
-                    <div class="legal-value">
-                        10 requêtes par seconde par IP pour garantir la disponibilité du service
-                    </div>
-                </div>
-                <div class="legal-item">
-                    <div class="legal-label">Mises à jour</div>
-                    <div class="legal-value">
-                        Les données sont synchronisées automatiquement à 6h et 18h chaque jour
-                    </div>
-                </div>
-            </div>
-        </section>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div>Développé avec ❤️ pour la communauté médicale et les développeurs français</div>
-                <div class="footer-links">
-                    <a href="https://github.com/giygas/medicaments-api" target="_blank">GitHub</a>
-                    <a href="/docs">Documentation</a>
-                    <a href="#legal">Mentions légales</a>
-                </div>
-            </div>
+      <div class="container">
+        <div class="footer-content">
+          <div>
+            Développé avec ❤️ pour la communauté médicale et les développeurs
+            français
+          </div>
+          <div class="footer-links">
+            <a href="https://github.com/giygas/medicaments-api" target="_blank"
+              >GitHub</a
+            >
+            <a href="/docs">Documentation</a>
+            <a href="#legal">Mentions légales</a>
+          </div>
         </div>
+      </div>
     </footer>
-</body>
+
+    <script>
+      function toggleTheme() {
+        const html = document.documentElement;
+        const darkTheme = document.getElementById("dark-theme");
+        const lightTheme = document.getElementById("light-theme");
+
+        if (html.getAttribute("data-theme") === "light") {
+          html.removeAttribute("data-theme");
+          darkTheme.classList.add("active");
+          lightTheme.classList.remove("active");
+          localStorage.setItem("theme", "dark");
+        } else {
+          html.setAttribute("data-theme", "light");
+          darkTheme.classList.remove("active");
+          lightTheme.classList.add("active");
+          localStorage.setItem("theme", "light");
+        }
+      }
+
+      // Load saved theme on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        const savedTheme = localStorage.getItem("theme");
+        const darkTheme = document.getElementById("dark-theme");
+        const lightTheme = document.getElementById("light-theme");
+
+        if (savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+          darkTheme.classList.remove("active");
+          lightTheme.classList.add("active");
+        } else {
+          // Default to dark theme
+          darkTheme.classList.add("active");
+          lightTheme.classList.remove("active");
+        }
+      });
+
+      // Smooth scrolling for navigation links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+    </script>
+  </body>
 </html>
+
