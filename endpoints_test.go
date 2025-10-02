@@ -215,8 +215,8 @@ func TestRateLimiter(t *testing.T) {
 		t.Errorf("6th request: Expected 429, got %d", rr.Code)
 	}
 
-	// Wait for refill (10 tokens/second, need to refill 200 tokens for another request)
-	time.Sleep(21 * time.Second) // 200 / 10 = 20 seconds + buffer
+	// Wait for refill (3 tokens/second, need to refill 200 tokens for another request)
+	time.Sleep(68 * time.Second) // 200 / 3 = 66.67 seconds + buffer
 
 	// Now should allow another request
 	req, _ = http.NewRequest("GET", "/database", nil)

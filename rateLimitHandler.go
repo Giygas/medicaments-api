@@ -30,8 +30,8 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 	if !exists {
 		rl.mu.Lock()
 		if bucket, exists = rl.clients[clientIP]; !exists {
-			// Create bucket: 10 tokens per second, max 1000 tokens
-			bucket = ratelimit.NewBucketWithRate(10, 1000)
+			// Create bucket: 3 tokens per second, max 1000 tokens
+			bucket = ratelimit.NewBucketWithRate(3, 1000)
 			rl.clients[clientIP] = bucket
 		}
 		rl.mu.Unlock()
@@ -65,10 +65,20 @@ func init() {
 
 func getTokenCost(r *http.Request) int64 {
 	switch r.URL.Path {
+	case "/":
+		return 0 // Free access to index page
+	case "/docs":
+		return 0 // Free access to docs page
+	case "/docs/openapi.yaml":
+		return 0 // Free access to OpenAPI spec
+	case "/favicon.ico":
+		return 0 // Free access to favicon
 	case "/database":
 		return 200 // Higher cost for full database
 	case "/medicament/":
 		return 100
+	case "/health":
+		return 5 // Low cost for health check
 	default:
 		return 20 // Default cost for specific lookups
 	}
@@ -90,8 +100,8 @@ func rateLimitHandler(h http.Handler) http.Handler {
 		tokenCost := getTokenCost(r)
 
 		// Add rate limit headers before consuming tokens
-		w.Header().Set("X-RateLimit-Limit", "10")
-		w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(bucket.Available(), 10))
+		w.Header().Set("X-RateLimit-Limit", "1000")
+		w.Header().Set("X-RateLimit-Rate", "3")
 
 		// Check if the client has enough tokens
 		if bucket.TakeAvailable(tokenCost) < tokenCost {
@@ -100,6 +110,8 @@ func rateLimitHandler(h http.Handler) http.Handler {
 			http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
 			return
 		}
+
+		w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(bucket.Available(), 10))
 
 		// Serve the request
 		h.ServeHTTP(w, r)
