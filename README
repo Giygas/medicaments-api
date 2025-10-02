@@ -222,6 +222,7 @@ Retry-After: 60              # Si limite dépassée
 | **Disponibilité** | 99.9% | Avec redémarrage automatique |
 | **Fraîcheur données** | 2x/jour | 6h et 18h automatique |
 | **Dataset** | 20K+ médicaments | Données complètes BDPM |
+| **RAM Usage** | ~50MB | Optimisation Go native |
 | **Compression** | 80% | Réduction taille avec gzip |
 | **Cache hit ratio** | > 90% | Avec ETag/Last-Modified |
 
@@ -242,12 +243,12 @@ GET /health                     → 8ms  (health check)
 ┌─────────────────────────────────────────────────────────────┐
 │                     Memory Layout                           │
 ├─────────────────────────────────────────────────────────────┤
-│ medicamentsMap    │ ~50MB │ O(1) lookup par CIS             │
-│ generiquesMap     │ ~15MB │ O(1) lookup par groupe ID       │
-│ compositionsMap   │ ~30MB │ O(1) lookup par CIS             │
-│ presentationsMap  │ ~25MB │ O(1) lookup par CIS             │
-│ conditionsMap     │ ~10MB │ O(1) lookup par CIS             │
-│ Total             │ ~130MB│ RAM usage typique               │
+│ medicamentsMap    │ ~20MB │ O(1) lookup par CIS             │
+│ generiquesMap     │ ~6MB  │ O(1) lookup par groupe ID       │
+│ compositionsMap   │ ~12MB │ O(1) lookup par CIS             │
+│ presentationsMap  │ ~8MB  │ O(1) lookup par CIS             │
+│ conditionsMap     │ ~4MB  │ O(1) lookup par CIS             │
+│ Total             │ ~50MB │ RAM usage réel (optimisé Go)    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -539,7 +540,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 
 - **Rate limiting** : 1000 tokens initiaux par IP, recharge de 3 tokens/seconde
 - **Coûts variables** : 5-200 tokens par requête selon l'endpoint
-- **Data size** : La base complète fait ~20MB en mémoire avec lookup maps optimisées
+- **Data size** : La base complète fait ~20MB avec ~50MB RAM usage réel grâce à l'optimisation Go
 - **Pas de SLA** : Service fourni "as-is" sans garantie de disponibilité
 - **Dépendance externe** : Mises à jour dépendantes de la disponibilité de la source BDPM
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces pour les recherches
