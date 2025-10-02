@@ -519,9 +519,9 @@
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          Accès simplifié aux données publiques des médicaments français. Une
-          API moderne, performante et fiable pour les développeurs et
-          professionnels de santé.
+          API RESTful optimisée servant 20K+ médicaments avec parsing concurrent
+          de 5 sources BDPM, atomic zero-downtime updates, cache intelligent
+          (ETag/Last-Modified), et rate limiting par token bucket.
         </p>
         <div class="hero-stats">
           <div class="stat">
@@ -544,9 +544,10 @@
         <div class="intro-text">
           <p>
             Cette API transforme les données officielles de la Base de Données
-            Publique des Médicaments en une interface moderne et facile à
-            utiliser, en fournissant des données propres, structurées et
-            toujours à jour.
+            Publique des Médicaments (BDPM) en une interface RESTful optimisée,
+            en utilisant un parsing concurrent de 5 fichiers TSV (spécialités,
+            compositions, présentations, génériques, conditions) avec validation
+            et structuration automatique.
           </p>
           <br />
           <p>
@@ -562,55 +563,58 @@
         <div class="functions-grid">
           <div class="function-card">
             <div class="function-icon">🔍</div>
-            <h3>Recherche Intelligente</h3>
+            <h3>Recherche par CIS ou Nom</h3>
             <p>
-              Trouvez des médicaments par nom, identifiant CIS ou groupe
-              générique avec une recherche rapide et précise.
+              Recherchez des médicaments par dénomination (regex insensible à la
+              casse) ou par code CIS unique avec validation d'entrée stricte
+              (3-50 caractères alphanumériques).
             </p>
           </div>
 
           <div class="function-card">
             <div class="function-icon">📄</div>
-            <h3>Pagination Optimisée</h3>
+            <h3>Pagination par 10 éléments</h3>
             <p>
-              Parcourez la base complète avec un système de pagination efficace
-              et des temps de réponse rapides.
+              Parcourez la base complète avec pagination optimisée (10
+              éléments/page) et métadonnées complètes (totalItems, maxPage,
+              currentPage).
             </p>
           </div>
 
           <div class="function-card">
             <div class="function-icon">🔄</div>
-            <h3>Mises à Jour Automatiques</h3>
+            <h3>Mises à Jour Atomiques</h3>
             <p>
-              Synchronisation 2 fois par jour pour des données toujours fraîches
-              et à jour.
+              Synchronisation automatique à 6h et 18h avec atomic operations
+              pour zero-downtime updates et monitoring de santé intégré.
             </p>
           </div>
 
           <div class="function-card">
             <div class="function-icon">⚡</div>
-            <h3>Haute Performance</h3>
+            <h3>Cache HTTP Avancé</h3>
             <p>
-              Réponses rapides grâce à un cache intelligent et une architecture
-              optimisée.
+              Réponses optimisées avec cache HTTP (ETag, Last-Modified),
+              compression gzip et timeouts configurables (15s read/write).
             </p>
           </div>
 
           <div class="function-card">
             <div class="function-icon">🔒</div>
-            <h3>Sécurité Renforcée</h3>
+            <h3>Rate Limiting Token Bucket</h3>
             <p>
-              Protection contre les abus et validation complète des entrées
-              utilisateur.
+              Protection par token bucket (1000 tokens initiaux, recharge de 3
+              tokens/sec) avec coûts variables par endpoint et nettoyage
+              automatique des clients inactifs.
             </p>
           </div>
 
           <div class="function-card">
             <div class="function-icon">📊</div>
-            <h3>Données Complètes</h3>
+            <h3>Données Complètes BDPM</h3>
             <p>
-              Accès à toutes les informations : compositions, présentations,
-              génériques, conditions.
+              Accès complet aux données BDPM : compositions, présentations,
+              génériques, conditions, voies d'administration et statuts AMM.
             </p>
           </div>
         </div>
@@ -619,15 +623,15 @@
       <section id="technologies" class="section">
         <h2>Technologies Utilisées</h2>
         <div class="tech-list">
-          <div class="tech-badge">Go</div>
-          <div class="tech-badge">Architecture Stateless</div>
-          <div class="tech-badge">Cache Mémoire</div>
-          <div class="tech-badge">Sécurité Multicouche</div>
-          <div class="tech-badge">API RESTful</div>
-          <div class="tech-badge">Déploiements Continus</div>
-          <div class="tech-badge">JSON</div>
-          <div class="tech-badge">OpenAPI</div>
-          <div class="tech-badge">HTTPS/TLS</div>
+          <div class="tech-badge">Go 1.21+</div>
+          <div class="tech-badge">Chi Router</div>
+          <div class="tech-badge">Atomic Operations</div>
+          <div class="tech-badge">Token Bucket Rate Limiting</div>
+          <div class="tech-badge">HTTP Cache (ETag/Last-Modified)</div>
+          <div class="tech-badge">Concurrent TSV Parsing</div>
+          <div class="tech-badge">Structured Logging</div>
+          <div class="tech-badge">OpenAPI 3.0</div>
+          <div class="tech-badge">gzip Compression</div>
         </div>
       </section>
 
@@ -680,7 +684,8 @@
           <div class="legal-item">
             <div class="legal-label">Limites d'utilisation</div>
             <div class="legal-value">
-              1000 tokens initiaux par IP, recharge de 3 tokens par seconde. Coûts variables par endpoint.
+              1000 tokens initiaux par IP, recharge de 3 tokens par seconde.
+              Coûts variables par endpoint.
             </div>
           </div>
           <div class="legal-item">
@@ -764,4 +769,3 @@
     </script>
   </body>
 </html>
-

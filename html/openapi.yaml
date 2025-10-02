@@ -13,18 +13,21 @@ info:
     
     ## Rate Limiting
     
-    L'API utilise un système de limitation de taux basé sur des tokens pour garantir une utilisation équitable :
+    L'API utilise un système de limitation de taux par token bucket pour garantir une utilisation équitable :
     
-    - **Capacité initiale** : Capacité de tokens par IP
-    - **Taux de recharge** : Taux de recharge des tokens par seconde
-    - **Nettoyage** : Les buckets inactifs sont nettoyés périodiquement
+    - **Capacité initiale** : 1000 tokens par IP
+    - **Taux de recharge** : 3 tokens par seconde  
+    - **Nettoyage** : Les buckets inactifs (pleins) sont nettoyés toutes les 30 minutes
     
-    Chaque endpoint a un coût en tokens indiqué dans sa description.
-    
-    Coûts approximatifs par endpoint :
-    - Endpoints système (health) : coût très faible
-    - Endpoints de recherche (médicaments, génériques) : coût moyen
-    - Endpoint complet (database) : coût élevé
+    Coûts exacts par endpoint :
+    - `/health` : 5 tokens
+    - `/database/{pageNumber}` : 20 tokens  
+    - `/generiques/{libelle}` : 20 tokens
+    - `/generiques/group/{groupId}` : 20 tokens
+    - `/medicament/{element}` : 100 tokens
+    - `/medicament/id/{cis}` : 100 tokens
+    - `/database` : 200 tokens
+    - Pages statiques (`/`, `/docs`, `/docs/openapi.yaml`, `/favicon.ico`) : 0 tokens
     
     En-têtes de réponse :
     - `X-RateLimit-Limit`: Capacité maximale de tokens
