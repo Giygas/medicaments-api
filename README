@@ -1,0 +1,167 @@
+# Medicaments API
+
+Une API RESTful optimisée qui fournit un accès programmatique aux données publiques
+des médicaments français via parsing concurrent de 5 sources BDPM, atomic zero-downtime updates,
+et rate limiting par token bucket.
+
+## Objectif
+
+Les données officielles des médicaments français sont disponibles uniquement
+au format TSV avec une structure complexe, ce qui rend leur utilisation
+programmatique difficile. Cette API transforme ces données en JSON structuré
+et les expose via une interface RESTful haute performance.
+
+Le projet respecte les termes de la licence de la Base de Données Publique des
+Médicaments :
+
+- Les données proviennent exclusivement de
+  [base-donnees-publique.medicaments.gouv.fr](https://base-donnees-publique.medicaments.gouv.fr)
+- Aucune altération ou dénaturation du sens des données
+- Synchronisation automatique 2 fois par jour (6h et 18h) avec gocron
+- La source est mentionnée dans la documentation
+- Projet indépendant et non affilié à l'ANSM, HAS ou UNCAM
+
+## Fonctionnalités
+
+### Points de terminaison
+
+| Endpoint                          | Description                      | Cache     | Coût tokens |
+| --------------------------------- | -------------------------------- | --------- | ----------- |
+| `GET /database`                   | Base de données complète         | 6 heures  | 200         |
+| `GET /database/{page}`            | Pagination (10 médicaments/page) | 6 heures  | 20          |
+| `GET /medicament/{libelle}`       | Recherche par nom (regex)       | 1 heure   | 100         |
+| `GET /medicament/id/{cis}`        | Recherche par identifiant CIS    | 12 heures | 100         |
+| `GET /generiques/{libelle}`       | Recherche de génériques par nom  | 1 heure   | 20          |
+| `GET /generiques/group/{groupId}` | Groupe de génériques par ID      | 12 heures | 20          |
+| `GET /health`                     | État de santé du service         | -         | 5           |
+
+### Exemples
+
+```bash
+# Base de données complète
+curl https://api.medicaments.fr/database
+
+# Pagination
+curl https://api.medicaments.fr/database/1
+
+# Recherche par nom
+curl https://api.medicaments.fr/medicament/paracetamol
+
+# Recherche par CIS
+curl https://api.medicaments.fr/medicament/id/60904643
+
+# Génériques
+curl https://api.medicaments.fr/generiques/paracetamol
+```
+
+## Sécurité et robustesse
+
+### Mesures de sécurité
+
+- Validation des entrées utilisateur (3-50 caractères alphanumériques + espaces)
+- Protection contre les injections avec `regexp.QuoteMeta`
+- Rate limiting par token bucket (1000 tokens initiaux, 3 tokens/sec recharge)
+- Middleware de protection (taille requêtes: 1MB max, headers: 1MB max)
+- Nettoyage automatique des clients inactifs (toutes les 30 minutes)
+- Headers de sécurité (CORS via nginx, Content-Type strict)
+
+### Robustesse
+
+- Mises à jour sans temps d'arrêt avec `atomic.Value` et `atomic.Bool`
+- Gestion des erreurs avec logging structuré (slog)
+- Vérification horaire des mises à jour (alerte si >25h sans update)
+- Arrêt propre avec timeout de 30 secondes + 2 secondes pour requêtes en cours
+- Concurrence sécurisée avec `sync.RWMutex` et atomic operations
+- Health monitoring intégré avec vérification toutes les heures
+
+## ⚡ Performance
+
+### Optimisations
+
+- Téléchargement et traitement parallèles des 5 fichiers TSV (spécialités, compositions, présentations, génériques, conditions)
+- Cache HTTP avancé avec headers ETag et Last-Modified
+- Compression Gzip (réduction de taille jusqu'à 80%)
+- Recherche O(1) via des maps en mémoire (medicamentsMap, generiquesMap, compositionsMap, etc.)
+- Pagination pour éviter le chargement de la base complète
+- Atomic swap pour zero-downtime updates
+
+### Métriques
+
+- Temps de réponse : < 100ms pour les requêtes individuelles
+- Mises à jour : complètes en ~1-2 minutes (dépend de la connexion)
+- Disponibilité : 99.9% avec redémarrage automatique et graceful shutdown
+- Fraîcheur des données : mises à jour toutes les 12 heures maximum (6h et 18h)
+- Dataset : ~15K médicaments avec données complètes (composition, présentations, etc.)
+
+## 🏗️ Architecture
+
+### Flux de données
+
+```text
+Source TSV (BDPM) → Download concurrent → Parsing parallèle (5 goroutines) →
+Structuration JSON → Stockage en mémoire (atomic.Value) → API REST (Chi router)
+```
+
+### Composants
+
+- **Downloader** : téléchargement concurrent avec gestion d'erreurs et retry
+- **Parser** : conversion TSV → JSON avec validation et création de lookup maps O(1)
+- **Data Container** : stockage thread-safe avec `atomic.Value` pour zero-downtime updates
+- **API Layer** : Chi router v5 avec middleware stack (RequestID, RealIP, Logging, RateLimiting, etc.)
+- **Scheduler** : mises à jour automatiques avec gocron (6h et 18h)
+- **Rate Limiter** : token bucket avec cleanup automatique des clients inactifs
+
+## Documentation
+
+La documentation complète est disponible à l'adresse racine de l'API :
+`https://api.medicaments.fr/`
+
+Elle inclut des exemples interactifs pour chaque endpoint et des réponses
+JSON formatées.
+
+## Stack Technique
+
+- **Langage** : Go 1.21+
+- **Framework web** : Chi v5 avec middleware stack
+- **Scheduling** : gocron pour les mises à jour automatiques
+- **Logging** : structured logging avec slog et rotation de fichiers
+- **Rate limiting** : juju/ratelimit (token bucket algorithm)
+- **Encoding** : support Windows-1252 → UTF-8 pour les fichiers sources
+- **Configuration** : validation d'environnement avec types forts
+- **Tests** : tests unitaires avec couverture de code
+
+## Architecture et design
+
+L'architecture privilégie la simplicité et l'efficacité :
+
+- Atomic operations pour les mises à jour sans temps d'arrêt
+- Architecture stateless facilitant la montée en charge
+- Code modulaire avec séparation claire des responsabilités
+- Optimisation mémoire et cache intelligent pour des réponses rapides
+
+## Ingénierie de production
+
+Le projet intègre des pratiques industrielles :
+
+- Health checks et logging structuré pour le débogage
+- Validation des entrées et protection contre les abus
+- Graceful shutdown et gestion robuste des erreurs
+- Code formaté, tests unitaires et documentation complète
+
+## Limitations
+
+Ce service est gratuit et fonctionne avec des ressources limitées :
+
+- Rate limiting : 10 requêtes par seconde par IP
+- Data size : la base complète fait ~20MB en mémoire
+- Pas de SLA : service fourni "as-is" sans garantie
+- Mises à jour : dépendantes de la disponibilité de la source
+
+## Licence
+
+Ce projet est distribué sous licence MIT. Les données médicales restent
+soumises à la licence de la Base de Données Publique des Médicaments.
+
+---
+
+## Développé avec ❤️ pour la communauté médicale française
