@@ -157,7 +157,101 @@
     </style>
   </head>
   <body>
+    <!-- API Info Banner -->
+    <div
+      style="
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+        padding: 1.5rem 0;
+      "
+    >
+      <div style="max-width: 1200px; margin: 0 auto; padding: 0 2rem">
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            text-align: center;
+          "
+        >
+          <div>
+            <div
+              style="
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--color-primary);
+              "
+            >
+              20K+
+            </div>
+            <div style="color: var(--color-text-muted); font-size: 0.85rem">
+              Médicaments
+            </div>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--color-primary);
+              "
+            >
+              &lt;100ms
+            </div>
+            <div style="color: var(--color-text-muted); font-size: 0.85rem">
+              Temps de réponse
+            </div>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--color-primary);
+              "
+            >
+              1000
+            </div>
+            <div style="color: var(--color-text-muted); font-size: 0.85rem">
+              Tokens initiaux
+            </div>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--color-primary);
+              "
+            >
+              3/sec
+            </div>
+            <div style="color: var(--color-text-muted); font-size: 0.85rem">
+              Recharge tokens
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="swagger-ui"></div>
+
+    <!-- Footer -->
+    <footer style="border-top: 1px solid var(--color-border); padding: 3rem 0; margin-top: 4rem; background: var(--color-surface);">
+      <div style="max-width: 1200px; margin: 0 auto; padding: 0 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; color: var(--color-text-muted); font-size: 0.9rem;">
+          <div>
+            Documentation interactive de l'API des Médicaments Français
+          </div>
+          <div style="display: flex; gap: 2rem;">
+            <a href="/" style="color: var(--color-text-muted); text-decoration: none; transition: color 0.2s;">← Retour à l'accueil</a>
+            <a href="https://github.com/giygas/medicaments-api" target="_blank" style="color: var(--color-text-muted); text-decoration: none; transition: color 0.2s;">GitHub</a>
+            <a href="/health" style="color: var(--color-text-muted); text-decoration: none; transition: color 0.2s;">Health Check</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
     <script
       src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"
       charset="UTF-8"
@@ -167,41 +261,6 @@
       charset="UTF-8"
     ></script>
     <script>
-      // Theme management
-      function toggleTheme() {
-        const html = document.documentElement;
-        const darkTheme = document.getElementById("dark-theme");
-        const lightTheme = document.getElementById("light-theme");
-
-        if (html.getAttribute("data-theme") === "light") {
-          html.removeAttribute("data-theme");
-          darkTheme.classList.add("active");
-          lightTheme.classList.remove("active");
-          localStorage.setItem("theme", "dark");
-        } else {
-          html.setAttribute("data-theme", "light");
-          darkTheme.classList.remove("active");
-          lightTheme.classList.add("active");
-          localStorage.setItem("theme", "light");
-        }
-      }
-
-      // Load saved theme on page load
-      document.addEventListener("DOMContentLoaded", function () {
-        const savedTheme = localStorage.getItem("theme");
-        const darkTheme = document.getElementById("dark-theme");
-        const lightTheme = document.getElementById("light-theme");
-
-        if (savedTheme === "light") {
-          document.documentElement.setAttribute("data-theme", "light");
-          darkTheme.classList.remove("active");
-          lightTheme.classList.add("active");
-        } else {
-          darkTheme.classList.add("active");
-          lightTheme.classList.remove("active");
-        }
-      });
-
       // Initialize Swagger UI
       window.onload = function () {
         const ui = SwaggerUIBundle({
@@ -213,7 +272,7 @@
           layout: "StandaloneLayout",
           defaultModelsExpandDepth: -1,
           displayRequestDuration: true,
-          docExpansion: "none",
+          docExpansion: "list",
           filter: true,
           showExtensions: true,
           showCommonExtensions: true,
@@ -221,24 +280,6 @@
           validatorUrl: null,
           persistAuthorization: false,
           tryItOutEnabled: true,
-          requestInterceptor: function (request) {
-            // Add custom headers for rate limiting info
-            request.headers["Accept"] = "application/json";
-            request.headers["Accept-Encoding"] = "gzip";
-            return request;
-          },
-          responseInterceptor: function (response) {
-            // Log rate limiting headers for debugging
-            if (response.headers) {
-              console.log("Rate Limit Headers:", {
-                "X-RateLimit-Limit": response.headers["x-ratelimit-limit"],
-                "X-RateLimit-Remaining":
-                  response.headers["x-ratelimit-remaining"],
-                "X-RateLimit-Rate": response.headers["x-ratelimit-rate"],
-              });
-            }
-            return response;
-          },
           onComplete: function () {
             console.log("Swagger UI loaded successfully");
 
