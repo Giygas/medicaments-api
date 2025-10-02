@@ -1,865 +1,583 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <title>Medicaments API Documentation</title>
-    <style
-      nonce="4f3394e800fae9092f5a6d672ce8d1dc73a47a58eaed35f3c38d916490b024fd"
-    >
-      @import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicaments API - Accès aux données publiques des médicaments français</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-      body {
-        font-family: Poppins;
-      }
+        :root {
+            --color-primary: #000091;
+            --color-secondary: #6A6AF4;
+            --color-accent: #E1000F;
+            --color-bg: #0A0A0F;
+            --color-surface: #161620;
+            --color-text: #E4E4E7;
+            --color-text-muted: #A1A1AA;
+            --color-border: #27272A;
+        }
 
-      section {
-        margin: 3vh 0;
-      }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
 
-      .container {
-        padding: 5vw;
-        display: flex;
-        flex-direction: column;
-        align-content: center;
-        max-width: 1000px;
-        margin: 0 auto;
-      }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
 
-      .code {
-        vertical-align: center;
-        overflow: auto;
-        padding: 3vw;
-        border-radius: 10px;
-        background-color: #efefef88;
-        color: dimgray;
-        max-height: 600px;
-        font-weight: semibold;
-        font-family: "Courier New", Courier, monospace;
-      }
+        header {
+            border-bottom: 1px solid var(--color-border);
+            padding: 1.5rem 0;
+            margin-bottom: 4rem;
+        }
 
-      h3 {
-        font-size: 26px;
-      }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-      a {
-        color: #228078;
-        text-decoration: none;
-        font-style: italic;
-      }
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-accent {
+            color: var(--color-primary);
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--color-text);
+        }
+
+        .hero {
+            margin-bottom: 6rem;
+            padding: 2rem 0;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h1 {
+            max-width: 900px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--color-text-muted);
+            max-width: 700px;
+            line-height: 1.6;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 3rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section {
+            margin-bottom: 6rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            color: var(--color-text);
+        }
+
+        .intro-text {
+            font-size: 1.125rem;
+            line-height: 1.8;
+            color: var(--color-text-muted);
+            max-width: 800px;
+        }
+
+        .functions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .function-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            transition: all 0.2s;
+        }
+
+        .function-card:hover {
+            border-color: var(--color-secondary);
+            transform: translateY(-2px);
+        }
+
+        .function-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--color-text);
+        }
+
+        .function-card p {
+            color: var(--color-text-muted);
+            line-height: 1.6;
+        }
+
+        .function-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--color-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .tech-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .tech-badge {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            color: var(--color-text);
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tech-badge:hover {
+            border-color: var(--color-secondary);
+            transform: translateY(-1px);
+        }
+
+        .legal-content {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .legal-content h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--color-text);
+        }
+
+        .legal-content p {
+            color: var(--color-text-muted);
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .legal-content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .legal-content li {
+            color: var(--color-text-muted);
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .legal-content li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        .legal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .legal-item {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .legal-label {
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .legal-value {
+            color: var(--color-text-muted);
+            line-height: 1.5;
+        }
+
+        .legal-value a {
+            color: var(--color-secondary);
+            text-decoration: none;
+        }
+
+        .legal-value a:hover {
+            text-decoration: underline;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            background: var(--color-primary);
+            color: var(--white);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: var(--color-secondary);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-secondary);
+            background: var(--color-primary);
+        }
+
+        footer {
+            border-top: 1px solid var(--color-border);
+            padding: 3rem 0;
+            margin-top: 6rem;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-links a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--color-text);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.125rem;
+            }
+
+            .functions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            nav {
+                display: none;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
-  </head>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-accent">💊</span> Medicaments API
+                </a>
+                <nav>
+                    <a href="#introduction">Introduction</a>
+                    <a href="#fonctions">Fonctions</a>
+                    <a href="#technologies">Technologies</a>
+                    <a href="#documentation">Documentation</a>
+                    <a href="#legal">Mentions légales</a>
+                </nav>
+            </div>
+        </div>
+    </header>
 
-  <body>
-    <div class="container">
-      <h1>API Documentation</h1>
+    <main class="container">
+        <section class="hero">
+            <h1>API des Médicaments Français</h1>
+            <p class="hero-subtitle">
+                Accès simplifié aux données publiques des médicaments français. Une API moderne, performante et fiable pour les développeurs et professionnels de santé.
+            </p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">20K+</span>
+                    <span class="stat-label">Médicaments</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">2x</span>
+                    <span class="stat-label">Mises à jour</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Données publiques</span>
+                </div>
+            </div>
+        </section>
 
-      <p>
-        Cette API permet de récupérer les données fournies par le site
-        <a
-          href="https://base-donnees-publique.medicaments.gouv.fr/telechargement"
-          target="_blank"
-          >https://base-donnees-publique.medicaments.gouv.fr/telechargement</a
-        >
-        en format JSON, fournissant divers points de terminaison pour obtenir la
-        base de données complète ou avec un système de pagination divisé par 10
-        médicaments, rechercher des médicaments spécifiques, des génériques et
-        des groupes de génériques. Pour garantir que les données sont à jour et
-        fiables, l'application se met à jour à 6h et 18h chaque jour.
-      </p>
-      <p>
-        Afin de garantir des performances optimales et d'éviter une charge
-        excessive sur le serveur, Il y a un système de buckets mis en place un
-        qui se remplit par minute, régulant ainsi le nombre de requêtes
-        acceptées.
-      </p>
+        <section id="introduction" class="section">
+            <h2>Introduction</h2>
+            <div class="intro-text">
+                <p>
+                    Cette API transforme les données officielles de la Base de Données Publique des Médicaments 
+                    en une interface moderne et facile à utiliser. Fini les fichiers complexes et le parsing fastidieux - 
+                    nous vous fournissons des données propres, structurées et toujours à jour.
+                </p>
+                <br>
+                <p>
+                    Idéale pour les développeurs, chercheurs, et professionnels de santé qui ont besoin 
+                    d'accéder programmatiquement aux informations sur les médicaments disponibles en France.
+                </p>
+            </div>
+        </section>
 
-      <h2>Endpoints</h2>
-      <section>
-        <h3>/database</h3>
-        <p>Renvoie la base de données complète.</p>
-        <h3>/database/{page}</h3>
-        <p>
-          Permet de récupérer la page numero {page} de la base de données.
-          Chaque page contient 10 medicaments.
-        </p>
-        <h4>Exemple de Réponse</h4>
-        <div class="code" id="databaseToAdd"></div>
-      </section>
-      <section>
-        <h3>/medicament/{libelle}</h3>
-        <p>
-          Permet de récupérer les médicaments contenant le libellé dans leur
-          élément pharmaceutique
-        </p>
+        <section id="fonctions" class="section">
+            <h2>Fonctionnalités Principales</h2>
+            <div class="functions-grid">
+                <div class="function-card">
+                    <div class="function-icon">🔍</div>
+                    <h3>Recherche Intelligente</h3>
+                    <p>Trouvez des médicaments par nom, identifiant CIS ou groupe générique avec une recherche rapide et précise.</p>
+                </div>
 
-        <h4>
-          Exemple de Réponse
-          <a href="/medicament/ketamine" target="_blank"
-            >/medicament/ketamine</a
-          >
-        </h4>
-        <div class="code" id="medicamentLibelleDiv"></div>
-      </section>
-      <section>
-        <h3>/medicament/id/{cis}</h3>
-        <p>Permet de récupérer le médicament correspondant au cis donnée.</p>
-        <h4>
-          Exemple de Réponse
-          <a href="/medicament/id/60904643" target="_blank"
-            >/medicament/id/60904643</a
-          >
-        </h4>
-        <div class="code" id="medicamentToAdd"></div>
-      </section>
-      <section>
-        <h3>/generiques/{libelle}</h3>
-        <p>Permet de récupérer les génériques contenant le libellé</p>
+                <div class="function-card">
+                    <div class="function-icon">📄</div>
+                    <h3>Pagination Optimisée</h3>
+                    <p>Parcourez la base complète avec un système de pagination efficace et des temps de réponse rapides.</p>
+                </div>
 
-        <h4>
-          Exemple de Réponse
-          <a href="/generiques/paracetamol" target="_blank"
-            >/generiques/paracetamol</a
-          >
-        </h4>
-        <div class="code" id="generiqueLibDiv"></div>
-      </section>
-      <section>
-        <h3>/generiques/group/{groupId}</h3>
-        <p>
-          Permet de récupérer le group de génériques correspondants au {groupId}
-        </p>
+                <div class="function-card">
+                    <div class="function-icon">🔄</div>
+                    <h3>Mises à Jour Automatiques</h3>
+                    <p>Synchronisation 2 fois par jour pour des données toujours fraîches et à jour.</p>
+                </div>
 
-        <h4>
-          Exemple de Réponse
-          <a href="/generiques/group/1506" target="_blank"
-            >/generiques/group/1506</a
-          >
-        </h4>
-        <div class="code" id="generiqueGroupDiv"></div>
-      </section>
-    </div>
-    <script nonce="databaseScript">
-      // Database pre
-      const databaseF = [
-        {
-          cis: 66460184,
-          elementPharmaceutique:
-            "ABIRATERONE EVOLUGEN 500 mg, comprimé pelliculé",
-          formePharmaceutique: "comprimé pelliculé",
-          voiesAdministration: ["orale"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "24/09/2021",
-          titulaire: "EVOLUPHARM",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 66460184,
-              elementPharmaceutique: "comprimé",
-              codeSubstance: 37304,
-              denominationSubstance: "ACÉTATE D'ABIRATÉRONE",
-              dosage: "500 mg",
-              referenceDosage: "un comprimé",
-              natureComposant: "SA",
-            },
-          ],
-          generiques: [
-            {
-              cis: 66460184,
-              group: 1772,
-              libelle: "ACETATE D'ABIRATERONE 500 mg - ZYTIGA 500 mg, comprimé",
-              type: "Générique",
-            },
-          ],
-          presentation: [
-            {
-              cis: 66460184,
-              cip7: 3023703,
-              libelle:
-                "60 plaquettes prédécoupées unitaires  PVDC polyéthylène PVC-Aluminium de 1 comprimé(s)",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "12/09/2022",
-              cip13: 3400930237038,
-              agreement: "oui",
-              tauxRemboursement: "100 %",
-              prix: 939.3,
-            },
-          ],
-          conditions: [
-            "prescription réservée aux spécialistes et services ONCOLOGIE MEDICALE",
-            "prescription initiale hospitalière annuelle",
-            "liste I",
-            "renouvellement non restreint",
-            "prescription réservée aux médecins compétents en CANCEROLOGIE",
-          ],
-        },
-      ];
-      const databaseElement = document.getElementById("databaseToAdd");
-      const dataPre = document.createElement("pre");
-      dataPre.append(JSON.stringify(databaseF, null, 2));
+                <div class="function-card">
+                    <div class="function-icon">⚡</div>
+                    <h3>Haute Performance</h3>
+                    <p>Réponses rapides grâce à un cache intelligent et une architecture optimisée.</p>
+                </div>
 
-      databaseElement.append(dataPre);
+                <div class="function-card">
+                    <div class="function-icon">🔒</div>
+                    <h3>Sécurité Renforcée</h3>
+                    <p>Protection contre les abus et validation complète des entrées utilisateur.</p>
+                </div>
 
-      // Medicament by libelle
-      const medicamentLibelle = [
-        {
-          cis: 64613845,
-          elementPharmaceutique:
-            "KETAMINE AGUETTANT 10 mg/mL, solution injectable",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "29/04/2020",
-          titulaire: "AGUETTANT",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 64613845,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "CHLORHYDRATE DE KÉTAMINE",
-              dosage: "",
-              referenceDosage: "",
-              natureComposant: "SA",
-            },
-            {
-              cis: 64613845,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE",
-              dosage: "10 mg",
-              referenceDosage: "1 ml de solution",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: [
-            {
-              cis: 64613845,
-              group: 964,
-              libelle:
-                "KETAMINE (CHLORHYDRATE DE) équivalant à KETAMINE 50 mg/5 ml - KETALAR 10 mg/ml, solution injectable.",
-              type: "Générique",
-            },
-          ],
-          presentation: [
-            {
-              cis: 64613845,
-              cip7: 5507032,
-              libelle: "10 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "05/02/2021",
-              cip13: 3400955070320,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-        {
-          cis: 63475544,
-          elementPharmaceutique:
-            "KETAMINE AGUETTANT 50 mg/mL, solution injectable",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "29/04/2020",
-          titulaire: "AGUETTANT",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 63475544,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "CHLORHYDRATE DE KÉTAMINE",
-              dosage: "",
-              referenceDosage: "",
-              natureComposant: "SA",
-            },
-            {
-              cis: 63475544,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE",
-              dosage: "50,00 mg",
-              referenceDosage: "1 mL de solution",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: [
-            {
-              cis: 63475544,
-              group: 967,
-              libelle:
-                "KETAMINE (CHLORHYDRATE DE) équivalant à KETAMINE 250 mg5 ml - KETALAR 50 mg/ml, solution injectable.",
-              type: "Générique",
-            },
-          ],
-          presentation: [
-            {
-              cis: 63475544,
-              cip7: 5507033,
-              libelle: "10 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "05/02/2021",
-              cip13: 3400955070337,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-        {
-          cis: 62768665,
-          elementPharmaceutique:
-            "KETAMINE PANPHARMA 10 mg/mL, solution injectable (I.V.-I.M.)",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "26/01/1988",
-          titulaire: "PANPHARMA",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 62768665,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "KÉTAMINE (CHLORHYDRATE DE)",
-              dosage: "",
-              referenceDosage: "",
-              natureComposant: "SA",
-            },
-            {
-              cis: 62768665,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE BASE",
-              dosage: "10,00 mg",
-              referenceDosage: "un ml",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: null,
-          presentation: [
-            {
-              cis: 62768665,
-              cip7: 5839799,
-              libelle: "5 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "03/06/2013",
-              cip13: 3400958397998,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-        {
-          cis: 69278297,
-          elementPharmaceutique:
-            "KETAMINE PANPHARMA 50 mg/mL, solution injectable (I.V.-I.M.)",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "26/01/1988",
-          titulaire: "PANPHARMA",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 69278297,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "KÉTAMINE (CHLORHYDRATE DE)",
-              dosage: "",
-              referenceDosage: "",
-              natureComposant: "SA",
-            },
-            {
-              cis: 69278297,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE BASE",
-              dosage: "50,00 mg",
-              referenceDosage: "un ml",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: null,
-          presentation: [
-            {
-              cis: 69278297,
-              cip7: 5839807,
-              libelle: "5 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "03/06/2013",
-              cip13: 3400958398070,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-        {
-          cis: 67132571,
-          elementPharmaceutique:
-            "KETAMINE RENAUDIN 10 mg/ml, solution injectable",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "11/10/2010",
-          titulaire: "LABORATOIRE RENAUDIN",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 67132571,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "CHLORHYDRATE DE KÉTAMINE",
-              dosage: "57,68 mg",
-              referenceDosage: "une ampoule de 5 ml",
-              natureComposant: "SA",
-            },
-            {
-              cis: 67132571,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE",
-              dosage: "50 mg",
-              referenceDosage: "une ampoule de 5 ml",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: [
-            {
-              cis: 67132571,
-              group: 964,
-              libelle:
-                "KETAMINE (CHLORHYDRATE DE) équivalant à KETAMINE 50 mg/5 ml - KETALAR 10 mg/ml, solution injectable.",
-              type: "Générique",
-            },
-          ],
-          presentation: [
-            {
-              cis: 67132571,
-              cip7: 5785299,
-              libelle: "10 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "23/11/2010",
-              cip13: 3400957852993,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-        {
-          cis: 63597509,
-          elementPharmaceutique:
-            "KETAMINE RENAUDIN 50 mg/ml, solution injectable",
-          formePharmaceutique: "solution injectable",
-          voiesAdministration: ["intramusculaire", "intraveineuse"],
-          statusAutorisation: "Autorisation active",
-          typeProcedure: "Procédure nationale",
-          etatComercialisation: "Commercialisée",
-          dateAMM: "11/10/2010",
-          titulaire: "LABORATOIRE RENAUDIN",
-          surveillanceRenforce: "Non",
-          composition: [
-            {
-              cis: 63597509,
-              elementPharmaceutique: "solution",
-              codeSubstance: 4503,
-              denominationSubstance: "CHLORHYDRATE DE KÉTAMINE",
-              dosage: "288,4 mg",
-              referenceDosage: "une ampoule de 5 ml",
-              natureComposant: "SA",
-            },
-            {
-              cis: 63597509,
-              elementPharmaceutique: "solution",
-              codeSubstance: 18747,
-              denominationSubstance: "KÉTAMINE",
-              dosage: "250 mg",
-              referenceDosage: "une ampoule de 5 ml",
-              natureComposant: "FT",
-            },
-          ],
-          generiques: [
-            {
-              cis: 63597509,
-              group: 967,
-              libelle:
-                "KETAMINE (CHLORHYDRATE DE) équivalant à KETAMINE 250 mg5 ml - KETALAR 50 mg/ml, solution injectable.",
-              type: "Générique",
-            },
-          ],
-          presentation: [
-            {
-              cis: 63597509,
-              cip7: 5785419,
-              libelle: "10 ampoule(s) en verre de 5 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "23/11/2010",
-              cip13: 3400957854195,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-            {
-              cis: 63597509,
-              cip7: 5785460,
-              libelle: "10 ampoule(s) en verre de 10 ml",
-              statusAdministratif: "Présentation active",
-              etatComercialisation: "Déclaration de commercialisation",
-              dateDeclaration: "26/03/2020",
-              cip13: 3400957854607,
-              agreement: "oui",
-              tauxRemboursement: "",
-              prix: 0,
-            },
-          ],
-          conditions: [
-            "réservé à l'usage HOSPITALIER",
-            "prescription limitée à 4 semaines",
-            "réservé à l'usage en situation d'urgence selon l'article R5121-96 du code de la santé publique",
-            "prescription réservée aux spécialistes et services ANESTHESIE-REANIMATION",
-            "prescription en toutes lettres sur ordonnance sécurisée",
-            "stupéfiants",
-            "réservé à une structure d'assistance médicale mobile ou de rapatriement sanitaire",
-          ],
-        },
-      ];
-      const medicamentLibElement = document.getElementById(
-        "medicamentLibelleDiv",
-      );
-      const medLibPre = document.createElement("pre");
-      medLibPre.append(JSON.stringify(medicamentLibelle, null, 2));
+                <div class="function-card">
+                    <div class="function-icon">📊</div>
+                    <h3>Données Complètes</h3>
+                    <p>Accès à toutes les informations : compositions, présentations, génériques, conditions.</p>
+                </div>
+            </div>
+        </section>
 
-      medicamentLibElement.append(medLibPre);
+        <section id="technologies" class="section">
+            <h2>Technologies Utilisées</h2>
+            <div class="tech-list">
+                <div class="tech-badge">Go</div>
+                <div class="tech-badge">Architecture Stateless</div>
+                <div class="tech-badge">Cache Mémoire</div>
+                <div class="tech-badge">Sécurité Multicouche</div>
+                <div class="tech-badge">API RESTful</div>
+                <div class="tech-badge">Déploiements Continus</div>
+                <div class="tech-badge">JSON</div>
+                <div class="tech-badge">OpenAPI</div>
+                <div class="tech-badge">HTTPS/TLS</div>
+            </div>
+        </section>
 
-      //Medicament by Id (CIS)
-      const medicamentId = {
-        cis: 60904643,
-        elementPharmaceutique: "CODOLIPRANE 500 mg/30 mg, comprimé",
-        formePharmaceutique: "comprimé",
-        voiesAdministration: ["orale"],
-        statusAutorisation: "Autorisation active",
-        typeProcedure: "Procédure nationale",
-        etatComercialisation: "Commercialisée",
-        dateAMM: "10/05/2013",
-        titulaire: "OPELLA HEALTHCARE FRANCE",
-        surveillanceRenforce: "Non",
-        composition: [
-          {
-            cis: 60904643,
-            elementPharmaceutique: "comprimé",
-            codeSubstance: 2202,
-            denominationSubstance: "PARACÉTAMOL",
-            dosage: "500 mg",
-            referenceDosage: "un comprimé",
-            natureComposant: "SA",
-          },
-          {
-            cis: 60904643,
-            elementPharmaceutique: "comprimé",
-            codeSubstance: 74765,
-            denominationSubstance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-            dosage: "30 mg",
-            referenceDosage: "un comprimé",
-            natureComposant: "SA",
-          },
-        ],
-        generiques: null,
-        presentation: [
-          {
-            cis: 60904643,
-            cip7: 2756239,
-            libelle:
-              "plaquette(s) thermoformée(s) PVC PVDC aluminium de 16 comprimé(s)",
-            statusAdministratif: "Présentation active",
-            etatComercialisation: "Déclaration de commercialisation",
-            dateDeclaration: "14/01/2014",
-            cip13: 3400927562396,
-            agreement: "oui",
-            tauxRemboursement: "65%",
-            prix: 1.72,
-          },
-          {
-            cis: 60904643,
-            cip7: 5846291,
-            libelle:
-              "plaquette(s) thermoformée(s) PVC PVDC aluminium de 100 comprimé(s)",
-            statusAdministratif: "Présentation active",
-            etatComercialisation: "Déclaration de commercialisation",
-            dateDeclaration: "14/01/2014",
-            cip13: 3400958462917,
-            agreement: "oui",
-            tauxRemboursement: "",
-            prix: 0,
-          },
-        ],
-        conditions: ["liste I"],
-      };
-      const medicamentElement = document.getElementById("medicamentToAdd");
-      const medPre = document.createElement("pre");
-      medPre.append(JSON.stringify(medicamentId, null, 2));
+        <section id="documentation" class="section">
+            <h2>Documentation & Code Source</h2>
+            <div class="intro-text">
+                <p>
+                    Prêt à commencer ? Consultez notre documentation complète pour intégrer l'API dans vos projets, 
+                    ou explorez le code source pour comprendre comment ça fonctionne.
+                </p>
+            </div>
+            <div class="button-group">
+                <a href="/docs" class="btn">
+                    <span>📖</span>
+                    Documentation API
+                </a>
+                <a href="https://github.com/giygas/medicaments-api" target="_blank" class="btn btn-secondary">
+                    <span>💻</span>
+                    Code Source
+                </a>
+            </div>
+        </section>
 
-      medicamentElement.append(medPre);
+        <section id="legal" class="section">
+            <h2>Mentions Légales</h2>
+            <div class="legal-grid">
+                <div class="legal-item">
+                    <div class="legal-label">Source des données</div>
+                    <div class="legal-value">
+                        <a href="https://base-donnees-publique.medicaments.gouv.fr/telechargement" target="_blank">
+                            Base de Données Publique des Médicaments
+                        </a>
+                    </div>
+                </div>
+                <div class="legal-item">
+                    <div class="legal-label">Licence</div>
+                    <div class="legal-value">
+                        GNU AGPL v3 - Logiciel libre avec obligation de partage des modifications
+                    </div>
+                </div>
+                <div class="legal-item">
+                    <div class="legal-label">Limites d'utilisation</div>
+                    <div class="legal-value">
+                        10 requêtes par seconde par IP pour garantir la disponibilité du service
+                    </div>
+                </div>
+                <div class="legal-item">
+                    <div class="legal-label">Mises à jour</div>
+                    <div class="legal-value">
+                        Les données sont synchronisées automatiquement à 6h et 18h chaque jour
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
-      //Generique by libelle
-      const generiqueLib = [
-        {
-          groupId: 1643,
-          libelle:
-            "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
-          medicaments: [
-            {
-              cis: 66003374,
-              elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé",
-              formePharmaceutique: "comprimé pelliculé",
-              type: "Princeps",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "500 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-                  dosage: "30 mg",
-                },
-              ],
-            },
-            {
-              cis: 69458587,
-              elementPharmaceutique:
-                "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé",
-              formePharmaceutique: "comprimé",
-              type: "Générique",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "500,0 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-                  dosage: "30,00 mg",
-                },
-              ],
-            },
-            {
-              cis: 66384797,
-              elementPharmaceutique:
-                "PARACETAMOL/CODEINE VIATRIS 500 mg/30 mg, comprimé",
-              formePharmaceutique: "comprimé",
-              type: "Générique",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "500 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-                  dosage: "30 mg",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          groupId: 1189,
-          libelle:
-            "PARACÉTAMOL  500 mg +  CHLORPHÉNAMINE (MALÉATE DE) 4 mg - HUMEXLIB PARACETAMOL CHLORPHENAMINE 500 mg/4 mg, gélule",
-          medicaments: [
-            {
-              cis: 68144352,
-              elementPharmaceutique:
-                "HUMEXLIB PARACETAMOL CHLORPHENAMINE 500 mg/4 mg, gélule",
-              formePharmaceutique: "gélule",
-              type: "Princeps",
-              composition: [
-                {
-                  elementPharmaceutique: "gélule",
-                  substance: "PARACÉTAMOL",
-                  dosage: "500 mg",
-                },
-                {
-                  elementPharmaceutique: "gélule",
-                  substance: "MALÉATE DE CHLORPHÉNAMINE",
-                  dosage: "4 mg",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          groupId: 1368,
-          libelle:
-            "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé",
-          medicaments: [
-            {
-              cis: 61644230,
-              elementPharmaceutique: "PRONTALGINE, comprimé",
-              formePharmaceutique: "comprimé",
-              type: "Princeps",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "CAFÉINE ANHYDRE",
-                  dosage: "50,0 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "400,0 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-                  dosage: "20,0 mg",
-                },
-              ],
-            },
-            {
-              cis: 63399979,
-              elementPharmaceutique:
-                "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé",
-              formePharmaceutique: "comprimé",
-              type: "Générique",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "CAFÉINE ANHYDRE",
-                  dosage: "50 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "400 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-                  dosage: "20 mg",
-                },
-              ],
-            },
-            {
-              cis: 64409077,
-              elementPharmaceutique:
-                "PARACETAMOL/CAFEINE/CODEINE VIATRIS 400 mg/50 mg/20 mg, comprimé",
-              formePharmaceutique: "comprimé",
-              type: "Générique",
-              composition: [
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "CAFÉINE ANHYDRE",
-                  dosage: "50 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PARACÉTAMOL",
-                  dosage: "400 mg",
-                },
-                {
-                  elementPharmaceutique: "comprimé",
-                  substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
-                  dosage: "20 mg",
-                },
-              ],
-            },
-          ],
-        },
-      ];
-      const generiqueLibElement = document.getElementById("generiqueLibDiv");
-      const genLibPre = document.createElement("pre");
-      genLibPre.append(JSON.stringify(generiqueLib, null, 2));
-
-      generiqueLibElement.append(genLibPre);
-
-      //Generique by groupId
-      const generiqueGroup = {
-        cis: 64027889,
-        group: 1506,
-        libelle:
-          "SUNITINIB (MALATE DE) équivalant  à  SUNITINIB 25 mg - SUNITINIB 25 mg- SUTENT 25 mg, gélule",
-        type: "Générique",
-      };
-      const generiqueGroupElement =
-        document.getElementById("generiqueGroupDiv");
-      const genGroupPre = document.createElement("pre");
-      genGroupPre.append(JSON.stringify(generiqueGroup, null, 2));
-
-      generiqueGroupElement.append(genGroupPre);
-    </script>
-  </body>
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div>Développé avec ❤️ pour la communauté médicale et les développeurs français</div>
+                <div class="footer-links">
+                    <a href="https://github.com/giygas/medicaments-api" target="_blank">GitHub</a>
+                    <a href="/docs">Documentation</a>
+                    <a href="#legal">Mentions légales</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
 </html>
