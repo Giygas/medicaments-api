@@ -28,7 +28,6 @@ info:
     
     - **Capacité initiale** : 1000 tokens par IP
     - **Taux de recharge** : 3 tokens par seconde  
-    - **Nettoyage** : Les buckets inactifs (pleins) sont nettoyés toutes les 30 minutes
     - **Coûts** : 5-200 tokens par requête
     
     ### Coûts par endpoint
