@@ -64,7 +64,10 @@ func init() {
 }
 
 func getTokenCost(r *http.Request) int64 {
-	switch r.URL.Path {
+	path := r.URL.Path
+
+	// Check for exact matches first
+	switch path {
 	case "/":
 		return 0 // Free access to index page
 	case "/docs":
@@ -75,23 +78,27 @@ func getTokenCost(r *http.Request) int64 {
 		return 0 // Free access to favicon
 	case "/database":
 		return 200 // Higher cost for full database
-	case "/medicament/":
-		return 100
 	case "/health":
 		return 5 // Low cost for health check
-	default:
-		return 20 // Default cost for specific lookups
 	}
+
+	// Check for path patterns
+	if len(path) > 0 {
+		switch {
+		case path == "/database" || (len(path) > 10 && path[:10] == "/database/"):
+			return 20 // Paged database access
+		case path == "/medicament" || (len(path) > 12 && path[:12] == "/medicament/"):
+			return 100 // Medicament search or lookup
+		case path == "/generiques" || (len(path) > 11 && path[:11] == "/generiques/"):
+			return 20 // Generique search or lookup
+		}
+	}
+
+	return 20 // Default cost for other endpoints
 }
 
 func rateLimitHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the client has a valid cached version of the data
-		if r.Header.Get("If-None-Match") != "" || r.Header.Get("If-Modified-Since") != "" {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-
 		clientIP := r.RemoteAddr
 
 		bucket := globalRateLimiter.getBucket(clientIP)

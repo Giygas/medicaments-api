@@ -38,7 +38,7 @@ Médicaments :
 | `GET /medicament/id/{cis}`        | Recherche par identifiant CIS    | 12 heures | 100         | <50ms       |
 | `GET /generiques/{libelle}`       | Recherche de génériques par nom  | 1 heure   | 20          | <100ms      |
 | `GET /generiques/group/{groupId}` | Groupe de génériques par ID      | 12 heures | 20          | <50ms       |
-| `GET /health`                     | État de santé du service         | -         | 5           | <10ms       |
+| `GET /health`                     | État de santé avancé (data+system) | -         | 5           | <10ms       |
 | `GET /`                           | Page d'accueil documentation     | 1 heure   | 0           | <20ms       |
 | `GET /docs`                       | Documentation interactive Swagger | 1 heure   | 0           | <30ms       |
 | `GET /docs/openapi.yaml`          | Spécification OpenAPI            | 1 heure   | 0           | <10ms       |
@@ -162,7 +162,7 @@ print(f"Found {results['count']} results")
 
 - **Validation stricte des entrées** : 3-50 caractères alphanumériques + espaces uniquement
 - **Protection contre les injections** : Utilisation de `regexp.QuoteMeta` pour échappement
-- **Rate limiting intelligent** : Token bucket (1000 tokens initiaux, 3 tokens/sec recharge)
+- **Rate limiting renforcé** : Token bucket (1000 tokens initiaux, 3 tokens/sec recharge) avec protection anti-contournement
 - **Coûts variables par endpoint** : 5-200 tokens selon la complexité et ressources consommées
 - **Middleware de protection** : Taille des requêtes et headers configurables
 - **Nettoyage automatique** : Clients inactifs supprimés toutes les 30 minutes
@@ -184,9 +184,9 @@ Retry-After: 60              # Si limite dépassée
 - **Zero-downtime updates** : `atomic.Value` et `atomic.Bool` pour basculement transparent
 - **Logging structuré** : Utilisation de `slog` avec rotation de fichiers
 - **Monitoring proactif** : Alertes si >25h sans mise à jour
+- **Health checks** : Vérifications avec métriques détaillées (data+system), uptime humain, prochaines mises à jour
 - **Graceful shutdown** : Timeout 30s + 2s pour finaliser les requêtes
 - **Concurrency safe** : `sync.RWMutex` et operations atomiques
-- **Health checks** : Vérification toutes les heures avec métriques détaillées
 
 #### Architecture de résilience
 
