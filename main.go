@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -34,6 +36,7 @@ type DataContainer struct {
 }
 
 var dataContainer = &DataContainer{}
+var serverStartTime = time.Now()
 
 func scheduleMedicaments() {
 
@@ -142,6 +145,52 @@ func GetLastUpdated() time.Time {
 
 func IsUpdating() bool {
 	return dataContainer.updating.Load()
+}
+
+// calculateNextUpdate calculates the next scheduled update time based on the cron schedule (06:00;18:00)
+func calculateNextUpdate() time.Time {
+	now := time.Now()
+
+	// Get today's 6:00 AM and 6:00 PM times
+	sixAM := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, now.Location())
+	sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
+
+	// If current time is before 6:00 AM, next update is 6:00 AM today
+	if now.Before(sixAM) {
+		return sixAM
+	}
+
+	// If current time is between 6:00 AM and 6:00 PM, next update is 6:00 PM today
+	if now.Before(sixPM) {
+		return sixPM
+	}
+
+	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
+	tomorrow := now.AddDate(0, 0, 1)
+	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, now.Location())
+}
+
+// formatUptimeHuman formats duration into a human-readable string
+func formatUptimeHuman(d time.Duration) string {
+	days := int(d.Hours()) / 24
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
+
+	var parts []string
+
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 || days > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 || hours > 0 || days > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	parts = append(parts, fmt.Sprintf("%ds", seconds))
+
+	return strings.Join(parts, " ")
 }
 
 func updateData() error {
@@ -363,13 +412,56 @@ func main() {
 
 // Health check endpoint
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	status := map[string]any{
-		"status":           "healthy",
-		"medicament_count": len(GetMedicaments()),
-		"generique_count":  len(GetGeneriques()),
-		"last_updated":     GetLastUpdated(),
-		"updating":         IsUpdating(),
+	// Get memory statistics
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	memoryUsageMB := int(m.Alloc / 1024 / 1024)
+
+	// Calculate uptime
+	uptime := time.Since(serverStartTime)
+	uptimeSeconds := int(uptime.Seconds())
+
+	// Determine health status based on various factors
+	status := "healthy"
+	lastUpdate := GetLastUpdated()
+
+	// Check if data is stale (more than 25 hours)
+	if time.Since(lastUpdate) > 25*time.Hour {
+		status = "degraded"
 	}
 
-	respondWithJSON(w, 200, status)
+	// Check if currently updating
+	if IsUpdating() {
+		status = "degraded"
+	}
+
+	// Check if no data available
+	if len(GetMedicaments()) == 0 {
+		status = "unhealthy"
+	}
+
+	// Calculate additional metrics
+	dataAgeHours := time.Since(lastUpdate).Hours()
+	nextUpdate := calculateNextUpdate()
+	uptimeHuman := formatUptimeHuman(uptime)
+
+	healthStatus := map[string]any{
+		"status":         status,
+		"uptime_seconds": uptimeSeconds,
+		"uptime_human":   uptimeHuman,
+		"last_updated":   GetLastUpdated(),
+		"data": map[string]any{
+			"medicament_count": len(GetMedicaments()),
+			"generique_count":  len(GetGeneriques()),
+			"data_age_hours":   dataAgeHours,
+			"next_update":      nextUpdate,
+		},
+		"system": map[string]any{
+			"updating":        IsUpdating(),
+			"memory_usage_mb": memoryUsageMB,
+			"goroutines":      runtime.NumGoroutine(),
+		},
+	}
+
+	respondWithJSON(w, 200, healthStatus)
 }
