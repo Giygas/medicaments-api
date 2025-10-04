@@ -474,9 +474,9 @@ go run main.go
 
 ```bash
 # Configuration serveur
-PORT=8080
-ADDRESS=0.0.0.0
-ENV=production
+PORT=8002
+ADDRESS=127.0.0.1
+ENV=prod
 
 # Logging
 LOG_LEVEL=info
@@ -537,14 +537,20 @@ Le projet intègre des pratiques industrielles modernes :
 FROM golang:1.21-alpine AS builder
 WORKDIR /app
 COPY . .
-RUN go mod tidy && go build -o medicaments-api .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o medicaments-api .
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata
-WORKDIR /root/
+RUN apk --no-cache add ca-certificates tzdata curl && \
+    addgroup -g 1001 -S medicaments && \
+    adduser -u 1001 -S medicaments -G medicaments
+WORKDIR /app
 COPY --from=builder /app/medicaments-api .
 COPY --from=builder /app/html ./html
-EXPOSE 8080
+RUN chown -R medicaments:medicaments /app
+USER medicaments
+EXPOSE 8002
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8002/health || exit 1
 CMD ["./medicaments-api"]
 ```
 
@@ -556,14 +562,85 @@ services:
   medicaments-api:
     build: .
     ports:
-      - "8080:8080"
+      - "8002:8002"
     environment:
-      - ENV=production
-      - PORT=8080
+      - ENV=prod
+      - PORT=8002
+      - ADDRESS=0.0.0.0
       - LOG_LEVEL=info
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+#### Systemd Service
+
+```ini
+[Unit]
+Description=Medicaments API
+After=network.target
+
+[Service]
+Type=simple
+User=medicaments
+Group=medicaments
+WorkingDirectory=/opt/medicaments-api
+ExecStart=/opt/medicaments-api/medicaments-api
+Restart=always
+RestartSec=5
+Environment=PORT=8002
+Environment=ADDRESS=127.0.0.1
+Environment=ENV=prod
+Environment=LOG_LEVEL=info
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/medicaments-api/logs
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=200M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### Nginx Reverse Proxy
+
+```nginx
+server {
+    listen 80;
+    server_name medicamentsapi.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 15s;
+        proxy_send_timeout 15s;
+        proxy_read_timeout 15s;
+        
+        # Rate limiting
+        limit_req zone=api burst=20 nodelay;
+    }
+}
+
+# Rate limiting zone (add to http block)
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 ```
 
 ## ⚠️ Limitations et conditions d'utilisation
