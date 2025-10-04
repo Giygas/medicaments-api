@@ -352,7 +352,7 @@ func main() {
 	router.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
-		http.ServeFile(w, r, "html/openapi.yaml")
+		http.ServeFile(w, r, "html/docs/openapi.yaml")
 	})
 
 	// Serve Swagger UI documentation

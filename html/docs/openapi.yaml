@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.1.0
 info:
   title: API Médicaments FR
   description: |
@@ -492,65 +492,65 @@ paths:
           description: Healthy system
           content:
             application/json:
-               schema:
-                 type: object
-                 properties:
-                   status:
-                     type: string
-                     enum: ["healthy", "degraded", "unhealthy"]
-                     example: "healthy"
-                     description: État de santé global de l'API
-                    uptime_seconds:
-                      type: integer
-                      example: 86400
-                      description: Temps de fonctionnement en secondes
-                    uptime_human:
-                      type: string
-                      example: "1d 2h 30m 45s"
-                      description: Temps de fonctionnement au format lisible
-                    last_updated:
-                      type: string
-                      format: date-time
-                      example: "2025-01-15T06:00:00Z"
-                      description: Date et heure de la dernière mise à jour réussie
-                   data:
-                     type: object
-                     properties:
-                       medicament_count:
-                         type: integer
-                         example: 15420
-                         description: Nombre total de médicaments dans la base
-                        generique_count:
-                          type: integer
-                          example: 5200
-                          description: Nombre total de groupes génériques
-                        data_age_hours:
-                          type: number
-                          format: float
-                          example: 2.5
-                          description: Âge des données en heures depuis la dernière mise à jour
-                        next_update:
-                          type: string
-                          format: date-time
-                          example: "2025-01-15T18:00:00Z"
-                          description: Prochaine mise à jour planifiée
-                      description: Informations sur les données de l'API
-                   system:
-                     type: object
-                     properties:
-                       updating:
-                         type: boolean
-                         example: false
-                         description: Indique si une mise à jour est en cours
-                       memory_usage_mb:
-                         type: integer
-                         example: 130
-                         description: Utilisation mémoire en MB
-                       goroutines:
-                         type: integer
-                         example: 45
-                         description: Nombre de goroutines actives
-                     description: Informations système et performance
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ["healthy", "degraded", "unhealthy"]
+                    example: "healthy"
+                    description: État de santé global de l'API
+                  uptime_seconds:
+                    type: integer
+                    example: 86400
+                    description: Temps de fonctionnement en secondes
+                  uptime_human:
+                    type: string
+                    example: "1d 2h 30m 45s"
+                    description: Temps de fonctionnement au format lisible
+                  last_updated:
+                    type: string
+                    format: date-time
+                    example: "2025-01-15T06:00:00Z"
+                    description: Date et heure de la dernière mise à jour réussie
+                  data:
+                    type: object
+                    properties:
+                      medicament_count:
+                        type: integer
+                        example: 15420
+                        description: Nombre total de médicaments dans la base
+                      generique_count:
+                        type: integer
+                        example: 5200
+                        description: Nombre total de groupes génériques
+                      data_age_hours:
+                        type: number
+                        format: float
+                        example: 2.5
+                        description: Âge des données en heures depuis la dernière mise à jour
+                      next_update:
+                        type: string
+                        format: date-time
+                        example: "2025-01-15T18:00:00Z"
+                        description: Prochaine mise à jour planifiée
+                    description: Informations sur les données de l'API
+                  system:
+                    type: object
+                    properties:
+                      updating:
+                        type: boolean
+                        example: false
+                        description: Indique si une mise à jour est en cours
+                      memory_usage_mb:
+                        type: integer
+                        example: 130
+                        description: Utilisation mémoire en MB
+                      goroutines:
+                        type: integer
+                        example: 45
+                        description: Nombre de goroutines actives
+                    description: Informations système et performance
                 example:
                   status: "healthy"
                   uptime_seconds: 86400
