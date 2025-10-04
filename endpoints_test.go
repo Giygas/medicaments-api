@@ -358,3 +358,99 @@ func TestRequestSizeMiddleware(t *testing.T) {
 
 	fmt.Println("Request size middleware test completed")
 }
+
+func TestCompressionOptimization(t *testing.T) {
+	fmt.Println("Testing compression optimization...")
+
+	// Test small response (should not be compressed)
+	t.Run("Small response should not be compressed", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		smallPayload := map[string]string{"message": "small"}
+
+		respondWithJSON(w, http.StatusOK, smallPayload)
+
+		// Check that Content-Encoding is not set to gzip
+		encoding := w.Header().Get("Content-Encoding")
+		if encoding == "gzip" {
+			t.Errorf("Small response should not be compressed, but got Content-Encoding: %s", encoding)
+		}
+
+		// Check that response was written
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	// Test large response (should be compressed if client accepts gzip)
+	t.Run("Large response should be compressed when client accepts gzip", func(t *testing.T) {
+		w := httptest.NewRecorder()
+
+		// Create a large payload (> 1KB)
+		largePayload := make(map[string]interface{})
+		for i := 0; i < 100; i++ {
+			largePayload[fmt.Sprintf("key_%d", i)] = fmt.Sprintf("This is a long string value that takes up space to make the response larger than the compression threshold of 1024 bytes. We need to ensure this payload is big enough to trigger compression. %d", i)
+		}
+
+		// Simulate client accepting gzip
+		w.Header().Set("Accept-Encoding", "gzip")
+
+		respondWithJSON(w, http.StatusOK, largePayload)
+
+		// Check that Content-Encoding is set to gzip
+		encoding := w.Header().Get("Content-Encoding")
+		if encoding != "gzip" {
+			t.Errorf("Large response should be compressed, but got Content-Encoding: %s", encoding)
+		}
+
+		// Check that response was written
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	// Test large response without gzip acceptance (should not be compressed)
+	t.Run("Large response should not be compressed when client doesn't accept gzip", func(t *testing.T) {
+		w := httptest.NewRecorder()
+
+		// Create a large payload (> 1KB)
+		largePayload := make(map[string]interface{})
+		for i := 0; i < 100; i++ {
+			largePayload[fmt.Sprintf("key_%d", i)] = fmt.Sprintf("This is a long string value that takes up space to make the response larger than the compression threshold of 1024 bytes. %d", i)
+		}
+
+		// Don't set Accept-Encoding header (client doesn't accept gzip)
+
+		respondWithJSON(w, http.StatusOK, largePayload)
+
+		// Check that Content-Encoding is not set to gzip
+		encoding := w.Header().Get("Content-Encoding")
+		if encoding == "gzip" {
+			t.Errorf("Large response should not be compressed when client doesn't accept gzip, but got Content-Encoding: %s", encoding)
+		}
+
+		// Check that response was written
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+	})
+
+	// Test error response (should not be compressed)
+	t.Run("Error response should not be compressed", func(t *testing.T) {
+		w := httptest.NewRecorder()
+
+		respondWithError(w, http.StatusBadRequest, "test error")
+
+		// Check that Content-Encoding is not set to gzip
+		encoding := w.Header().Get("Content-Encoding")
+		if encoding == "gzip" {
+			t.Errorf("Error response should not be compressed, but got Content-Encoding: %s", encoding)
+		}
+
+		// Check that response was written
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
+		}
+	})
+
+	fmt.Println("Compression optimization test completed")
+}
