@@ -6,9 +6,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Run comprehensive tests before deployment
+  test:
+    name: Comprehensive Tests
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
   setup_go:
     name: setup go
     runs-on: ubuntu-latest
+    needs: test  # Only deploy if tests pass
 
     steps:
       - name: Checkout code

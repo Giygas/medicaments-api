@@ -1,4 +1,4 @@
-name: Run tests
+name: Comprehensive Test Suite
 
 on:
   push:
@@ -9,23 +9,50 @@ on:
   workflow_call:
 
 jobs:
-  test:
+  # Quick unit tests for fast feedback
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Setup Go environment
         uses: actions/setup-go@v5.0.0
         with:
           go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Install dependencies
         run: go mod download
 
-      - name: Run Parser Tests
-        run: go test ./medicamentsparser -v
+      - name: Verify dependencies
+        run: go mod verify
 
-      - name: Run Main Tests with Coverage
-        run: go test -coverprofile=coverage.out . -v
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run go fmt check
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "The following files are not formatted:"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run Parser Tests
+        run: go test ./medicamentsparser -v -short
+
+      - name: Run Main Unit Tests with Race Detection
+        run: go test -race -short -coverprofile=coverage.out -v .
 
       - name: Generate Coverage Report
         run: go tool cover -html=coverage.out -o coverage.html
@@ -33,7 +60,130 @@ jobs:
       - name: Upload Coverage Reports
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-reports
+          name: coverage-reports-unit
           path: |
             coverage.out
             coverage.html
+          retention-days: 30
+
+  # Integration tests with real data
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests  # Only run if unit tests pass
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run Integration Tests
+        run: go test -run TestIntegrationFullDataParsingPipeline -v -timeout 10m
+
+      - name: Run Integration Tests with Race Detection
+        run: go test -race -run TestIntegrationFullDataParsingPipeline -v -timeout 15m
+
+      - name: Generate Integration Coverage Report
+        run: go test -coverprofile=integration-coverage.out -run TestIntegrationFullDataParsingPipeline -timeout 10m
+
+      - name: Generate Integration Coverage HTML
+        run: go tool cover -html=integration-coverage.out -o integration-coverage.html
+
+      - name: Upload Integration Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-integration
+          path: |
+            integration-coverage.out
+            integration-coverage.html
+          retention-days: 30
+
+  # Full test suite with comprehensive coverage
+  full-test-suite:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run All Tests with Coverage
+        run: go test -race -coverprofile=full-coverage.out -v -timeout 15m
+
+      - name: Generate Full Coverage Report
+        run: go tool cover -html=full-coverage.out -o full-coverage.html
+
+      - name: Check Coverage Threshold
+        run: |
+          COVERAGE=$(go tool cover -func=full-coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Current coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "Coverage is below 70%"
+            exit 1
+          fi
+
+      - name: Upload Full Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-full
+          path: |
+            full-coverage.out
+            full-coverage.html
+          retention-days: 30
+
+  # Build test to ensure compilation works
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build application
+        run: go build -v -o medicaments-api .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: medicaments-api-binary
+          path: medicaments-api
+          retention-days: 7
