@@ -222,7 +222,7 @@ Retry-After: 60              # Si limite dépassée
 | **Disponibilité** | 99.9% | Avec redémarrage automatique |
 | **Fraîcheur données** | 2x/jour | 6h et 18h automatique |
 | **Dataset** | 20K+ médicaments | Données complètes BDPM |
-| **RAM Usage** | ~50MB | Optimisation Go native |
+| **RAM Usage** | 30-50MB | 150MB startup, optimisé 30-50MB stable |
 | **Compression** | 80% | Réduction taille avec gzip |
 | **Cache hit ratio** | > 90% | Avec ETag/Last-Modified |
 
@@ -248,7 +248,8 @@ GET /health                     → 8ms  (health check)
 │ compositionsMap   │ ~12MB │ O(1) lookup par CIS             │
 │ presentationsMap  │ ~8MB  │ O(1) lookup par CIS             │
 │ conditionsMap     │ ~4MB  │ O(1) lookup par CIS             │
-│ Total             │ ~50MB │ RAM usage réel (optimisé Go)    │
+│ Total             │ 30-50MB│ RAM usage stable (Go optimisé) │
+│ Startup           │ ~150MB│ Pic initial après chargement    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -540,7 +541,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 
 - **Rate limiting** : 1000 tokens initiaux par IP, recharge de 3 tokens/seconde
 - **Coûts variables** : 5-200 tokens par requête selon l'endpoint
-- **Data size** : La base complète fait ~20MB avec ~50MB RAM usage réel grâce à l'optimisation Go
+- **Data size** : La base complète fait ~20MB avec 30-50MB RAM usage stable (150MB au démarrage) grâce à l'optimisation Go
 - **Pas de SLA** : Service fourni "as-is" sans garantie de disponibilité
 - **Dépendance externe** : Mises à jour dépendantes de la disponibilité de la source BDPM
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces pour les recherches
