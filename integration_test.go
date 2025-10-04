@@ -392,11 +392,36 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 		t.Errorf("Failed to unmarshal health response: %v", err)
 	}
 
-	expectedFields := []string{"status", "uptime", "memory_usage_mb", "last_update", "next_update", "is_updating", "medicament_count", "generique_count"}
-	for _, field := range expectedFields {
+	// Check for top-level fields
+	topLevelFields := []string{"status", "last_update", "data_age_hours", "uptime_seconds", "data", "system"}
+	for _, field := range topLevelFields {
 		if _, exists := healthResponse[field]; !exists {
 			t.Errorf("Health response missing %s field", field)
 		}
+	}
+
+	// Check data section fields
+	if dataSection, ok := healthResponse["data"].(map[string]interface{}); ok {
+		dataFields := []string{"api_version", "medicaments", "generiques", "is_updating", "next_update"}
+		for _, field := range dataFields {
+			if _, exists := dataSection[field]; !exists {
+				t.Errorf("Health response data section missing %s field", field)
+			}
+		}
+	} else {
+		t.Error("Health response data section is not a map")
+	}
+
+	// Check system section fields
+	if systemSection, ok := healthResponse["system"].(map[string]interface{}); ok {
+		systemFields := []string{"goroutines", "memory"}
+		for _, field := range systemFields {
+			if _, exists := systemSection[field]; !exists {
+				t.Errorf("Health response system section missing %s field", field)
+			}
+		}
+	} else {
+		t.Error("Health response system section is not a map")
 	}
 }
 

@@ -234,13 +234,22 @@ func FindGeneriquesByGroupID(dataContainer *data.DataContainer) http.HandlerFunc
 	}
 }
 
+// HealthResponse defines the structure for consistent JSON ordering
+type HealthResponse struct {
+	Status         string                 `json:"status"`
+	LastUpdate     string                 `json:"last_update"`
+	DataAgeHours   float64                `json:"data_age_hours"`
+	UptimeSeconds  float64                `json:"uptime_seconds"`
+	Data           map[string]interface{} `json:"data"`
+	System         map[string]interface{} `json:"system"`
+}
+
 // HealthCheck returns server health information
 func HealthCheck(dataContainer *data.DataContainer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get memory statistics
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		memoryUsageMB := int(m.Alloc / 1024 / 1024)
 
 		// Calculate uptime
 		uptime := time.Since(serverStartTime)
@@ -250,18 +259,51 @@ func HealthCheck(dataContainer *data.DataContainer) http.HandlerFunc {
 		generiques := dataContainer.GetGeneriques()
 		lastUpdate := dataContainer.GetLastUpdated()
 		isUpdating := dataContainer.IsUpdating()
+		dataAge := time.Since(lastUpdate)
 
-		response := map[string]interface{}{
-			"status":           "healthy",
-			"uptime":           formatUptimeHuman(uptime),
-			"memory_usage_mb":  memoryUsageMB,
-			"last_update":      lastUpdate.Format(time.RFC3339),
-			"next_update":      calculateNextUpdate().Format(time.RFC3339),
-			"is_updating":      isUpdating,
-			"medicament_count": len(medicaments),
-			"generique_count":  len(generiques),
+		// Determine health status based on data availability and age
+		var healthStatus string
+		var httpStatus int
+		switch {
+		case len(medicaments) == 0:
+			healthStatus = "unhealthy"
+			httpStatus = http.StatusServiceUnavailable
+		case dataAge > 24*time.Hour:
+			healthStatus = "degraded"
+			httpStatus = http.StatusOK
+		default:
+			healthStatus = "healthy"
+			httpStatus = http.StatusOK
 		}
 
-		RespondWithJSON(w, http.StatusOK, response)
+		response := HealthResponse{
+			Status:       healthStatus,
+			LastUpdate:   lastUpdate.Format(time.RFC3339),
+			DataAgeHours: dataAge.Hours(),
+			UptimeSeconds: uptime.Seconds(),
+			Data: map[string]interface{}{
+				"api_version": "1.0",
+				"medicaments":  len(medicaments),
+				"generiques":   len(generiques),
+				"is_updating":  isUpdating,
+				"next_update":  calculateNextUpdate().Format(time.RFC3339),
+			},
+			System: map[string]interface{}{
+				"goroutines": runtime.NumGoroutine(),
+				"memory": map[string]interface{}{
+					"alloc_mb":       int(m.Alloc / 1024 / 1024),
+					"total_alloc_mb": int(m.TotalAlloc / 1024 / 1024),
+					"sys_mb":         int(m.Sys / 1024 / 1024),
+					"num_gc":         m.NumGC,
+				},
+			},
+		}
+
+		// Set appropriate status code
+		if healthStatus == "unhealthy" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+
+		RespondWithJSON(w, httpStatus, response)
 	}
 }
