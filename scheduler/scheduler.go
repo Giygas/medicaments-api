@@ -8,11 +8,15 @@ import (
 	"time"
 
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-co-op/gocron"
 )
+
+// Compile-time check to ensure Scheduler implements Scheduler interface
+var _ interfaces.Scheduler = (*Scheduler)(nil)
 
 // Scheduler handles data updates and health monitoring
 type Scheduler struct {
