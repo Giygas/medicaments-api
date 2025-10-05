@@ -526,17 +526,17 @@
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          API RESTful haute performance servant 20K+ médicaments avec parsing
-          concurrent de 5 sources BDPM, atomic zero-downtime updates, cache
-          intelligent (ETag/Last-Modified), et rate limiting par token bucket.
+          Une API rapide et fiable pour accéder aux 15K+ médicaments français.
+          Mises à jour automatiques deux fois par jour, cache intelligent, et
+          protection contre les abus pour garantir une expérience stable.
         </p>
         <div class="hero-stats">
           <div class="stat">
-            <span class="stat-number">20K+</span>
+            <span class="stat-number">15K+</span>
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number">&lt;100ms</span>
+            <span class="stat-number">&lt;50ms</span>
             <span class="stat-label">Temps de réponse</span>
           </div>
           <div class="stat">
@@ -554,17 +554,20 @@
         <h2>Introduction</h2>
         <div class="intro-text">
           <p>
-            Cette API transforme les données officielles de la Base de Données
-            Publique des Médicaments (BDPM) en une interface RESTful optimisée,
-            en utilisant un parsing concurrent de 5 fichiers TSV (spécialités,
-            compositions, présentations, génériques, conditions) avec validation
-            et structuration automatique.
+            Cette API transforme les 5 fichiers TSV de la Base de Données
+            Publique des Médicaments (BDPM) en une interface RESTful optimisée.
+            Parsing concurrent des sources (spécialités, compositions,
+            présentations, génériques, conditions) avec validation croisée et
+            structuration automatique via atomic operations pour garantir des
+            mises à jour sans temps d'arrêt.
           </p>
           <br />
           <p>
-            Idéale pour les développeurs, chercheurs, et professionnels de santé
-            qui ont besoin d'accéder programmatiquement aux informations sur les
-            médicaments disponibles en France.
+            Architecture modulaire basée sur 6 interfaces principales
+            (HTTPHandler, HealthChecker, DataValidator, Parser, Scheduler,
+            DataManager) avec dependency injection. Les données sont indexées en
+            O(1) via maps CIS-based pour des recherches instantanées, avec cache
+            HTTP intelligent (ETag/Last-Modified) et compression gzip.
           </p>
           <br />
           <div
@@ -686,10 +689,9 @@
             <div class="function-icon">🔍</div>
             <h3>Recherche avancée</h3>
             <p>
-              Recherchez des médicaments par dénomination (regex insensible à la
-              casse) ou par code CIS unique avec validation d'entrée stricte
-              (3-50 caractères alphanumériques). Performance O(1) via lookup
-              maps.
+              Trouvez des médicaments par nom (recherche flexible) ou par leur
+              identifiant unique CIS. Les recherches sont rapides et sécurisées
+              avec validation des entrées.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -729,11 +731,12 @@
 
           <div class="function-card">
             <div class="function-icon">🔄</div>
-            <h3>Zero-downtime updates</h3>
+            <h3>Architecture modulaire</h3>
             <p>
-              Synchronisation automatique à 6h et 18h avec atomic operations
-              pour zero-downtime updates. Monitoring de santé intégré avec
-              alertes si >25h sans mise à jour.
+              Conçue avec 6 interfaces claires (HTTPHandler, HealthChecker,
+              DataValidator, Parser, Scheduler, DataManager) et dependency
+              injection pour une maintenance facile et des tests simples.
+              Routage propre sans assertions de type.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -744,7 +747,7 @@
                   font-size: 0.85rem;
                 "
               >
-                Atomic swap &lt;2s
+                Zero-downtime &lt;2s
               </code>
             </div>
           </div>
@@ -753,9 +756,10 @@
             <div class="function-icon">⚡</div>
             <h3>Cache HTTP intelligent</h3>
             <p>
-              Réponses optimisées avec cache HTTP (ETag, Last-Modified),
-              compression gzip (80% réduction) et support 304 Not Modified.
-              Timeouts configurables (15s read/write).
+              Les réponses sont mises en cache intelligemment pour aller plus
+              vite, compressées pour économiser la bande passante (80% de
+              réduction), et incluent un support pour les conditions "non
+              modifié".
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -775,9 +779,9 @@
             <div class="function-icon">🔒</div>
             <h3>Rate limiting intelligent</h3>
             <p>
-              Protection par token bucket (1000 tokens initiaux, recharge de 3
-              tokens/sec) avec coûts variables par endpoint (5-200 tokens).
-              Nettoyage automatique des clients inactifs.
+              Protection contre les abus avec un système de quotas équilibré.
+              Chaque requête consomme quelques points selon sa complexité, avec
+              recharge automatique et nettoyage des connexions inactives.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -797,9 +801,10 @@
             <div class="function-icon">📊</div>
             <h3>Données BDPM complètes</h3>
             <p>
-              Accès complet aux données BDPM : compositions, présentations,
-              génériques, conditions, voies d'administration et statuts AMM.
-              20K+ médicaments avec 5 sources TSV parsées concurrently.
+              Accédez à toutes les informations officielles : compositions,
+              présentations, génériques, conditions d'utilisation, voies
+              d'administration et statuts d'autorisation. Plus de 15 000
+              médicaments couverts avec des données toujours à jour.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -884,7 +889,7 @@
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Base de données complète
+                    Base complète (15K+ médicaments)
                   </td>
                   <td
                     style="
@@ -1229,8 +1234,8 @@ print(f"Found {data['count']} results")</code></pre>
   "data": [...],
   "page": 1,
   "pageSize": 10,
-  "totalItems": 15420,
-  "maxPage": 1542
+  "totalItems": 15000,
+  "maxPage": 1500
 }</code></pre>
         </div>
 
@@ -1413,13 +1418,15 @@ X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)</code></pre>
         <div class="tech-list">
           <div class="tech-badge">Go 1.21+</div>
           <div class="tech-badge">Chi Router v5</div>
+          <div class="tech-badge">Interface-based Architecture</div>
+          <div class="tech-badge">Dependency Injection</div>
           <div class="tech-badge">Atomic Operations</div>
           <div class="tech-badge">Token Bucket Rate Limiting</div>
           <div class="tech-badge">HTTP Cache (ETag/Last-Modified)</div>
-          <div class="tech-badge">Concurrent TSV Parsing</div>
-          <div class="tech-badge">Structured Logging (slog)</div>
-          <div class="tech-badge">OpenAPI 3.0</div>
           <div class="tech-badge">gzip Compression</div>
+          <div class="tech-badge">Structured Logging (slog)</div>
+          <div class="tech-badge">OpenAPI 3.1</div>
+          <div class="tech-badge">Concurrent TSV Parsing</div>
           <div class="tech-badge">gocron Scheduler</div>
         </div>
       </section>
@@ -1428,9 +1435,9 @@ X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)</code></pre>
         <h2>Documentation & Code Source</h2>
         <div class="intro-text">
           <p>
-            Prêt à commencer ? Consultez notre documentation complète pour
-            intégrer l'API dans vos projets, ou explorez le code source pour
-            comprendre comment ça fonctionne.
+            Vous voulez commencer ? Jetez un œil à la documentation pour
+            intégrer l'API dans vos projets, ou parcourez le code source pour
+            voir comment tout fonctionne.
           </p>
         </div>
         <div class="button-group">
