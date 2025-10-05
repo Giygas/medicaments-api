@@ -1,16 +1,14 @@
 // Package scheduler provides automated data update scheduling and health monitoring
 // for the medicaments API. It handles cron-based data updates, health checks,
-// and coordinates data refresh operations with the data container.
+// and coordinates data refresh operations with the data container using dependency injection.
 package scheduler
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
-	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-co-op/gocron"
 )
@@ -18,17 +16,19 @@ import (
 // Compile-time check to ensure Scheduler implements Scheduler interface
 var _ interfaces.Scheduler = (*Scheduler)(nil)
 
-// Scheduler handles data updates and health monitoring
+// Scheduler handles data updates and health monitoring using dependency injection
 type Scheduler struct {
-	dataContainer *data.DataContainer
-	scheduler     *gocron.Scheduler
+	dataStore interfaces.DataStore
+	parser    interfaces.Parser
+	scheduler *gocron.Scheduler
 }
 
-// NewScheduler creates a new scheduler instance
-func NewScheduler(dataContainer *data.DataContainer) *Scheduler {
+// NewScheduler creates a new scheduler instance with injected dependencies
+func NewScheduler(dataStore interfaces.DataStore, parser interfaces.Parser) *Scheduler {
 	return &Scheduler{
-		dataContainer: dataContainer,
-		scheduler:     gocron.NewScheduler(time.Local),
+		dataStore: dataStore,
+		parser:    parser,
+		scheduler: gocron.NewScheduler(time.Local),
 	}
 }
 
@@ -65,20 +65,20 @@ func (s *Scheduler) Stop() {
 	s.scheduler.Stop()
 }
 
-// updateData performs a complete data update
+// updateData performs a complete data update using injected dependencies
 func (s *Scheduler) updateData() error {
 	// Prevent concurrent updates
-	if !s.dataContainer.BeginUpdate() {
+	if !s.dataStore.BeginUpdate() {
 		logging.Info("Update already in progress, skipping...")
 		return nil
 	}
-	defer s.dataContainer.EndUpdate()
+	defer s.dataStore.EndUpdate()
 
 	fmt.Println("Starting database update at:", time.Now())
 	start := time.Now()
 
-	// Parse data into temporary variables (not affecting current data)
-	newMedicaments, err := medicamentsparser.ParseAllMedicaments()
+	// Parse data using injected parser
+	newMedicaments, err := s.parser.ParseAllMedicaments()
 	if err != nil {
 		logging.Error("Failed to parse medicaments", "error", err)
 		return fmt.Errorf("failed to parse medicaments: %w", err)
@@ -90,14 +90,14 @@ func (s *Scheduler) updateData() error {
 		newMedicamentsMap[newMedicaments[i].Cis] = newMedicaments[i]
 	}
 
-	newGeneriques, newGeneriquesMap, err := medicamentsparser.GeneriquesParser(&newMedicaments, &newMedicamentsMap)
+	newGeneriques, newGeneriquesMap, err := s.parser.GeneriquesParser(&newMedicaments, &newMedicamentsMap)
 	if err != nil {
 		logging.Error("Failed to parse generiques", "error", err)
 		return fmt.Errorf("failed to parse generiques: %w", err)
 	}
 
-	// Atomic update
-	s.dataContainer.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap)
+	// Atomic update using injected data store
+	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap)
 
 	elapsed := time.Since(start)
 	logging.Info("Database update completed", "duration", elapsed.String(), "medicament_count", len(newMedicaments))
@@ -112,7 +112,7 @@ func (s *Scheduler) startHealthMonitoring() {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			lastUpdate := s.dataContainer.GetLastUpdated()
+			lastUpdate := s.dataStore.GetLastUpdated()
 			if time.Since(lastUpdate) > 25*time.Hour {
 				logging.Warn("Data hasn't been updated in over 25 hours")
 			}

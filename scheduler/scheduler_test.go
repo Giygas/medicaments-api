@@ -105,13 +105,13 @@ func (e *mockSchedulerError) Error() string {
 	return e.msg
 }
 
-func TestSchedulerWithDI_SuccessfulUpdate(t *testing.T) {
+func TestScheduler_SuccessfulUpdate(t *testing.T) {
 	// Create mock dependencies
 	mockDataStore := &mockSchedulerDataStore{}
 	mockParser := &mockSchedulerParser{shouldFail: false}
 
 	// Create scheduler with dependency injection
-	scheduler := NewSchedulerWithDI(mockDataStore, mockParser)
+	scheduler := NewScheduler(mockDataStore, mockParser)
 
 	// Test initial data load
 	err := scheduler.Start()
@@ -143,13 +143,13 @@ func TestSchedulerWithDI_SuccessfulUpdate(t *testing.T) {
 	scheduler.Stop()
 }
 
-func TestSchedulerWithDI_ParseFailure(t *testing.T) {
+func TestScheduler_ParseFailure(t *testing.T) {
 	// Create mock dependencies that will fail
 	mockDataStore := &mockSchedulerDataStore{}
 	mockParser := &mockSchedulerParser{shouldFail: true}
 
 	// Create scheduler with dependency injection
-	scheduler := NewSchedulerWithDI(mockDataStore, mockParser)
+	scheduler := NewScheduler(mockDataStore, mockParser)
 
 	// Test initial data load failure
 	err := scheduler.Start()
@@ -163,13 +163,13 @@ func TestSchedulerWithDI_ParseFailure(t *testing.T) {
 	}
 }
 
-func TestSchedulerWithDI_ConcurrentUpdatePrevention(t *testing.T) {
+func TestScheduler_ConcurrentUpdatePrevention(t *testing.T) {
 	// Create mock dependencies
 	mockDataStore := &mockSchedulerDataStore{}
 	mockParser := &mockSchedulerParser{shouldFail: false}
 
 	// Create scheduler with dependency injection
-	scheduler := NewSchedulerWithDI(mockDataStore, mockParser)
+	scheduler := NewScheduler(mockDataStore, mockParser)
 
 	// Simulate an update in progress
 	mockDataStore.BeginUpdate()
@@ -191,13 +191,13 @@ func TestSchedulerWithDI_ConcurrentUpdatePrevention(t *testing.T) {
 
 // This test demonstrates how interfaces make testing much easier
 // compared to testing the original scheduler which had tight coupling
-func TestSchedulerWithDI_DependencyInjectionBenefits(t *testing.T) {
+func TestScheduler_DependencyInjectionBenefits(t *testing.T) {
 	// We can easily test with different implementations
 	var dataStore interfaces.DataStore = &mockSchedulerDataStore{}
 	var parser interfaces.Parser = &mockSchedulerParser{shouldFail: false}
 
 	// The scheduler works with any implementation of the interfaces
-	scheduler := NewSchedulerWithDI(dataStore, parser)
+	scheduler := NewScheduler(dataStore, parser)
 
 	// We can verify behavior without needing real data files, HTTP calls, etc.
 	err := scheduler.Start()
