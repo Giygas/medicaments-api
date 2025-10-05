@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -123,6 +124,41 @@ func (m *MockHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(m.responseBody))
 }
 
+func (m *MockHTTPHandler) ServeAllMedicaments(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) FindMedicament(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) FindMedicamentByID(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) FindGeneriques(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	w.Write([]byte(m.responseBody))
+}
+
 // MockHealthChecker implements HealthChecker interface for testing
 type MockHealthChecker struct {
 	status  string
@@ -152,7 +188,7 @@ func (m *MockDataValidator) ValidateMedicament(med *entities.Medicament) error {
 
 func (m *MockDataValidator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	if m.shouldFail {
-		return &mockError{"integrity check failed"}
+		return fmt.Errorf("validation failed")
 	}
 	return nil
 }
@@ -310,4 +346,15 @@ func TestServiceWithDependencyInjection(t *testing.T) {
 	if count != 2 {
 		t.Errorf("Expected 2 medicaments, got %d", count)
 	}
+}
+
+// Compile-time checks to ensure our implementations implement the interfaces
+func TestCompileTimeChecks(t *testing.T) {
+	// These will fail to compile if the implementations don't match the interfaces
+	var _ DataStore = (*MockDataStore)(nil)
+	var _ Parser = (*MockParser)(nil)
+	var _ Scheduler = (*MockScheduler)(nil)
+	var _ HTTPHandler = (*MockHTTPHandler)(nil)
+	var _ HealthChecker = (*MockHealthChecker)(nil)
+	var _ DataValidator = (*MockDataValidator)(nil)
 }

@@ -51,6 +51,15 @@ type Scheduler interface {
 type HTTPHandler interface {
 	// ServeHTTP implements the http.Handler interface
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
+
+	// Specific endpoint handlers
+	ServeAllMedicaments(w http.ResponseWriter, r *http.Request)
+	ServePagedMedicaments(w http.ResponseWriter, r *http.Request)
+	FindMedicament(w http.ResponseWriter, r *http.Request)
+	FindMedicamentByID(w http.ResponseWriter, r *http.Request)
+	FindGeneriques(w http.ResponseWriter, r *http.Request)
+	FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request)
+	HealthCheck(w http.ResponseWriter, r *http.Request)
 }
 
 // HealthChecker defines the contract for health check functionality.
