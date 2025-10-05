@@ -19,6 +19,12 @@ import (
 )
 
 func main() {
+	// Load environment variables first
+	if err := loadEnvironment(); err != nil {
+		fmt.Printf("Failed to load environment: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Load and validate configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -28,12 +34,6 @@ func main() {
 
 	// Initialize structured logging
 	logging.InitLogger("logs")
-
-	// Load environment variables
-	if err := loadEnvironment(); err != nil {
-		logging.Error("Failed to load environment", "error", err)
-		os.Exit(1)
-	}
 
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",

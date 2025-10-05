@@ -103,8 +103,8 @@ func (s *Server) setupMiddleware() {
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
 	// API routes using clean interface-based handlers
-	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
 	s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
+	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
 	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament)
 	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
 	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
