@@ -2,65 +2,40 @@ openapi: 3.1.0
 info:
   title: API Médicaments FR
   description: |
-    # API RESTful haute performance pour les médicaments français
+    API RESTful haute performance pour accéder aux données des médicaments français.
+
+    Architecture basée sur interfaces avec parsing concurrent BDPM, zero-downtime updates, 
+    cache HTTP intelligent et rate limiting par token bucket.
+
+    ## Caractéristiques
+    - 15K+ médicaments issus de la BDPM
+    - Mises à jour automatiques 2x/jour (6h/18h)
+    - Rate limiting : 1000 tokens initiaux, 3 tokens/sec recharge
+    - Cache HTTP avec ETag/Last-Modified
+    - Compression gzip (80% réduction)
+    - Temps de réponse <50ms
+
+    ## Intégrité des données
+    - Intégrité : Aucune altération des données originales
+    - Source : Base de Données Publique des Médicaments (BDPM)
+
+    ## Coûts par endpoint
+    - `/health` : 5 tokens
+    - `/database/{page}` : 20 tokens  
+    - `/generiques/{libelle}` : 20 tokens
+    - `/generiques/group/{id}` : 20 tokens
+    - `/medicament/{nom}` : 100 tokens
+    - `/medicament/id/{cis}` : 100 tokens
+    - `/database` : 200 tokens
+
+    ## Headers Rate Limiting
+    Les informations relatives au rate limiting se trouvent dans les headers de l'endpoint /health :
     
-    Cette API JSON fournit un accès programmatique aux données complètes des médicaments français
-    en parsant de manière concurrente 5 sources de la Base de Données Publique des Médicaments (BDPM).
+    - X-RateLimit-Limit : Capacité maximale de tokens
+    - X-RateLimit-Remaining : Tokens restants pour cette IP  
+    - X-RateLimit-Rate : Taux de recharge (tokens/sec)
     
-    ## 🚀 Fonctionnalités principales
-    
-    - **Parsing concurrent** : Traitement parallèle de 5 fichiers TSV (spécialités, compositions, présentations, génériques, conditions)
-    - **Zero-downtime updates** : Mises à jour atomiques sans interruption de service
-    - **Cache intelligent** : HTTP cache avec ETag/Last-Modified et compression gzip
-    - **Rate limiting** : Token bucket algorithm avec coûts variables par endpoint
-    - **Performance** : Recherche O(1) via lookup maps en mémoire
-    
-    ## 📊 Données et mises à jour
-    
-    - **Source** : [Base de Données Publique des Médicaments](https://base-donnees-publique.medicaments.gouv.fr)
-    - **Fréquence** : 2 fois par jour (6h00 et 18h00 heure locale)
-    - **Volume** : 20K+ médicaments avec données complètes
-    - **Fraîcheur** : Monitoring horaire avec alertes si >25h sans mise à jour
-    
-    ## 🔒 Rate Limiting
-    
-    L'API utilise un système de limitation de taux par token bucket pour garantir une utilisation équitable :
-    
-    - **Capacité initiale** : 1000 tokens par IP
-    - **Taux de recharge** : 3 tokens par seconde  
-    - **Coûts** : 5-200 tokens par requête
-    
-    ### Coûts par endpoint
-    | Endpoint | Coût (tokens) | Raison |
-    |----------|---------------|--------|
-    | `/health` | 5 | Monitoring léger |
-    | `/database/{pageNumber}` | 20 | Pagination optimisée |
-    | `/generiques/{libelle}` | 20 | Recherche de génériques |
-    | `/generiques/group/{groupId}` | 20 | Lookup par ID |
-    | `/medicament/{element}` | 100 | Recherche regex complexe |
-    | `/medicament/id/{cis}` | 100 | Lookup individuel |
-    | `/database` | 200 | Export complet (~20MB) |
-    | Pages statiques | 0 | Documentation et ressources |
-    
-    ### En-têtes de réponse
-    - `X-RateLimit-Limit`: Capacité maximale de tokens (1000)
-    - `X-RateLimit-Remaining`: Tokens restants pour cette IP
-    - `X-RateLimit-Rate`: Taux de recharge des tokens (3/sec)
-    - `Retry-After`: Temps d'attente recommandé si limite dépassée
-    
-    ## 🎯 Performance
-    
-    - **Temps de réponse** : <50ms (cache hit), <100ms (recherche)
-    - **Compression** : gzip activé (80% réduction de taille)
-    - **Cache hit ratio** : >90% avec ETag/Last-Modified
-    - **Disponibilité** : 99.9% avec graceful shutdown
-    
-    ## 📋 Conformité
-    
-    - **Licence** : AGPL-3.0 pour le logiciel, licence BDPM pour les données
-    - **Source obligatoire** : Mention de base-donnees-publique.medicaments.gouv.fr
-    - **Intégrité** : Aucune altération des données originales
-    - **Usage** : Non-commercial et éducatif privilégié
+    Pour obtenir seulement les headers : curl -I "https://medicamentsapi.giygas.dev/health"
   version: 1.0.0
   contact:
     name: GitHub Repository
@@ -81,14 +56,14 @@ paths:
         - Médicaments
       x-token-cost: 200
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Medicament'
+                  $ref: "#/components/schemas/Medicament"
               example:
                 - cis: 61504672
                   elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
@@ -142,7 +117,7 @@ paths:
             ETag:
               schema:
                 type: string
-              example: "\"1736947200\""
+              example: '"1736947200"'
               description: Timestamp Unix pour la validation de cache
             X-RateLimit-Limit:
               schema:
@@ -159,14 +134,14 @@ paths:
                 type: string
               example: "3"
               description: Taux de recharge (tokens/sec)
-        '304':
+        "304":
           description: Not modified (client has cached version)
-        '500':
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /database/{pageNumber}:
     get:
@@ -185,7 +160,7 @@ paths:
             minimum: 1
           example: 1
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
@@ -195,7 +170,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Medicament'
+                      $ref: "#/components/schemas/Medicament"
                   page:
                     type: integer
                     example: 1
@@ -217,24 +192,24 @@ paths:
               schema:
                 type: string
                 format: date-time
-        '400':
+        "400":
           description: Invalid page number
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Page not found (exceeds maximum pages)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /medicament/{element}:
     get:
@@ -252,10 +227,10 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: '^[a-zA-Z0-9 ]+$'
+            pattern: "^[a-zA-Z0-9 ]+$"
           example: "paracetamol"
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
@@ -265,7 +240,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Medicament'
+                      $ref: "#/components/schemas/Medicament"
                   count:
                     type: integer
                     example: 5
@@ -306,24 +281,24 @@ paths:
               schema:
                 type: string
               example: "public, max-age=3600"
-        '400':
+        "400":
           description: Invalid search term
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: No medicaments found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /medicament/id/{cis}:
     get:
@@ -343,12 +318,12 @@ paths:
             maximum: 999999999
           example: 61504672
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Medicament'
+                $ref: "#/components/schemas/Medicament"
           headers:
             Cache-Control:
               schema:
@@ -358,24 +333,24 @@ paths:
               schema:
                 type: string
                 format: date-time
-        '400':
+        "400":
           description: Invalid CIS code
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Medicament not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /generiques/{libelle}:
     get:
@@ -393,40 +368,40 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: '^[a-zA-Z0-9 ]+$'
+            pattern: "^[a-zA-Z0-9 ]+$"
           example: "paracetamol"
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GeneriqueList'
+                  $ref: "#/components/schemas/GeneriqueList"
           headers:
             Cache-Control:
               schema:
                 type: string
               example: "public, max-age=3600"
-        '400':
+        "400":
           description: Invalid search term
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: No generics found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /generiques/group/{groupId}:
     get:
@@ -446,12 +421,12 @@ paths:
             maximum: 99999
           example: 1234
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Generique'
+                $ref: "#/components/schemas/Generique"
           headers:
             Cache-Control:
               schema:
@@ -461,24 +436,24 @@ paths:
               schema:
                 type: string
                 format: date-time
-        '400':
+        "400":
           description: Invalid group ID
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Generic group not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /health:
     get:
@@ -488,7 +463,7 @@ paths:
         - Système
       x-token-cost: 5
       responses:
-        '200':
+        "200":
           description: Healthy system
           content:
             application/json:
@@ -565,12 +540,12 @@ paths:
                     updating: false
                     memory_usage_mb: 130
                     goroutines: 45
-        '500':
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
 components:
   schemas:
@@ -623,17 +598,17 @@ components:
         composition:
           type: array
           items:
-            $ref: '#/components/schemas/Composition'
+            $ref: "#/components/schemas/Composition"
           description: Composition du médicament
         generiques:
           type: array
           items:
-            $ref: '#/components/schemas/Generique'
+            $ref: "#/components/schemas/Generique"
           description: Génériques associés
         presentation:
           type: array
           items:
-            $ref: '#/components/schemas/Presentation'
+            $ref: "#/components/schemas/Presentation"
           description: Présentations disponibles
         conditions:
           type: array
@@ -757,7 +732,7 @@ components:
         medicaments:
           type: array
           items:
-            $ref: '#/components/schemas/GeneriqueMedicament'
+            $ref: "#/components/schemas/GeneriqueMedicament"
           description: Medicaments in this generic group
 
     GeneriqueMedicament:
@@ -783,7 +758,7 @@ components:
         composition:
           type: array
           items:
-            $ref: '#/components/schemas/GeneriqueComposition'
+            $ref: "#/components/schemas/GeneriqueComposition"
           description: Composition for generic grouping
 
     GeneriqueComposition:
