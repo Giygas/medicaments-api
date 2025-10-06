@@ -12,12 +12,19 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/scheduler"
 	"github.com/giygas/medicaments-api/server"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables first
+	if err := loadEnvironment(); err != nil {
+		fmt.Printf("Failed to load environment: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Load and validate configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -28,12 +35,6 @@ func main() {
 	// Initialize structured logging
 	logging.InitLogger("logs")
 
-	// Load environment variables
-	if err := loadEnvironment(); err != nil {
-		logging.Error("Failed to load environment", "error", err)
-		os.Exit(1)
-	}
-
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",
 		"port", cfg.Port,
@@ -43,11 +44,12 @@ func main() {
 		"max_request_body", cfg.MaxRequestBody,
 		"max_header_size", cfg.MaxHeaderSize)
 
-	// Initialize data container
+	// Initialize data container and parser
 	dataContainer := data.NewDataContainer()
+	parser := medicamentsparser.NewMedicamentsParser()
 
-	// Initialize and start scheduler
-	sched := scheduler.NewScheduler(dataContainer)
+	// Initialize and start scheduler with dependency injection
+	sched := scheduler.NewScheduler(dataContainer, parser)
 	if err := sched.Start(); err != nil {
 		logging.Error("Failed to start scheduler", "error", err)
 		os.Exit(1)

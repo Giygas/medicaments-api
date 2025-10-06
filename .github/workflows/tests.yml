@@ -154,6 +154,9 @@ jobs:
             exit 1
           fi
 
+      - name: Run Full Benchmark Suite
+        run: go test -bench=. -benchmem -count=5 -run=^$ -timeout 15m | tee full-benchmark.txt
+
       - name: Upload Full Coverage Reports
         uses: actions/upload-artifact@v4
         with:
@@ -161,11 +164,71 @@ jobs:
           path: |
             full-coverage.out
             full-coverage.html
+            full-benchmark.txt
           retention-days: 30
+
+  # Performance benchmarks
+  benchmarks:
+    runs-on: ubuntu-latest
+    needs: unit-tests  # Only run if unit tests pass
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run Benchmarks
+        run: go test -bench=. -benchmem -count=3 -run=^$ -timeout 10m
+
+      - name: Generate Benchmark Report
+        run: |
+          go test -bench=. -benchmem -count=3 -run=^$ -timeout 10m | tee benchmark.txt
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark.txt
+          retention-days: 30
+
+      - name: Performance Regression Check
+        run: |
+          # Run benchmarks and capture output
+          go test -bench=BenchmarkDatabase -benchmem -count=3 -run=^$ > current_bench.txt
+          
+          # Extract key metrics (example for Database endpoint)
+          DB_NS=$(grep "BenchmarkDatabase" current_bench.txt | tail -1 | awk '{print $3}')
+          echo "Database endpoint: ${DB_NS} ns/op"
+          
+          # Basic performance thresholds (adjust as needed)
+          # Database should complete within 1ms (1,000,000 ns)
+          if [ "$DB_NS" -gt "1000000" ]; then
+            echo "❌ Performance regression detected: Database endpoint too slow (${DB_NS} ns > 1,000,000 ns)"
+            exit 1
+          fi
+          
+          echo "✅ Performance benchmarks passed"
 
   # Build test to ensure compilation works
   build-test:
     runs-on: ubuntu-latest
+    needs: [unit-tests, benchmarks]  # Only run if tests and benchmarks pass
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

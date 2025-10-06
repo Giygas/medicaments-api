@@ -14,6 +14,7 @@ import (
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/server"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -95,18 +96,18 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicament/id/1", "/medicament/id/1", http.StatusOK},
 		{"Test medicament/id/999999", "/medicament/id/999999", http.StatusNotFound},
 		{"Test generiques/group/a", "/generiques/group/a", http.StatusBadRequest},
-		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusBadRequest},
+		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusNotFound},
 		{"Test health", "/health", http.StatusOK},
 	}
 
 	router := chi.NewRouter()
 	// Note: rateLimitHandler is now part of the server middleware
-
+	validator := validation.NewDataValidator()
 	router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(testDataContainer))
 	router.Get("/database", handlers.ServeAllMedicaments(testDataContainer))
-	router.Get("/medicament/{element}", handlers.FindMedicament(testDataContainer))
+	router.Get("/medicament/{element}", handlers.FindMedicament(testDataContainer, validator))
 	router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(testDataContainer))
-	router.Get("/generiques/{libelle}", handlers.FindGeneriques(testDataContainer))
+	router.Get("/generiques/{libelle}", handlers.FindGeneriques(testDataContainer, validator))
 	router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(testDataContainer))
 	router.Get("/health", handlers.HealthCheck(testDataContainer))
 

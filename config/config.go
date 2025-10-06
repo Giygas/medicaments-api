@@ -22,7 +22,7 @@ type Config struct {
 // Load loads and validates configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:           getEnvWithDefault("PORT", "8002"),
+		Port:           getEnvWithDefault("PORT", "8000"),
 		Address:        getEnvWithDefault("ADDRESS", "127.0.0.1"),
 		Env:            getEnvWithDefault("ENV", "dev"),
 		LogLevel:       getEnvWithDefault("LOG_LEVEL", "info"),

@@ -14,8 +14,10 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
-	"github.com/giygas/medicaments-api/scheduler"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -52,11 +54,18 @@ type Server struct {
 	router        chi.Router
 	dataContainer *data.DataContainer
 	config        *config.Config
+	httpHandler   interfaces.HTTPHandler
+	healthChecker interfaces.HealthChecker
 }
 
 // NewServer creates a new server instance
 func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 	router := chi.NewRouter()
+
+	// Create interface-based dependencies
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
+	healthChecker := health.NewHealthChecker(dataContainer)
 
 	server := &Server{
 		server: &http.Server{
@@ -69,6 +78,8 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 		router:        router,
 		dataContainer: dataContainer,
 		config:        cfg,
+		httpHandler:   httpHandler,
+		healthChecker: healthChecker,
 	}
 
 	server.setupMiddleware()
@@ -91,14 +102,14 @@ func (s *Server) setupMiddleware() {
 
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
-	// API routes
-	s.router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(s.dataContainer))
-	s.router.Get("/database", handlers.ServeAllMedicaments(s.dataContainer))
-	s.router.Get("/medicament/{element}", handlers.FindMedicament(s.dataContainer))
-	s.router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(s.dataContainer))
-	s.router.Get("/generiques/{libelle}", handlers.FindGeneriques(s.dataContainer))
-	s.router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(s.dataContainer))
-	s.router.Get("/health", handlers.HealthCheck(s.dataContainer))
+	// API routes using clean interface-based handlers
+	s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
+	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
+	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament)
+	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
+	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
+	s.router.Get("/generiques/group/{groupId}", s.httpHandler.FindGeneriquesByGroupID)
+	s.router.Get("/health", s.httpHandler.HealthCheck)
 
 	// Documentation routes
 	s.setupDocumentationRoutes()
@@ -199,20 +210,23 @@ func (s *Server) GetHealthData() HealthData {
 	// Calculate uptime
 	uptime := time.Since(serverStartTime)
 
-	// Get data statistics
-	medicaments := s.dataContainer.GetMedicaments()
-	generiques := s.dataContainer.GetGeneriques()
-	lastUpdate := s.dataContainer.GetLastUpdated()
-	isUpdating := s.dataContainer.IsUpdating()
+	// Get health data from interface-based health checker
+	status, details, err := s.healthChecker.HealthCheck()
+	if err != nil {
+		status = "unhealthy"
+	}
+
+	// Extract data from details
+	data := details["data"].(map[string]interface{})
 
 	return HealthData{
-		Status:          "healthy",
+		Status:          status,
 		Uptime:          formatUptimeHuman(uptime),
 		MemoryUsage:     memoryUsageMB,
-		LastUpdate:      lastUpdate.Format(time.RFC3339),
-		NextUpdate:      scheduler.CalculateNextUpdate().Format(time.RFC3339),
-		IsUpdating:      isUpdating,
-		MedicamentCount: len(medicaments),
-		GeneriqueCount:  len(generiques),
+		LastUpdate:      details["last_update"].(string),
+		NextUpdate:      data["next_update"].(string),
+		IsUpdating:      data["is_updating"].(bool),
+		MedicamentCount: int(data["medicaments"].(float64)),
+		GeneriqueCount:  int(data["generiques"].(float64)),
 	}
 }

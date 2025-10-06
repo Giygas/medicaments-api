@@ -7,9 +7,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
+
+// Compile-time check to ensure DataContainer implements DataStore
+var _ interfaces.DataStore = (*DataContainer)(nil)
 
 // DataContainer holds all the data with atomic pointers for zero-downtime updates
 type DataContainer struct {

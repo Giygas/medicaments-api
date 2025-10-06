@@ -526,17 +526,17 @@
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          API RESTful haute performance servant 20K+ médicaments avec parsing
-          concurrent de 5 sources BDPM, atomic zero-downtime updates, cache
-          intelligent (ETag/Last-Modified), et rate limiting par token bucket.
+          Une API rapide et fiable pour accéder aux 15K+ médicaments français.
+          Mises à jour automatiques deux fois par jour, cache intelligent, et
+          protection contre les abus pour garantir une expérience stable.
         </p>
         <div class="hero-stats">
           <div class="stat">
-            <span class="stat-number">20K+</span>
+            <span class="stat-number">15.8K</span>
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number">&lt;100ms</span>
+            <span class="stat-number">&lt;50ms</span>
             <span class="stat-label">Temps de réponse</span>
           </div>
           <div class="stat">
@@ -554,17 +554,20 @@
         <h2>Introduction</h2>
         <div class="intro-text">
           <p>
-            Cette API transforme les données officielles de la Base de Données
-            Publique des Médicaments (BDPM) en une interface RESTful optimisée,
-            en utilisant un parsing concurrent de 5 fichiers TSV (spécialités,
-            compositions, présentations, génériques, conditions) avec validation
-            et structuration automatique.
+            Cette API transforme les 5 fichiers TSV de la Base de Données
+            Publique des Médicaments (BDPM) en une interface RESTful optimisée.
+            Parsing concurrent des sources (spécialités, compositions,
+            présentations, génériques, conditions) avec validation croisée et
+            structuration automatique via atomic operations pour garantir des
+            mises à jour sans temps d'arrêt.
           </p>
           <br />
           <p>
-            Idéale pour les développeurs, chercheurs, et professionnels de santé
-            qui ont besoin d'accéder programmatiquement aux informations sur les
-            médicaments disponibles en France.
+            Architecture modulaire basée sur 6 interfaces principales
+            (HTTPHandler, HealthChecker, DataValidator, Parser, Scheduler,
+            DataManager) avec dependency injection. Les données sont indexées en
+            O(1) via maps CIS-based pour des recherches instantanées, avec cache
+            HTTP intelligent (ETag/Last-Modified) et compression gzip.
           </p>
           <br />
           <div
@@ -577,105 +580,157 @@
             "
           >
             <h4 style="color: var(--color-text); margin-bottom: 1rem">
-              🚀 Quick Start
+              🚀 Démarrage Rapide
             </h4>
-            <div style="position: relative; margin: 0.5rem 0">
-              <code
+
+            <div style="margin-bottom: 1.5rem">
+              <strong style="color: var(--color-text)"
+                >Base URL & Authentication</strong
+              >
+              <pre
                 style="
                   background: var(--color-bg);
-                  padding: 0.5rem;
+                  padding: 1rem;
                   border-radius: 4px;
-                  display: block;
-                  padding-right: 3rem;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.9rem;
                 "
-                onclick="copyToClipboard(this.textContent.trim())"
-              >
-                curl https://medicamentsapi.giygas.dev/medicament/paracetamol
-              </code>
-              <button
-                onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                style="
-                  position: absolute;
-                  right: 0.5rem;
-                  top: 50%;
-                  transform: translateY(-50%);
-                  background: var(--color-primary);
-                  color: white;
-                  border: none;
-                  border-radius: 4px;
-                  padding: 0.25rem 0.5rem;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                "
-              >
-                📋
-              </button>
+              ><code># Base URL
+BASE_URL="https://medicamentsapi.giygas.dev"
+
+# Authentication: None required
+# Rate limits: 1000 tokens/IP, 3 tokens/sec recharge
+# Costs: /health (5), /medicament/* (100), /database (200), others (20)</code></pre>
             </div>
-            <div style="position: relative; margin: 0.5rem 0">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.5rem;
-                  border-radius: 4px;
-                  display: block;
-                  padding-right: 3rem;
-                "
-                onclick="copyToClipboard(this.textContent.trim())"
+
+            <div style="margin-bottom: 1.5rem">
+              <strong style="color: var(--color-text)"
+                >Quick Test Commands</strong
               >
-                curl https://medicamentsapi.giygas.dev/database/1
-              </code>
-              <button
-                onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                style="
-                  position: absolute;
-                  right: 0.5rem;
-                  top: 50%;
-                  transform: translateY(-50%);
-                  background: var(--color-primary);
-                  color: white;
-                  border: none;
-                  border-radius: 4px;
-                  padding: 0.25rem 0.5rem;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                "
-              >
-                📋
-              </button>
-            </div>
-            <div style="position: relative; margin: 0.5rem 0">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.5rem;
-                  border-radius: 4px;
-                  display: block;
-                  padding-right: 3rem;
-                "
-                onclick="copyToClipboard(this.textContent.trim())"
-              >
-                curl https://medicamentsapi.giygas.dev/health
-              </code>
-              <button
-                onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                style="
-                  position: absolute;
-                  right: 0.5rem;
-                  top: 50%;
-                  transform: translateY(-50%);
-                  background: var(--color-primary);
-                  color: white;
-                  border: none;
-                  border-radius: 4px;
-                  padding: 0.25rem 0.5rem;
-                  font-size: 0.75rem;
-                  cursor: pointer;
-                "
-              >
-                📋
-              </button>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicamentsapi.giygas.dev/medicament/paracetamol
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicamentsapi.giygas.dev/database/1
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicamentsapi.giygas.dev/health
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="documentation" class="section">
+        <h2>Documentation & Code Source</h2>
+        <div class="intro-text">
+          <p>
+            Vous voulez commencer ? Jetez un œil à la documentation pour
+            intégrer l'API dans vos projets, ou parcourez le code source pour
+            voir comment tout fonctionne.
+          </p>
+        </div>
+        <div class="button-group">
+          <a href="/docs" class="btn">
+            <span>📖</span>
+            Documentation API
+          </a>
+          <a
+            href="https://github.com/giygas/medicaments-api"
+            target="_blank"
+            class="btn btn-secondary"
+          >
+            <span>💻</span>
+            Code Source
+          </a>
         </div>
       </section>
 
@@ -684,12 +739,11 @@
         <div class="functions-grid">
           <div class="function-card">
             <div class="function-icon">🔍</div>
-            <h3>Recherche avancée</h3>
+            <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherchez des médicaments par dénomination (regex insensible à la
-              casse) ou par code CIS unique avec validation d'entrée stricte
-              (3-50 caractères alphanumériques). Performance O(1) via lookup
-              maps.
+              Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
+              Validation stricte (3-50 chars alphanumériques) et échappement
+              automatique. Temps de réponse : &lt;100ms (nom) et &lt;50ms (CIS).
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -707,11 +761,12 @@
 
           <div class="function-card">
             <div class="function-icon">📄</div>
-            <h3>Pagination optimisée</h3>
+            <h3>Pagination & Base complète</h3>
             <p>
-              Parcourez la base complète avec pagination optimisée (10
-              éléments/page) et métadonnées complètes (totalItems, maxPage,
-              currentPage). Cache HTTP intelligent pour performances maximales.
+              Pagination optimisée (10 éléments/page) avec métadonnées
+              complètes. Base complète accessible (23MB, ~2.1s). Cache HTTP 6h
+              avec ETag/Last-Modified et compression gzip pour un transfert
+              efficace.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -729,11 +784,12 @@
 
           <div class="function-card">
             <div class="function-icon">🔄</div>
-            <h3>Zero-downtime updates</h3>
+            <h3>Mises à jour atomiques</h3>
             <p>
-              Synchronisation automatique à 6h et 18h avec atomic operations
-              pour zero-downtime updates. Monitoring de santé intégré avec
-              alertes si >25h sans mise à jour.
+              Parsing concurrent de 5 fichiers TSV BDPM avec atomic.Value pour
+              zero-downtime updates. Mises à jour automatiques 2x/jour (6h/18h)
+              en 1-2min. Architecture basée sur 6 interfaces avec dependency
+              injection.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -744,51 +800,7 @@
                   font-size: 0.85rem;
                 "
               >
-                Atomic swap &lt;2s
-              </code>
-            </div>
-          </div>
-
-          <div class="function-card">
-            <div class="function-icon">⚡</div>
-            <h3>Cache HTTP intelligent</h3>
-            <p>
-              Réponses optimisées avec cache HTTP (ETag, Last-Modified),
-              compression gzip (80% réduction) et support 304 Not Modified.
-              Timeouts configurables (15s read/write).
-            </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                Cache hit ratio &gt;90%
-              </code>
-            </div>
-          </div>
-
-          <div class="function-card">
-            <div class="function-icon">🔒</div>
-            <h3>Rate limiting intelligent</h3>
-            <p>
-              Protection par token bucket (1000 tokens initiaux, recharge de 3
-              tokens/sec) avec coûts variables par endpoint (5-200 tokens).
-              Nettoyage automatique des clients inactifs.
-            </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                X-RateLimit-* headers
+                Zero-downtime &lt;2s
               </code>
             </div>
           </div>
@@ -797,9 +809,10 @@
             <div class="function-icon">📊</div>
             <h3>Données BDPM complètes</h3>
             <p>
-              Accès complet aux données BDPM : compositions, présentations,
-              génériques, conditions, voies d'administration et statuts AMM.
-              20K+ médicaments avec 5 sources TSV parsées concurrently.
+              15K+ médicaments, 1.6K groupes génériques. Toutes les entités BDPM
+              : compositions, présentations, génériques, conditions, voies
+              d'administration. Mémoire optimisée : 30-50MB stable (150MB peak
+              au démarrage).
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -810,7 +823,29 @@
                   font-size: 0.85rem;
                 "
               >
-                20MB dataset 30-50MB RAM
+                23MB dataset, 30-50MB RAM
+              </code>
+            </div>
+          </div>
+
+          <div class="function-card">
+            <div class="function-icon">⚡</div>
+            <h3>Cache HTTP intelligent</h3>
+            <p>
+              Cache avancé avec ETag/Last-Modified et support 304 Not Modified.
+              Compression gzip (80% réduction bande passante). Cache hit ratio
+              90%+. Invalidation automatique durant les mises à jour.
+            </p>
+            <div style="margin-top: 1rem">
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                "
+              >
+                90%+ cache hit ratio
               </code>
             </div>
           </div>
@@ -884,7 +919,7 @@
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Base de données complète
+                    Base complète (15,803 médicaments)
                   </td>
                   <td
                     style="
@@ -1168,9 +1203,7 @@
                   overflow-x: auto;
                   margin-top: 0.5rem;
                 "
-              ><code>curl "https://medicamentsapi.giygas.dev/medicament/paracetamol" \
-  -H "Accept-Encoding: gzip" \
-  -H "Accept: application/json"</code></pre>
+              ><code>curl "https://medicamentsapi.giygas.dev/medicament/paracetamol"</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)">JavaScript</strong>
@@ -1214,42 +1247,12 @@ print(f"Found {data['count']} results")</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            📊 Pagination
-          </h4>
-          <pre
-            style="
-              background: var(--color-bg);
-              padding: 1rem;
-              border-radius: 4px;
-              overflow-x: auto;
-            "
-          ><code>curl "https://medicamentsapi.giygas.dev/database/1"
-# Response:
-{
-  "data": [...],
-  "page": 1,
-  "pageSize": 10,
-  "totalItems": 15420,
-  "maxPage": 1542
-}</code></pre>
-        </div>
-
-        <div
-          style="
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 2rem;
-            margin-top: 2rem;
-          "
-        >
-          <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            💊 Génériques
+            ⚠️ Réponses d'Erreur
           </h4>
           <div style="display: grid; gap: 1rem">
             <div>
               <strong style="color: var(--color-text)"
-                >Recherche de génériques</strong
+                >Rate Limited (HTTP 429)</strong
               >
               <pre
                 style="
@@ -1258,12 +1261,20 @@ print(f"Found {data['count']} results")</code></pre>
                   border-radius: 4px;
                   overflow-x: auto;
                   margin-top: 0.5rem;
+                  font-size: 0.8rem;
                 "
-              ><code>curl "https://medicamentsapi.giygas.dev/generiques/paracetamol"</code></pre>
+              ><code>HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+{
+  "code": 429,
+  "error": "Too Many Requests", 
+  "message": "Rate limit exceeded"
+}</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)"
-                >Groupe générique par ID</strong
+                >Not Found (HTTP 404)</strong
               >
               <pre
                 style="
@@ -1272,8 +1283,60 @@ print(f"Found {data['count']} results")</code></pre>
                   border-radius: 4px;
                   overflow-x: auto;
                   margin-top: 0.5rem;
+                  font-size: 0.8rem;
                 "
-              ><code>curl "https://medicamentsapi.giygas.dev/generiques/group/1234"</code></pre>
+              ><code>HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "code": 404,
+  "error": "Not Found",
+  "message": "No medicaments found"
+}</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Invalid Input (HTTP 400)</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.8rem;
+                "
+              ><code>HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "code": 400,
+  "error": "Bad Request",
+  "message": "Invalid page number"
+}</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Validation Error (HTTP 400)</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.8rem;
+                "
+              ><code>HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "code": 400,
+  "error": "Bad Request",
+  "message": "input contains invalid characters"
+}</code></pre>
             </div>
           </div>
         </div>
@@ -1288,7 +1351,396 @@ print(f"Found {data['count']} results")</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🔒 Rate Limiting
+            ✅ Règles de Validation
+          </h4>
+          <div style="margin-bottom: 1.5rem">
+            <strong style="color: var(--color-text)"
+              >Exigences de saisie :</strong
+            >
+            <ul
+              style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--color-text-muted"
+            >
+              <li><strong>Longueur :</strong> 3-50 caractères</li>
+              <li>
+                <strong>Caractères autorisés :</strong> Lettres, chiffres,
+                espaces, tirets (-), apostrophes ('), points (.)
+              </li>
+              <li>
+                <strong>Interdits :</strong> Chaînes vides, caractères spéciaux
+                (@, #, $, %, etc.)
+              </li>
+              <li>
+                <strong>Sensibilité à la casse :</strong> Recherche insensible à
+                la casse
+              </li>
+            </ul>
+          </div>
+          <div style="margin-bottom: 1.5rem">
+            <strong style="color: var(--color-text)">Exemples :</strong>
+            <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem">
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >✅ "paracetamol"</code
+                >
+                - Valide
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >✅ "Doliprane 500mg"</code
+                >
+                - Valide
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >✅ "abc"</code
+                >
+                - Valide (minimum 3 caractères)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >❌ "paracetamol@xyz"</code
+                >
+                - Invalide (contient @)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >❌ ""</code
+                >
+                - Invalide (vide)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >❌ "ab"</code
+                >
+                - Invalide (trop court)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >❌ "a"*51</code
+                >
+                - Invalide (trop long)
+              </div>
+            </div>
+          </div>
+          <div>
+            <strong style="color: var(--color-text)"
+              >Réponse d'erreur de validation :</strong
+            >
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                margin-top: 0.5rem;
+                font-size: 0.8rem;
+              "
+            ><code>HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "code": 400,
+  "error": "Bad Request",
+  "message": "input contains invalid characters"
+}</code></pre>
+          </div>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            📋 Formats de Réponse
+          </h4>
+          <div style="display: grid; gap: 1rem">
+            <div>
+              <strong style="color: var(--color-text)"
+                >Medicament Search - Direct array response</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.8rem;
+                "
+              ><code>GET /medicament/{name}
+Response: [...]  // Direct array of medicament objects
+
+GET /medicament/id/{cis}  
+Response: {...}  // Single medicament object or error</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Generiques Search - Direct array</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.8rem;
+                "
+              ><code>GET /generiques/{libelle}
+Response: [{"groupID": ..., "libelle": ..., "medicaments": [...]}]
+
+GET /generiques/group/{id}
+Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Pagination - Object with metadata</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.8rem;
+                "
+              ><code>GET /database/{page}
+Response: {
+  "data": [...],
+  "page": 1,
+  "pageSize": 10,
+  "totalItems": 15803,
+  "maxPage": 1581
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            💊 Exemple de réponse - Recherche par nom
+          </h4>
+          <div style="margin-bottom: 1rem">
+            <strong style="color: var(--color-text)">Commande cURL :</strong>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                margin-top: 0.5rem;
+              "
+            ><code>curl "https://medicamentsapi.giygas.dev/medicament/codoliprane"</code></pre>
+          </div>
+          <strong style="color: var(--color-text)">Réponse JSON :</strong>
+          <pre
+            style="
+              background: var(--color-bg);
+              padding: 1rem;
+              border-radius: 4px;
+              overflow-x: auto;
+              font-size: 0.8rem;
+              margin-top: 0.5rem;
+            "
+          ><code>[
+  {
+    "cis": 60904643,
+    "elementPharmaceutique": "CODOLIPRANE 500 mg/30 mg, comprimé",
+    "formePharmaceutique": "comprimé",
+    "voiesAdministration": ["orale"],
+    "statusAutorisation": "Autorisation active",
+    "typeProcedure": "Procédure nationale",
+    "etatComercialisation": "Commercialisée",
+    "dateAMM": "10/05/2013",
+    "titulaire": "OPELLA HEALTHCARE FRANCE",
+    "surveillanceRenforce": "Non",
+    "composition": [
+      {
+        "cis": 60904643,
+        "elementPharmaceutique": "comprimé",
+        "codeSubstance": 2202,
+        "denominationSubstance": "PARACÉTAMOL",
+        "dosage": "500 mg",
+        "referenceDosage": "un comprimé",
+        "natureComposant": "SA"
+      },
+      {
+        "cis": 60904643,
+        "elementPharmaceutique": "comprimé",
+        "codeSubstance": 1240,
+        "denominationSubstance": "CAFÉINE",
+        "dosage": "30 mg",
+        "referenceDosage": "un comprimé",
+        "natureComposant": "SA"
+      }
+    ],
+    "generiques": [],
+    "presentation": [
+      {
+        "cis": 60904643,
+        "cip7": 3400936403114,
+        "cip13": 3400936403114,
+        "libelle": "CODOLIPRANE 500 mg/30 mg, comprimé (16)",
+        "statusAdministratif": "Présentation active",
+        "etatComercialisation": "Commercialisée",
+        "dateDeclaration": "19/01/1965",
+        "agreement": "non",
+        "tauxRemboursement": "65%",
+        "prix": 3.85
+      }
+    ],
+    "conditions": []
+  }
+]</code></pre>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            🔄 Exemple de réponse - Génériques
+          </h4>
+          <div style="margin-bottom: 1rem">
+            <strong style="color: var(--color-text)">Commande cURL :</strong>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                margin-top: 0.5rem;
+              "
+            ><code>curl "https://medicamentsapi.giygas.dev/generiques/paracetamol"</code></pre>
+          </div>
+          <strong style="color: var(--color-text)">Réponse JSON :</strong>
+          <pre
+            style="
+              background: var(--color-bg);
+              padding: 1rem;
+              border-radius: 4px;
+              overflow-x: auto;
+              font-size: 0.8rem;
+              margin-top: 0.5rem;
+            "
+          ><code>[
+  {
+    "groupID": 1643,
+    "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
+    "medicaments": [
+      {
+        "cis": 66003374,
+        "elementPharmaceutique": "DAFALGAN CODEINE, comprimé pelliculé",
+        "formePharmaceutique": "comprimé pelliculé",
+        "type": "Princeps",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "500 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
+            "dosage": "30 mg"
+          }
+        ]
+      },
+      {
+        "cis": 69458587,
+        "elementPharmaceutique": "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "500 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
+            "dosage": "30 mg"
+          }
+        ]
+      }
+    ]
+  }
+]</code></pre>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            🏥 Exemple de réponse - Health Check
           </h4>
           <pre
             style="
@@ -1296,115 +1748,30 @@ print(f"Found {data['count']} results")</code></pre>
               padding: 1rem;
               border-radius: 4px;
               overflow-x: auto;
+              font-size: 0.8rem;
             "
-          ><code># Vérifier les headers de rate limiting
-curl -I "https://medicamentsapi.giygas.dev/health"
-
-# Headers retournés:
-X-RateLimit-Limit: 1000      # Capacité maximale
-X-RateLimit-Remaining: 850   # Tokens restants  
-X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)</code></pre>
-        </div>
-      </section>
-
-      <section id="performance" class="section">
-        <h2>Performance et métriques</h2>
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-          "
-        >
-          <div
-            style="
-              background: var(--color-surface);
-              border: 1px solid var(--color-border);
-              border-radius: 8px;
-              padding: 1.5rem;
-              text-align: center;
-            "
-          >
-            <div
-              style="
-                font-size: 2rem;
-                font-weight: 700;
-                color: var(--color-primary);
-                margin-bottom: 0.5rem;
-              "
-            >
-              &lt;50ms
-            </div>
-            <div style="color: var(--color-text-muted)">
-              Recherche CIS (cache hit)
-            </div>
-          </div>
-          <div
-            style="
-              background: var(--color-surface);
-              border: 1px solid var(--color-border);
-              border-radius: 8px;
-              padding: 1.5rem;
-              text-align: center;
-            "
-          >
-            <div
-              style="
-                font-size: 2rem;
-                font-weight: 700;
-                color: var(--color-primary);
-                margin-bottom: 0.5rem;
-              "
-            >
-              &lt;100ms
-            </div>
-            <div style="color: var(--color-text-muted)">Recherche par nom</div>
-          </div>
-          <div
-            style="
-              background: var(--color-surface);
-              border: 1px solid var(--color-border);
-              border-radius: 8px;
-              padding: 1.5rem;
-              text-align: center;
-            "
-          >
-            <div
-              style="
-                font-size: 2rem;
-                font-weight: 700;
-                color: var(--color-primary);
-                margin-bottom: 0.5rem;
-              "
-            >
-              80%
-            </div>
-            <div style="color: var(--color-text-muted)">
-              Réduction taille avec gzip
-            </div>
-          </div>
-          <div
-            style="
-              background: var(--color-surface);
-              border: 1px solid var(--color-border);
-              border-radius: 8px;
-              padding: 1.5rem;
-              text-align: center;
-            "
-          >
-            <div
-              style="
-                font-size: 2rem;
-                font-weight: 700;
-                color: var(--color-primary);
-                margin-bottom: 0.5rem;
-              "
-            >
-              99.9%
-            </div>
-            <div style="color: var(--color-text-muted)">Disponibilité SLA</div>
-          </div>
+          ><code>{
+  "status": "healthy",
+  "last_update": "2025-10-05T22:04:32+02:00",
+  "data_age_hours": 1.4483066186805555,
+  "uptime_seconds": 86400.000000375,
+  "data": {
+    "api_version": "1.0",
+    "generiques": 1618,
+    "is_updating": false,
+    "medicaments": 15803,
+    "next_update": "2025-10-06T06:00:00+02:00"
+  },
+  "system": {
+    "goroutines": 10,
+    "memory": {
+      "alloc_mb": 31,
+      "num_gc": 60,
+      "sys_mb": 187,
+      "total_alloc_mb": 264
+    }
+  }
+}</code></pre>
         </div>
       </section>
 
@@ -1413,39 +1780,16 @@ X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)</code></pre>
         <div class="tech-list">
           <div class="tech-badge">Go 1.21+</div>
           <div class="tech-badge">Chi Router v5</div>
+          <div class="tech-badge">Interface-based Architecture</div>
+          <div class="tech-badge">Dependency Injection</div>
           <div class="tech-badge">Atomic Operations</div>
           <div class="tech-badge">Token Bucket Rate Limiting</div>
           <div class="tech-badge">HTTP Cache (ETag/Last-Modified)</div>
-          <div class="tech-badge">Concurrent TSV Parsing</div>
-          <div class="tech-badge">Structured Logging (slog)</div>
-          <div class="tech-badge">OpenAPI 3.0</div>
           <div class="tech-badge">gzip Compression</div>
+          <div class="tech-badge">Structured Logging (slog)</div>
+          <div class="tech-badge">OpenAPI 3.1</div>
+          <div class="tech-badge">Concurrent TSV Parsing</div>
           <div class="tech-badge">gocron Scheduler</div>
-        </div>
-      </section>
-
-      <section id="documentation" class="section">
-        <h2>Documentation & Code Source</h2>
-        <div class="intro-text">
-          <p>
-            Prêt à commencer ? Consultez notre documentation complète pour
-            intégrer l'API dans vos projets, ou explorez le code source pour
-            comprendre comment ça fonctionne.
-          </p>
-        </div>
-        <div class="button-group">
-          <a href="/docs" class="btn">
-            <span>📖</span>
-            Documentation API
-          </a>
-          <a
-            href="https://github.com/giygas/medicaments-api"
-            target="_blank"
-            class="btn btn-secondary"
-          >
-            <span>💻</span>
-            Code Source
-          </a>
         </div>
       </section>
 
@@ -1476,14 +1820,7 @@ X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)</code></pre>
               Données soumises à la licence BDPM - Réutilisation sans altération
             </div>
           </div>
-          <div class="legal-item">
-            <div class="legal-label">Rate limiting</div>
-            <div class="legal-value">
-              1000 tokens initiaux par IP, recharge de 3 tokens/sec. Coûts :
-              /database (200), /medicament/* (100), /health (5), autres (20)
-              tokens
-            </div>
-          </div>
+
           <div class="legal-item">
             <div class="legal-label">Mises à jour</div>
             <div class="legal-value">
