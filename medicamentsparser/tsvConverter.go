@@ -207,7 +207,7 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 
 		record := entities.Composition{
 			Cis:                   cis,
-			ElementParmaceutique:  fields[1],
+			ElementPharmaceutique: fields[1],
 			CodeSubstance:         codeS,
 			DenominationSubstance: fields[3],
 			Dosage:                fields[4],

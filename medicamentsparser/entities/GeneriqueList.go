@@ -15,7 +15,7 @@ type GeneriqueMedicament struct {
 }
 
 type GeneriqueComposition struct {
-	ElementParmaceutique  string `json:"elementPharmaceutique"`
+	ElementPharmaceutique string `json:"elementPharmaceutique"`
 	DenominationSubstance string `json:"substance"`
 	Dosage                string `json:"dosage"`
 }

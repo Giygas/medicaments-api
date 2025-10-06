@@ -80,7 +80,7 @@ func createGeneriqueComposition(medicamentComposition *[]entities.Composition) [
 	var compositions []entities.GeneriqueComposition
 	for _, v := range *medicamentComposition {
 		compo := entities.GeneriqueComposition{
-			ElementParmaceutique:  v.ElementParmaceutique,
+			ElementPharmaceutique: v.ElementPharmaceutique,
 			DenominationSubstance: v.DenominationSubstance,
 			Dosage:                v.Dosage,
 		}
