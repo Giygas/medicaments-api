@@ -63,6 +63,16 @@ func (h *HTTPHandlerImpl) RespondWithJSON(w http.ResponseWriter, code int, paylo
 	w.Write(data)
 }
 
+// RespondWithError writes a JSON error response
+func (h *HTTPHandlerImpl) RespondWithError(w http.ResponseWriter, code int, message string) {
+	errorResponse := map[string]interface{}{
+		"error":   http.StatusText(code),
+		"message": message,
+		"code":    code,
+	}
+	h.RespondWithJSON(w, code, errorResponse)
+}
+
 // formatUptimeHuman formats duration into a human-readable string
 func (h *HTTPHandlerImpl) formatUptimeHuman(d time.Duration) string {
 	days := int(d.Hours()) / 24
@@ -121,7 +131,7 @@ func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.R
 	page, err := strconv.Atoi(pageNumber)
 	if err != nil || page < 1 {
 		logging.Warn("Unusual user input", "pageNumber", pageNumber)
-		http.Error(w, "Invalid page number", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusBadRequest, "Invalid page number")
 		return
 	}
 
@@ -131,7 +141,7 @@ func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.R
 	end := start + pageSize
 
 	if start >= len(medicaments) {
-		http.Error(w, "Page not found", http.StatusNotFound)
+		h.RespondWithError(w, http.StatusNotFound, "Page not found")
 		return
 	}
 
@@ -158,17 +168,14 @@ func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.R
 func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request) {
 	element := chi.URLParam(r, "element")
 	if element == "" {
-		http.Error(w, "Missing search term", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusBadRequest, "Missing search term")
 		return
 	}
 
-	// Validate input if validator is available
-	if h.validator != nil {
-		// Create a simple validation for search terms
-		if len(element) < 1 || len(element) > 50 {
-			http.Error(w, "Invalid search term length", http.StatusBadRequest)
-			return
-		}
+	// Validate input using the validator
+	if err := h.validator.ValidateInput(element); err != nil {
+		h.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	// Sanitize input
@@ -184,7 +191,7 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(results) == 0 {
-		http.Error(w, "No medicaments found", http.StatusNotFound)
+		h.RespondWithError(w, http.StatusNotFound, "No medicaments found")
 		return
 	}
 
@@ -196,14 +203,14 @@ func (h *HTTPHandlerImpl) FindMedicamentByID(w http.ResponseWriter, r *http.Requ
 	cisStr := chi.URLParam(r, "cis")
 	cis, err := strconv.Atoi(cisStr)
 	if err != nil {
-		http.Error(w, "Invalid CIS", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusBadRequest, "Invalid CIS")
 		return
 	}
 
 	medicamentsMap := h.dataStore.GetMedicamentsMap()
 	med, exists := medicamentsMap[cis]
 	if !exists {
-		http.Error(w, "Medicament not found", http.StatusNotFound)
+		h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
 		return
 	}
 
@@ -214,16 +221,14 @@ func (h *HTTPHandlerImpl) FindMedicamentByID(w http.ResponseWriter, r *http.Requ
 func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request) {
 	libelle := chi.URLParam(r, "libelle")
 	if libelle == "" {
-		http.Error(w, "Missing libelle", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusBadRequest, "Missing libelle")
 		return
 	}
 
-	// Validate input if validator is available
-	if h.validator != nil {
-		if len(libelle) < 1 || len(libelle) > 50 {
-			http.Error(w, "Invalid libelle length", http.StatusBadRequest)
-			return
-		}
+	// Validate input using the validator
+	if err := h.validator.ValidateInput(libelle); err != nil {
+		h.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	// Sanitize input and convert to lowercase for case-insensitive search
@@ -239,7 +244,7 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(results) == 0 {
-		http.Error(w, "No generiques found", http.StatusNotFound)
+		h.RespondWithError(w, http.StatusNotFound, "No generiques found")
 		return
 	}
 
@@ -251,14 +256,14 @@ func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http
 	groupIDStr := chi.URLParam(r, "groupId")
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
-		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
 		return
 	}
 
 	generiquesMap := h.dataStore.GetGeneriquesMap()
 	gen, exists := generiquesMap[groupID]
 	if !exists {
-		http.Error(w, "Generique group not found", http.StatusBadRequest)
+		h.RespondWithError(w, http.StatusNotFound, "Generique group not found")
 		return
 	}
 

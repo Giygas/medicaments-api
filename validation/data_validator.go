@@ -118,8 +118,8 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("input cannot be empty")
 	}
 
-	if len(input) < 1 {
-		return fmt.Errorf("input too short: minimum 1 character")
+	if len(input) < 3 {
+		return fmt.Errorf("input too short: minimum 3 characters")
 	}
 
 	if len(input) > 50 {

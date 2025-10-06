@@ -80,4 +80,7 @@ type DataValidator interface {
 
 	// ValidateDataIntegrity performs comprehensive data validation
 	ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
+
+	// ValidateInput validates user input strings
+	ValidateInput(input string) error
 }

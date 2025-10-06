@@ -8,6 +8,7 @@ import (
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -94,7 +95,8 @@ func BenchmarkDatabasePage(b *testing.B) {
 // Benchmark medicament search by name
 func BenchmarkMedicamentSearch(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.FindMedicament(container)
+	validator := validation.NewDataValidator()
+	handler := handlers.FindMedicament(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -124,7 +126,8 @@ func BenchmarkMedicamentByID(b *testing.B) {
 // Benchmark generiques search
 func BenchmarkGeneriquesSearch(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.FindGeneriques(container)
+	validator := validation.NewDataValidator()
+	handler := handlers.FindGeneriques(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -169,13 +172,14 @@ func BenchmarkHealth(b *testing.B) {
 // Benchmark full router with middleware
 func BenchmarkFullRouter(b *testing.B) {
 	container := createBenchmarkData()
+	validator := validation.NewDataValidator()
 
 	router := chi.NewRouter()
 	router.Get("/database", handlers.ServeAllMedicaments(container))
 	router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(container))
-	router.Get("/medicament/{element}", handlers.FindMedicament(container))
+	router.Get("/medicament/{element}", handlers.FindMedicament(container, validator))
 	router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(container))
-	router.Get("/generiques/{libelle}", handlers.FindGeneriques(container))
+	router.Get("/generiques/{libelle}", handlers.FindGeneriques(container, validator))
 	router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(container))
 	router.Get("/health", handlers.HealthCheck(container))
 

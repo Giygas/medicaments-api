@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
@@ -35,6 +36,16 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
 	w.WriteHeader(code)
 	w.Write(data)
+}
+
+// RespondWithError writes a JSON error response
+func RespondWithError(w http.ResponseWriter, code int, message string) {
+	errorResponse := map[string]interface{}{
+		"error":   http.StatusText(code),
+		"message": message,
+		"code":    code,
+	}
+	RespondWithJSON(w, code, errorResponse)
 }
 
 // formatUptimeHuman formats duration into a human-readable string
@@ -98,7 +109,7 @@ func ServePagedMedicaments(dataContainer *data.DataContainer) http.HandlerFunc {
 		page, err := strconv.Atoi(pageNumber)
 		if err != nil || page < 1 {
 			logging.Warn("Unusual user input", "pageNumber", pageNumber)
-			http.Error(w, "Invalid page number", http.StatusBadRequest)
+			RespondWithError(w, http.StatusBadRequest, "Invalid page number")
 			return
 		}
 
@@ -108,7 +119,7 @@ func ServePagedMedicaments(dataContainer *data.DataContainer) http.HandlerFunc {
 		end := start + pageSize
 
 		if start >= len(medicaments) {
-			http.Error(w, "Page not found", http.StatusNotFound)
+			RespondWithError(w, http.StatusNotFound, "Page not found")
 			return
 		}
 
@@ -133,11 +144,17 @@ func ServePagedMedicaments(dataContainer *data.DataContainer) http.HandlerFunc {
 }
 
 // FindMedicament searches for medicaments by name
-func FindMedicament(dataContainer *data.DataContainer) http.HandlerFunc {
+func FindMedicament(dataContainer *data.DataContainer, validator interfaces.DataValidator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		element := chi.URLParam(r, "element")
 		if element == "" {
-			http.Error(w, "Missing search term", http.StatusBadRequest)
+			RespondWithError(w, http.StatusBadRequest, "Missing search term")
+			return
+		}
+
+		// Validate input
+		if err := validator.ValidateInput(element); err != nil {
+			RespondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -154,7 +171,7 @@ func FindMedicament(dataContainer *data.DataContainer) http.HandlerFunc {
 		}
 
 		if len(results) == 0 {
-			http.Error(w, "No medicaments found", http.StatusNotFound)
+			RespondWithError(w, http.StatusNotFound, "No medicaments found")
 			return
 		}
 
@@ -168,14 +185,14 @@ func FindMedicamentByID(dataContainer *data.DataContainer) http.HandlerFunc {
 		cisStr := chi.URLParam(r, "cis")
 		cis, err := strconv.Atoi(cisStr)
 		if err != nil {
-			http.Error(w, "Invalid CIS", http.StatusBadRequest)
+			RespondWithError(w, http.StatusBadRequest, "Invalid CIS")
 			return
 		}
 
 		medicamentsMap := dataContainer.GetMedicamentsMap()
 		med, exists := medicamentsMap[cis]
 		if !exists {
-			http.Error(w, "Medicament not found", http.StatusNotFound)
+			RespondWithError(w, http.StatusNotFound, "Medicament not found")
 			return
 		}
 
@@ -184,11 +201,17 @@ func FindMedicamentByID(dataContainer *data.DataContainer) http.HandlerFunc {
 }
 
 // FindGeneriques searches for generiques by libelle (case-insensitive partial match)
-func FindGeneriques(dataContainer *data.DataContainer) http.HandlerFunc {
+func FindGeneriques(dataContainer *data.DataContainer, validator interfaces.DataValidator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		libelle := chi.URLParam(r, "libelle")
 		if libelle == "" {
-			http.Error(w, "Missing libelle", http.StatusBadRequest)
+			RespondWithError(w, http.StatusBadRequest, "Missing libelle")
+			return
+		}
+
+		// Validate input
+		if err := validator.ValidateInput(libelle); err != nil {
+			RespondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -205,7 +228,7 @@ func FindGeneriques(dataContainer *data.DataContainer) http.HandlerFunc {
 		}
 
 		if len(results) == 0 {
-			http.Error(w, "No generiques found", http.StatusNotFound)
+			RespondWithError(w, http.StatusNotFound, "No generiques found")
 			return
 		}
 
@@ -219,14 +242,14 @@ func FindGeneriquesByGroupID(dataContainer *data.DataContainer) http.HandlerFunc
 		groupIDStr := chi.URLParam(r, "groupId")
 		groupID, err := strconv.Atoi(groupIDStr)
 		if err != nil {
-			http.Error(w, "Invalid group ID", http.StatusBadRequest)
+			RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
 			return
 		}
 
 		generiquesMap := dataContainer.GetGeneriquesMap()
 		gen, exists := generiquesMap[groupID]
 		if !exists {
-			http.Error(w, "Generique group not found", http.StatusBadRequest)
+			RespondWithError(w, http.StatusNotFound, "Generique group not found")
 			return
 		}
 
@@ -236,12 +259,12 @@ func FindGeneriquesByGroupID(dataContainer *data.DataContainer) http.HandlerFunc
 
 // HealthResponse defines the structure for consistent JSON ordering
 type HealthResponse struct {
-	Status         string                 `json:"status"`
-	LastUpdate     string                 `json:"last_update"`
-	DataAgeHours   float64                `json:"data_age_hours"`
-	UptimeSeconds  float64                `json:"uptime_seconds"`
-	Data           map[string]interface{} `json:"data"`
-	System         map[string]interface{} `json:"system"`
+	Status        string                 `json:"status"`
+	LastUpdate    string                 `json:"last_update"`
+	DataAgeHours  float64                `json:"data_age_hours"`
+	UptimeSeconds float64                `json:"uptime_seconds"`
+	Data          map[string]interface{} `json:"data"`
+	System        map[string]interface{} `json:"system"`
 }
 
 // HealthCheck returns server health information
@@ -277,16 +300,16 @@ func HealthCheck(dataContainer *data.DataContainer) http.HandlerFunc {
 		}
 
 		response := HealthResponse{
-			Status:       healthStatus,
-			LastUpdate:   lastUpdate.Format(time.RFC3339),
-			DataAgeHours: dataAge.Hours(),
+			Status:        healthStatus,
+			LastUpdate:    lastUpdate.Format(time.RFC3339),
+			DataAgeHours:  dataAge.Hours(),
 			UptimeSeconds: uptime.Seconds(),
 			Data: map[string]interface{}{
 				"api_version": "1.0",
-				"medicaments":  len(medicaments),
-				"generiques":   len(generiques),
-				"is_updating":  isUpdating,
-				"next_update":  calculateNextUpdate().Format(time.RFC3339),
+				"medicaments": len(medicaments),
+				"generiques":  len(generiques),
+				"is_updating": isUpdating,
+				"next_update": calculateNextUpdate().Format(time.RFC3339),
 			},
 			System: map[string]interface{}{
 				"goroutines": runtime.NumGoroutine(),
