@@ -45,8 +45,8 @@ func TestLoadWithDefaults(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if cfg.Port != "8002" {
-		t.Errorf("Expected default port 8002, got %s", cfg.Port)
+	if cfg.Port != "8000" {
+		t.Errorf("Expected default port 8000, got %s", cfg.Port)
 	}
 	if cfg.Address != "127.0.0.1" {
 		t.Errorf("Expected default address 127.0.0.1, got %s", cfg.Address)

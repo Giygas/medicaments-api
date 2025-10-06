@@ -90,9 +90,9 @@ func TestEndpoints(t *testing.T) {
 		{"Test database with -1", "/database/-1", http.StatusBadRequest},
 		{"Test database with large number", "/database/10000", http.StatusNotFound}, // Only 1 page available
 		{"Test generiques", "/generiques", http.StatusNotFound},
-		{"Test generiques/aaaaaaaaaaa", "/generiques/aaaaaaaaaaa", http.StatusNotFound},
+		{"Test generiques/aaaaaaaaaaa", "/generiques/aaaaaaaaaaa", http.StatusBadRequest},
 		{"Test medicament", "/medicament", http.StatusNotFound},
-		{"Test medicament/1000000000000000", "/medicament/100000000000000", http.StatusNotFound},
+		{"Test medicament/1000000000000000", "/medicament/100000000000000", http.StatusBadRequest},
 		{"Test medicament/id/1", "/medicament/id/1", http.StatusOK},
 		{"Test medicament/id/999999", "/medicament/id/999999", http.StatusNotFound},
 		{"Test generiques/group/a", "/generiques/group/a", http.StatusBadRequest},
