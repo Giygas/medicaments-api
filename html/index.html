@@ -536,7 +536,7 @@
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number">&lt;50ms</span>
+            <span class="stat-number">&lt;100ms</span>
             <span class="stat-label">Temps de réponse</span>
           </div>
           <div class="stat">
@@ -567,7 +567,7 @@
             (HTTPHandler, HealthChecker, DataValidator, Parser, Scheduler,
             DataManager) avec dependency injection. Les données sont indexées en
             O(1) via maps CIS-based pour des recherches instantanées, avec cache
-            HTTP intelligent (ETag/Last-Modified) et compression gzip.
+            HTTP intelligent (Last-Modified) et compression gzip.
           </p>
           <br />
           <div
@@ -765,7 +765,7 @@ BASE_URL="https://medicamentsapi.giygas.dev"
             <p>
               Pagination optimisée (10 éléments/page) avec métadonnées
               complètes. Base complète accessible (23MB, ~2.1s). Cache HTTP 6h
-              avec ETag/Last-Modified et compression gzip pour un transfert
+              avec Last-Modified et compression gzip pour un transfert
               efficace.
             </p>
             <div style="margin-top: 1rem">
@@ -832,7 +832,7 @@ BASE_URL="https://medicamentsapi.giygas.dev"
             <div class="function-icon">⚡</div>
             <h3>Cache HTTP intelligent</h3>
             <p>
-              Cache avancé avec ETag/Last-Modified et support 304 Not Modified.
+              Cache avancé avec Last-Modified et support 304 Not Modified.
               Compression gzip (80% réduction bande passante). Cache hit ratio
               90%+. Invalidation automatique durant les mises à jour.
             </p>
@@ -1217,7 +1217,7 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                 "
               ><code>const response = await fetch('https://medicamentsapi.giygas.dev/medicament/paracetamol');
 const data = await response.json();
-console.log(`Found ${data.count} medicaments`);</code></pre>
+console.log(`Found ${data.length} medicaments`);</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)">Python</strong>
@@ -1232,7 +1232,7 @@ console.log(`Found ${data.count} medicaments`);</code></pre>
               ><code>import requests
 response = requests.get('https://medicamentsapi.giygas.dev/medicament/paracetamol')
 data = response.json()
-print(f"Found {data['count']} results")</code></pre>
+print(f"Found {len(data)} results")</code></pre>
             </div>
           </div>
         </div>
@@ -1784,7 +1784,7 @@ Response: {
           <div class="tech-badge">Dependency Injection</div>
           <div class="tech-badge">Atomic Operations</div>
           <div class="tech-badge">Token Bucket Rate Limiting</div>
-          <div class="tech-badge">HTTP Cache (ETag/Last-Modified)</div>
+          <div class="tech-badge">HTTP Cache (Last-Modified)</div>
           <div class="tech-badge">gzip Compression</div>
           <div class="tech-badge">Structured Logging (slog)</div>
           <div class="tech-badge">OpenAPI 3.1</div>

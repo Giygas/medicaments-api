@@ -11,9 +11,9 @@ info:
     - 15K+ médicaments issus de la BDPM
     - Mises à jour automatiques 2x/jour (6h/18h)
     - Rate limiting : 1000 tokens initiaux, 3 tokens/sec recharge
-    - Cache HTTP avec ETag/Last-Modified
+    - Cache HTTP avec Last-Modified
     - Compression gzip (80% réduction)
-    - Temps de réponse <50ms
+    - Temps de réponse ~2.1s (dataset complet), <100ms (recherche)
 
     ## Intégrité des données
     - Intégrité : Aucune altération des données originales
@@ -30,11 +30,11 @@ info:
 
     ## Headers Rate Limiting
     Les informations relatives au rate limiting se trouvent dans les headers de l'endpoint /health :
-    
+
     - X-RateLimit-Limit : Capacité maximale de tokens
     - X-RateLimit-Remaining : Tokens restants pour cette IP  
     - X-RateLimit-Rate : Taux de recharge (tokens/sec)
-    
+
     Pour obtenir seulement les headers : curl -I "https://medicamentsapi.giygas.dev/health"
   version: 1.0.0
   contact:
@@ -103,39 +103,33 @@ paths:
                     - "Médicament soumis à prescription médicale"
                     - "Non remboursable si prescrit hors AMM"
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=21600"
-              description: Cache HTTP pour 6 heures
+              example: "application/json; charset=utf-8"
+              description: Response content type
             Last-Modified:
               schema:
                 type: string
                 format: date-time
               example: "2025-01-15T06:00:00Z"
-              description: Date de dernière mise à jour des données
-            ETag:
-              schema:
-                type: string
-              example: '"1736947200"'
-              description: Timestamp Unix pour la validation de cache
+              description: Timestamp of when the response was generated
             X-RateLimit-Limit:
               schema:
                 type: string
               example: "1000"
-              description: Capacité maximale de tokens
+              description: Maximum token capacity
             X-RateLimit-Remaining:
               schema:
                 type: string
               example: "800"
-              description: Tokens restants pour cette IP
+              description: Remaining tokens for this IP
             X-RateLimit-Rate:
               schema:
                 type: string
               example: "3"
-              description: Taux de recharge (tokens/sec)
-        "304":
-          description: Not modified (client has cached version)
+              description: Token recharge rate (tokens/sec)
+
         "500":
           description: Internal server error
           content:
@@ -184,32 +178,62 @@ paths:
                     type: integer
                     example: 1500
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=21600"
+              example: "application/json; charset=utf-8"
+              description: Response content type
             Last-Modified:
               schema:
                 type: string
                 format: date-time
+              example: "2025-01-15T06:00:00Z"
+              description: Timestamp of when the response was generated
+            X-RateLimit-Limit:
+              schema:
+                type: string
+              example: "1000"
+              description: Maximum token capacity
+            X-RateLimit-Remaining:
+              schema:
+                type: string
+              example: "950"
+              description: Remaining tokens for this IP
+            X-RateLimit-Rate:
+              schema:
+                type: string
+              example: "3"
+              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid page number
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Bad Request"
+                message: "Invalid page number"
+                code: 400
         "404":
           description: Page not found (exceeds maximum pages)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "Page not found"
+                code: 404
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "Page not found"
+                code: 404
 
   /medicament/{element}:
     get:
@@ -235,70 +259,96 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  results:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Medicament"
-                  count:
-                    type: integer
-                    example: 5
-                    description: Nombre de résultats trouvés
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medicament"
               example:
-                results:
-                  - cis: 61504672
-                    elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                    formePharmaceutique: "comprimé"
-                    voiesAdministration: ["orale"]
-                    statusAutorisation: "Autorisation active"
-                    typeProcedure: "Procédure nationale"
-                    etatComercialisation: "Commercialisée"
-                    dateAMM: "2000-01-01"
-                    titulaire: "MYLAN SAS"
-                    surveillanceRenforce: "Non"
-                    composition: []
-                    generiques: []
-                    presentation: []
-                    conditions: []
-                  - cis: 60001234
-                    elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
-                    formePharmaceutique: "comprimé"
-                    voiesAdministration: ["orale"]
-                    statusAutorisation: "Autorisation active"
-                    typeProcedure: "Procédure nationale"
-                    etatComercialisation: "Commercialisée"
-                    dateAMM: "1998-05-15"
-                    titulaire: "SANOFI AVENTIS FRANCE"
-                    surveillanceRenforce: "Non"
-                    composition: []
-                    generiques: []
-                    presentation: []
-                    conditions: []
-                count: 2
+                - cis: 61504672
+                  elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                  formePharmaceutique: "comprimé"
+                  voiesAdministration: ["orale"]
+                  statusAutorisation: "Autorisation active"
+                  typeProcedure: "Procédure nationale"
+                  etatComercialisation: "Commercialisée"
+                  dateAMM: "2000-01-01"
+                  titulaire: "MYLAN SAS"
+                  surveillanceRenforce: "Non"
+                  composition: []
+                  generiques: []
+                  presentation: []
+                  conditions: []
+                - cis: 60001234
+                  elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
+                  formePharmaceutique: "comprimé"
+                  voiesAdministration: ["orale"]
+                  statusAutorisation: "Autorisation active"
+                  typeProcedure: "Procédure nationale"
+                  etatComercialisation: "Commercialisée"
+                  dateAMM: "1998-05-15"
+                  titulaire: "SANOFI AVENTIS FRANCE"
+                  surveillanceRenforce: "Non"
+                  composition: []
+                  generiques: []
+                  presentation: []
+                  conditions: []
+
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=3600"
+              example: "application/json; charset=utf-8"
+              description: Response content type
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              example: "2025-01-15T06:00:00Z"
+              description: Timestamp of when the response was generated
+            X-RateLimit-Limit:
+              schema:
+                type: string
+              example: "1000"
+              description: Maximum token capacity
+            X-RateLimit-Remaining:
+              schema:
+                type: string
+              example: "900"
+              description: Remaining tokens for this IP
+            X-RateLimit-Rate:
+              schema:
+                type: string
+              example: "3"
+              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid search term
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Bad Request"
+                message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+                code: 400
         "404":
           description: No medicaments found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "No medicaments found"
+                code: 404
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
 
   /medicament/id/{cis}:
     get:
@@ -325,32 +375,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/Medicament"
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=43200"
+              example: "application/json; charset=utf-8"
+              description: Response content type
             Last-Modified:
               schema:
                 type: string
                 format: date-time
+              example: "2025-01-15T06:00:00Z"
+              description: Timestamp of when the response was generated
+            X-RateLimit-Limit:
+              schema:
+                type: string
+              example: "1000"
+              description: Maximum token capacity
+            X-RateLimit-Remaining:
+              schema:
+                type: string
+              example: "900"
+              description: Remaining tokens for this IP
+            X-RateLimit-Rate:
+              schema:
+                type: string
+              example: "3"
+              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid CIS code
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Bad Request"
+                message: "Invalid CIS"
+                code: 400
         "404":
           description: Medicament not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "Medicament not found"
+                code: 404
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
 
   /generiques/{libelle}:
     get:
@@ -380,28 +460,62 @@ paths:
                 items:
                   $ref: "#/components/schemas/GeneriqueList"
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=3600"
+              example: "application/json; charset=utf-8"
+              description: Response content type
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              example: "2025-01-15T06:00:00Z"
+              description: Timestamp of when the response was generated
+            X-RateLimit-Limit:
+              schema:
+                type: string
+              example: "1000"
+              description: Maximum token capacity
+            X-RateLimit-Remaining:
+              schema:
+                type: string
+              example: "980"
+              description: Remaining tokens for this IP
+            X-RateLimit-Rate:
+              schema:
+                type: string
+              example: "3"
+              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid search term
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Bad Request"
+                message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+                code: 400
         "404":
           description: No generics found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "No generiques found"
+                code: 404
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
 
   /generiques/group/{groupId}:
     get:
@@ -428,32 +542,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/Generique"
           headers:
-            Cache-Control:
+            Content-Type:
               schema:
                 type: string
-              example: "public, max-age=43200"
+              example: "application/json; charset=utf-8"
+              description: Response content type
             Last-Modified:
               schema:
                 type: string
                 format: date-time
+              example: "2025-01-15T06:00:00Z"
+              description: Timestamp of when the response was generated
+            X-RateLimit-Limit:
+              schema:
+                type: string
+              example: "1000"
+              description: Maximum token capacity
+            X-RateLimit-Remaining:
+              schema:
+                type: string
+              example: "980"
+              description: Remaining tokens for this IP
+            X-RateLimit-Rate:
+              schema:
+                type: string
+              example: "3"
+              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid group ID
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Bad Request"
+                message: "Invalid group ID"
+                code: 400
         "404":
           description: Generic group not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Not Found"
+                message: "Generique group not found"
+                code: 404
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
 
   /health:
     get:
@@ -464,7 +608,7 @@ paths:
       x-token-cost: 5
       responses:
         "200":
-          description: Healthy system
+          description: System health
           content:
             application/json:
               schema:
@@ -546,6 +690,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
 
 components:
   schemas:
@@ -784,8 +932,16 @@ components:
       properties:
         error:
           type: string
-          description: Message d'erreur
-          example: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+          description: HTTP error status text
+          example: Bad Request
+        message:
+          type: string
+          description: Detailed error message
+          example: Invalid page number
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
 
 tags:
   - name: Médicaments
