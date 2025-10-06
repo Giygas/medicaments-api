@@ -144,6 +144,13 @@ func (s *Server) setupDocumentationRoutes() {
 		w.Header().Set("Content-Type", "image/x-icon")
 		http.ServeFile(w, r, "html/favicon.ico")
 	})
+
+	// Cache test page
+	s.router.Get("/cache-test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache") // Don't cache the test page itself
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, "cache_test.html")
+	})
 }
 
 // Start starts the server

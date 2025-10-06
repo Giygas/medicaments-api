@@ -5,7 +5,7 @@
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
-mises à jour atomic zero-downtime, cache HTTP intelligent (Last-Modified), et rate limiting
+mises à jour atomic zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting
 par token bucket avec coûts variables par endpoint.
 
 ## 🚀 Fonctionnalités
@@ -14,18 +14,18 @@ par token bucket avec coûts variables par endpoint.
 
 | Endpoint                     | Description                        | Cache | Coût | Temps Réponse | Headers    | Validation            |
 | ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
-| `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | LM/RL      | -                     |
-| `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~0.1s         | LM/RL      | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 100  | ~0.2ms        | CC/RL      | `^[a-zA-Z0-9 ]+$`     |
-| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 100  | ~0.002ms      | LM/RL      | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | CC/RL      | `^[a-zA-Z0-9 ]+$`     |
-| `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~0.002ms      | LM/RL      | 1 ≤ ID ≤ 99,999       |
+| `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
+| `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 100  | ~0.2ms        | ETag/CC/RL  | `^[a-zA-Z0-9 ]+$`     |
+| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 100  | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
+| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | ETag/CC/RL  | `^[a-zA-Z0-9 ]+$`     |
+| `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
 | `GET /health`                | Santé système + rate limit headers | -     | 5    | ~0.06ms       | RL         | -                     |
 | `GET /`                      | Accueil (SPA)                      | 1h    | 0    | ~0.02ms       | CC         | -                     |
 | `GET /docs`                  | Swagger UI interactive             | 1h    | 0    | ~0.03ms       | CC         | -                     |
 | `GET /docs/openapi.yaml`     | OpenAPI 3.1 spec                   | 1h    | 0    | ~0.01ms       | CC         | -                     |
 
-**Légendes Headers**: LM (Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
+**Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
 ### 📋 Format des Réponses
 
@@ -353,7 +353,7 @@ Construite avec 6 interfaces principales pour une maintenabilité et testabilit�
 - **Opérations atomiques**: Mises à jour zero-downtime avec `atomic.Value`
 - **Token Bucket**: Rate limiting intelligent (juju/ratelimit)
 - **Parsing concurrent**: Pipeline de traitement de 5 fichiers TSV
-- **Cache HTTP**: Last-Modified avec support 304
+- **Cache HTTP**: ETag/Last-Modified avec support 304
 - **Logging structuré**: slog avec rotation de fichiers
 
 ### Architecture des interfaces
@@ -519,7 +519,7 @@ Retry-After: 60              # Si limite dépassée
 
 - **Parsing concurrent** : Téléchargement et traitement parallèle de 5 fichiers TSV BDPM
   (spécialités, compositions, présentations, génériques, conditions)
-- **Cache HTTP intelligent** : Last-Modified avec support 304 Not Modified
+- **Cache HTTP intelligent** : ETag et Last-Modified avec support 304 Not Modified
 - **Compression gzip** : Réduction taille jusqu'à 80% pour réponses JSON
 - **Lookup O(1)** : Maps mémoire CIS-based pour recherche instantanée (medicamentsMap, generiquesMap, etc.)
 - **Pagination optimisée** : Évite chargement base complète, 10 éléments/page avec métadonnées
@@ -557,7 +557,7 @@ En pratique, l'endpoint `/database` prend ~2.1s pour transférer 23MB de donnée
   | **Dataset** | 15K+ | Médicaments BDPM |
   | **RAM Usage** | 30-50MB | 50MB startup, 30-50MB stable |
   | **Compression** | 80% | Réduction avec gzip |
-  | **Cache hit ratio** | >90% | Avec Last-Modified |
+  | **Cache hit ratio** | >90% | Avec ETag/Last-Modified |
 
 #### Benchmark de performance
 
@@ -690,7 +690,7 @@ errorChan := make(chan error, 5)
                                                          │
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   API Response  │◀───│   HTTP Cache     │◀───│   Atomic Store  │
-│   (JSON/GZIP)   │    │   (Last-Modified) │    │   (memory)      │
+│   (JSON/GZIP)   │    │   (ETag/LM)      │    │   (memory)      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -756,7 +756,7 @@ s.router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 
 - **Scheduler** : Mises à jour automatiques avec gocron (6h/18h) et monitoring
 - **Rate Limiter** : Token bucket (juju/ratelimit) avec cleanup automatique
-- **Cache System** : HTTP cache avancé avec Last-Modified
+- **Cache System** : HTTP cache avancé avec ETag/Last-Modified
 - **Configuration** : Validation d'environnement avec types forts
 - **Logging** : Structured logging avec slog et rotation
 

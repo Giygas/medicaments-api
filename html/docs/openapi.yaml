@@ -11,7 +11,7 @@ info:
     - 15K+ médicaments issus de la BDPM
     - Mises à jour automatiques 2x/jour (6h/18h)
     - Rate limiting : 1000 tokens initiaux, 3 tokens/sec recharge
-    - Cache HTTP avec Last-Modified
+    - Cache HTTP avec ETag/Last-Modified
     - Compression gzip (80% réduction)
     - Temps de réponse ~2.1s (dataset complet), <100ms (recherche)
 
@@ -63,7 +63,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Medicament"
+                  $ref: "#/components/schemas/MedicamentResponse"
               example:
                 - cis: 61504672
                   elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
@@ -102,114 +102,13 @@ paths:
                   conditions:
                     - "Médicament soumis à prescription médicale"
                     - "Non remboursable si prescrit hors AMM"
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "800"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
 
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /database/{pageNumber}:
-    get:
-      summary: Obtenir les médicaments paginés
-      description: Récupérer les médicaments par pages de 10 éléments chacune
-      tags:
-        - Médicaments
-      x-token-cost: 20
-      parameters:
-        - name: pageNumber
-          in: path
-          required: true
-          description: Page number (starting from 1)
-          schema:
-            type: integer
-            minimum: 1
-          example: 1
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Medicament"
-                  page:
-                    type: integer
-                    example: 1
-                  pageSize:
-                    type: integer
-                    example: 10
-                  totalItems:
-                    type: integer
-                    example: 15000
-                  maxPage:
-                    type: integer
-                    example: 1500
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "950"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
         "400":
           description: Invalid page number
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
                 message: "Invalid page number"
@@ -219,7 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "Page not found"
@@ -229,7 +128,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "Page not found"
@@ -261,7 +160,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Medicament"
+                  $ref: "#/components/schemas/MedicamentResponse"
               example:
                 - cis: 61504672
                   elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
@@ -292,39 +191,13 @@ paths:
                   presentation: []
                   conditions: []
 
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "900"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
+
         "400":
           description: Invalid search term
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
                 message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
@@ -334,7 +207,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "No medicaments found"
@@ -344,11 +217,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Internal Server Error"
                 message: "Internal server error"
                 code: 500
+
+
 
   /medicament/id/{cis}:
     get:
@@ -373,40 +248,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Medicament"
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "900"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
+                $ref: "#/components/schemas/MedicamentResponse"
+
         "400":
           description: Invalid CIS code
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
                 message: "Invalid CIS"
@@ -416,7 +265,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "Medicament not found"
@@ -426,11 +275,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Internal Server Error"
                 message: "Internal server error"
                 code: 500
+
 
   /generiques/{libelle}:
     get:
@@ -458,40 +308,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/GeneriqueList"
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "980"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
+                  $ref: "#/components/schemas/GeneriqueListResponse"
+
         "400":
           description: Invalid search term
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
                 message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
@@ -501,7 +325,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "No generiques found"
@@ -511,11 +335,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Internal Server Error"
                 message: "Internal server error"
                 code: 500
+
+
 
   /generiques/group/{groupId}:
     get:
@@ -540,40 +366,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Generique"
-          headers:
-            Content-Type:
-              schema:
-                type: string
-              example: "application/json; charset=utf-8"
-              description: Response content type
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              example: "2025-01-15T06:00:00Z"
-              description: Timestamp of when the response was generated
-            X-RateLimit-Limit:
-              schema:
-                type: string
-              example: "1000"
-              description: Maximum token capacity
-            X-RateLimit-Remaining:
-              schema:
-                type: string
-              example: "980"
-              description: Remaining tokens for this IP
-            X-RateLimit-Rate:
-              schema:
-                type: string
-              example: "3"
-              description: Token recharge rate (tokens/sec)
+                $ref: "#/components/schemas/GeneriqueResponse"
+
         "400":
           description: Invalid group ID
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
                 message: "Invalid group ID"
@@ -583,7 +383,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Not Found"
                 message: "Generique group not found"
@@ -593,11 +393,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Internal Server Error"
                 message: "Internal server error"
                 code: 500
+
+
 
   /health:
     get:
@@ -689,259 +491,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Internal Server Error"
                 message: "Internal server error"
                 code: 500
-
-components:
-  schemas:
-    Medicament:
-      type: object
-      description: Un médicament avec tous les détails
-      properties:
-        cis:
-          type: integer
-          description: Code Identifiant de Spécialité
-          example: 61504672
-        elementPharmaceutique:
-          type: string
-          description: Dénomination pharmaceutique
-          example: "PARACETAMOL MYLAN 1 g, comprimé"
-        formePharmaceutique:
-          type: string
-          description: Forme pharmaceutique
-          example: "comprimé"
-        voiesAdministration:
-          type: array
-          items:
-            type: string
-          description: Voies d'administration
-          example: ["orale"]
-        statusAutorisation:
-          type: string
-          description: Statut d'autorisation
-          example: "Autorisation active"
-        typeProcedure:
-          type: string
-          description: Type de procédure
-          example: "Procédure nationale"
-        etatComercialisation:
-          type: string
-          description: État de commercialisation
-          example: "Commercialisée"
-        dateAMM:
-          type: string
-          description: Date d'autorisation de mise sur le marché
-          example: "2000-01-01"
-        titulaire:
-          type: string
-          description: Titulaire de l'autorisation
-          example: "MYLAN SAS"
-        surveillanceRenforce:
-          type: string
-          description: Surveillance renforcée
-          example: "Non"
-        composition:
-          type: array
-          items:
-            $ref: "#/components/schemas/Composition"
-          description: Composition du médicament
-        generiques:
-          type: array
-          items:
-            $ref: "#/components/schemas/Generique"
-          description: Génériques associés
-        presentation:
-          type: array
-          items:
-            $ref: "#/components/schemas/Presentation"
-          description: Présentations disponibles
-        conditions:
-          type: array
-          items:
-            type: string
-          description: Conditions de prescription
-          example: ["Médicament soumis à prescription médicale"]
-
-    Composition:
-      type: object
-      description: Composition element of a medicament
-      properties:
-        cis:
-          type: integer
-          description: CIS code
-          example: 61504672
-        elementPharmaceutique:
-          type: string
-          description: Pharmaceutical element
-          example: "paracétamol"
-        codeSubstance:
-          type: integer
-          description: Substance code
-          example: 12345
-        denominationSubstance:
-          type: string
-          description: Substance denomination
-          example: "PARACETAMOL"
-        dosage:
-          type: string
-          description: Dosage
-          example: "1,000 g"
-        referenceDosage:
-          type: string
-          description: Reference dosage
-          example: "1,000 g"
-        natureComposant:
-          type: string
-          description: Component nature
-          example: "substance active"
-
-    Generique:
-      type: object
-      description: Generic information for a medicament
-      properties:
-        cis:
-          type: integer
-          description: CIS code
-          example: 61504672
-        group:
-          type: integer
-          description: Generic group ID
-          example: 1234
-        libelle:
-          type: string
-          description: Generic group label
-          example: "PARACETAMOL 1 g, comprimé"
-        type:
-          type: string
-          description: Generic type
-          example: "Princeps"
-
-    Presentation:
-      type: object
-      description: Presentation of a medicament
-      properties:
-        cis:
-          type: integer
-          description: CIS code
-          example: 61504672
-        cip7:
-          type: integer
-          description: CIP-7 code
-          example: 1234567
-        libelle:
-          type: string
-          description: Presentation label
-          example: "PARACETAMOL MYLAN 1 g, comprimé pelliculé, boîte de 8"
-        statusAdministratif:
-          type: string
-          description: Administrative status
-          example: "Présentation active"
-        etatComercialisation:
-          type: string
-          description: Commercialization status
-          example: "Commercialisée"
-        dateDeclaration:
-          type: string
-          description: Declaration date
-          example: "2000-01-01"
-        cip13:
-          type: integer
-          description: CIP-13 code
-          example: 3400912345678
-        agreement:
-          type: string
-          description: Agreement status
-          example: "Oui"
-        tauxRemboursement:
-          type: string
-          description: Reimbursement rate
-          example: "65%"
-        prix:
-          type: number
-          format: float
-          description: Price
-          example: 2.45
-
-    GeneriqueList:
-      type: object
-      description: List of medicaments in a generic group
-      properties:
-        groupID:
-          type: integer
-          description: Generic group ID
-          example: 1234
-        libelle:
-          type: string
-          description: Generic group label
-          example: "PARACETAMOL 1 g, comprimé"
-        medicaments:
-          type: array
-          items:
-            $ref: "#/components/schemas/GeneriqueMedicament"
-          description: Medicaments in this generic group
-
-    GeneriqueMedicament:
-      type: object
-      description: Medicament within a generic group
-      properties:
-        cis:
-          type: integer
-          description: CIS code
-          example: 61504672
-        elementPharmaceutique:
-          type: string
-          description: Pharmaceutical denomination
-          example: "PARACETAMOL MYLAN 1 g, comprimé"
-        formePharmaceutique:
-          type: string
-          description: Pharmaceutical form
-          example: "comprimé"
-        type:
-          type: string
-          description: Generic type
-          example: "Princeps"
-        composition:
-          type: array
-          items:
-            $ref: "#/components/schemas/GeneriqueComposition"
-          description: Composition for generic grouping
-
-    GeneriqueComposition:
-      type: object
-      description: Composition element for generic grouping
-      properties:
-        elementPharmaceutique:
-          type: string
-          description: Pharmaceutical element
-          example: "paracétamol"
-        substance:
-          type: string
-          description: Substance name
-          example: "PARACETAMOL"
-        dosage:
-          type: string
-          description: Dosage
-          example: "1,000 g"
-
-    Error:
-      type: object
-      description: Réponse d'erreur
-      properties:
-        error:
-          type: string
-          description: HTTP error status text
-          example: Bad Request
-        message:
-          type: string
-          description: Detailed error message
-          example: Invalid page number
-        code:
-          type: integer
-          description: HTTP status code
-          example: 400
 
 tags:
   - name: Médicaments
@@ -950,3 +504,207 @@ tags:
     description: Points de terminaison des groupes de médicaments génériques
   - name: Système
     description: Points de terminaison de santé et d'état du système
+
+components:
+  schemas:
+    MedicamentResponse:
+      type: object
+      title: MedicamentResponse
+      properties:
+        cis:
+          type: integer
+          title: CIS Code
+        elementPharmaceutique:
+          type: string
+          title: Pharmaceutical Name
+        formePharmaceutique:
+          type: string
+          title: Pharmaceutical Form
+        voiesAdministration:
+          type: array
+          items:
+            type: string
+          title: Administration Routes
+        statusAutorisation:
+          type: string
+          title: Authorization Status
+        typeProcedure:
+          type: string
+          title: Procedure Type
+        etatComercialisation:
+          type: string
+          title: Commercialization Status
+        dateAMM:
+          type: string
+          title: AMM Date
+        titulaire:
+          type: string
+          title: Authorization Holder
+        surveillanceRenforce:
+          type: string
+          title: Enhanced Surveillance
+        composition:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompositionResponse"
+          title: Composition
+        generiques:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneriqueResponse"
+          title: Associated Generics
+        presentation:
+          type: array
+          items:
+            $ref: "#/components/schemas/PresentationResponse"
+          title: Available Presentations
+        conditions:
+          type: array
+          items:
+            type: string
+          title: Prescription Conditions
+
+    CompositionResponse:
+      type: object
+      title: CompositionResponse
+      properties:
+        cis:
+          type: integer
+          title: CIS Code
+        elementPharmaceutique:
+          type: string
+          title: Pharmaceutical Element
+        codeSubstance:
+          type: integer
+          title: Substance Code
+        denominationSubstance:
+          type: string
+          title: Substance Denomination
+        dosage:
+          type: string
+          title: Dosage
+        referenceDosage:
+          type: string
+          title: Reference Dosage
+        natureComposant:
+          type: string
+          title: Component Nature
+
+    GeneriqueResponse:
+      type: object
+      title: GeneriqueResponse
+      properties:
+        cis:
+          type: integer
+          title: CIS Code
+        group:
+          type: integer
+          title: Generic Group ID
+        libelle:
+          type: string
+          title: Generic Group Label
+        type:
+          type: string
+          title: Generic Type
+
+    PresentationResponse:
+      type: object
+      title: PresentationResponse
+      properties:
+        cis:
+          type: integer
+          title: CIS Code
+        cip7:
+          type: integer
+          title: CIP-7 Code
+        libelle:
+          type: string
+          title: Presentation Label
+        statusAdministratif:
+          type: string
+          title: Administrative Status
+        etatComercialisation:
+          type: string
+          title: Commercialization Status
+        dateDeclaration:
+          type: string
+          title: Declaration Date
+        cip13:
+          type: integer
+          title: CIP-13 Code
+        agreement:
+          type: string
+          title: Agreement Status
+        tauxRemboursement:
+          type: string
+          title: Reimbursement Rate
+        prix:
+          type: number
+          format: float
+          title: Price
+
+    GeneriqueListResponse:
+      type: object
+      title: GeneriqueListResponse
+      properties:
+        groupID:
+          type: integer
+          title: Generic Group ID
+        libelle:
+          type: string
+          title: Generic Group Label
+        medicaments:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneriqueMedicamentResponse"
+          title: Medicaments in Group
+
+    GeneriqueMedicamentResponse:
+      type: object
+      title: GeneriqueMedicamentResponse
+      properties:
+        cis:
+          type: integer
+          title: CIS Code
+        elementPharmaceutique:
+          type: string
+          title: Pharmaceutical Name
+        formePharmaceutique:
+          type: string
+          title: Pharmaceutical Form
+        type:
+          type: string
+          title: Generic Type
+        composition:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneriqueCompositionResponse"
+          title: Composition for Generic Grouping
+
+    GeneriqueCompositionResponse:
+      type: object
+      title: GeneriqueCompositionResponse
+      properties:
+        elementPharmaceutique:
+          type: string
+          title: Pharmaceutical Element
+        substance:
+          type: string
+          title: Substance Name
+        dosage:
+          type: string
+          title: Dosage
+
+    ErrorResponse:
+      type: object
+      title: ErrorResponse
+      properties:
+        error:
+          type: string
+          title: Error Status
+        message:
+          type: string
+          title: Error Message
+        code:
+          type: integer
+          title: HTTP Status Code

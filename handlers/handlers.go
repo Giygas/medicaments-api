@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,6 +23,51 @@ import (
 
 // Global variables (these will be moved to a better place later)
 var serverStartTime = time.Now()
+
+// generateETag creates an ETag from data using SHA256 hash
+func generateETag(data []byte) string {
+	hash := sha256.Sum256(data)
+	// Use first 8 bytes of hash for shorter ETag
+	return fmt.Sprintf(`"%x"`, hash[:8])
+}
+
+// checkETag validates If-None-Match header against provided ETag
+func checkETag(r *http.Request, etag string) bool {
+	clientETag := r.Header.Get("If-None-Match")
+	return clientETag == etag
+}
+
+// RespondWithJSONAndETag writes a JSON response with ETag and cache validation
+func RespondWithJSONAndETag(w http.ResponseWriter, r *http.Request, code int, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		logging.Error("Failed to marshal JSON response", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	etag := generateETag(data)
+
+	// Check if client has cached version
+	if checkETag(r, etag) && code == http.StatusOK {
+		// Add cache headers to 304 response as well
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour cache
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
+	w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour cache
+
+	// Cloudflare-specific optimizations
+	w.Header().Set("CF-Cache-Status", "DYNAMIC") // Tell Cloudflare this is dynamic content
+	w.Header().Set("CF-RAY", "")                 // Will be set by Cloudflare
+	w.WriteHeader(code)
+	w.Write(data)
+}
 
 // RespondWithJSON writes a JSON response with compression optimization
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -98,7 +144,7 @@ func calculateNextUpdate() time.Time {
 func ServeAllMedicaments(dataContainer *data.DataContainer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		medicaments := dataContainer.GetMedicaments()
-		RespondWithJSON(w, http.StatusOK, medicaments)
+		RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)
 	}
 }
 
@@ -139,7 +185,7 @@ func ServePagedMedicaments(dataContainer *data.DataContainer) http.HandlerFunc {
 			"maxPage":    maxPage,
 		}
 
-		RespondWithJSON(w, http.StatusOK, response)
+		RespondWithJSONAndETag(w, r, http.StatusOK, response)
 	}
 }
 
@@ -175,7 +221,7 @@ func FindMedicament(dataContainer *data.DataContainer, validator interfaces.Data
 			return
 		}
 
-		RespondWithJSON(w, http.StatusOK, results)
+		RespondWithJSONAndETag(w, r, http.StatusOK, results)
 	}
 }
 
@@ -196,7 +242,7 @@ func FindMedicamentByID(dataContainer *data.DataContainer) http.HandlerFunc {
 			return
 		}
 
-		RespondWithJSON(w, http.StatusOK, med)
+		RespondWithJSONAndETag(w, r, http.StatusOK, med)
 	}
 }
 
@@ -232,7 +278,7 @@ func FindGeneriques(dataContainer *data.DataContainer, validator interfaces.Data
 			return
 		}
 
-		RespondWithJSON(w, http.StatusOK, results)
+		RespondWithJSONAndETag(w, r, http.StatusOK, results)
 	}
 }
 
@@ -253,7 +299,7 @@ func FindGeneriquesByGroupID(dataContainer *data.DataContainer) http.HandlerFunc
 			return
 		}
 
-		RespondWithJSON(w, http.StatusOK, gen)
+		RespondWithJSONAndETag(w, r, http.StatusOK, gen)
 	}
 }
 
@@ -327,6 +373,6 @@ func HealthCheck(dataContainer *data.DataContainer) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 
-		RespondWithJSON(w, httpStatus, response)
+		RespondWithJSONAndETag(w, r, httpStatus, response)
 	}
 }

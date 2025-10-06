@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ETag Cache Test</title>
+</head>
+<body>
+    <h1>ETag Caching Test</h1>
+    <button onclick="testCache()">Test Cache Behavior</button>
+    <div id="results"></div>
+
+    <script>
+        let requestCount = 0;
+        
+        async function testCache() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Testing 5 consecutive requests...</h3>';
+            
+            for (let i = 1; i <= 5; i++) {
+                try {
+                    const startTime = performance.now();
+                    const response = await fetch('/database');
+                    const endTime = performance.now();
+                    
+                    const etag = response.headers.get('ETag');
+                    const cacheControl = response.headers.get('Cache-Control');
+                    const lastModified = response.headers.get('Last-Modified');
+                    
+                    let data = null;
+                    let dataSize = 0;
+                    
+                    if (response.status === 200) {
+                        data = await response.json();
+                        dataSize = JSON.stringify(data).length;
+                    }
+                    
+                    results.innerHTML += `
+                        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                            <h4>Request ${i}</h4>
+                            <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                            <p><strong>Response Time:</strong> ${(endTime - startTime).toFixed(2)}ms</p>
+                            <p><strong>ETag:</strong> ${etag || 'Not set'}</p>
+                            <p><strong>Cache-Control:</strong> ${cacheControl || 'Not set'}</p>
+                            <p><strong>Last-Modified:</strong> ${lastModified || 'Not set'}</p>
+                            <p><strong>Data Size:</strong> ${dataSize} bytes</p>
+                            <p><strong>Has Data:</strong> ${data ? 'Yes' : 'No'}</p>
+                        </div>
+                    `;
+                    
+                } catch (error) {
+                    results.innerHTML += `
+                        <div style="border: 1px solid red; margin: 10px; padding: 10px;">
+                            <h4>Request ${i} - ERROR</h4>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                        </div>
+                    `;
+                }
+                
+                // Small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            results.innerHTML += '<h3>Test Complete!</h3>';
+        }
+    </script>
+</body>
+</html>
