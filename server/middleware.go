@@ -206,7 +206,12 @@ func getTokenCost(r *http.Request) int64 {
 // RateLimitHandler implements rate limiting using token bucket
 func RateLimitHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := r.RemoteAddr
+		// Extract IP without port from RemoteAddr
+		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			// If we can't parse the host:port, use the whole RemoteAddr as IP
+			clientIP = r.RemoteAddr
+		}
 
 		bucket := globalRateLimiter.getBucket(clientIP)
 
