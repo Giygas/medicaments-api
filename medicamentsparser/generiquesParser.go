@@ -1,16 +1,57 @@
 package medicamentsparser
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
 var medsType map[int]string
+
+// readGeneriquesFromTSV reads generiques data directly from TSV file
+func readGeneriquesFromTSV() (map[string][]int, error) {
+	generiquesMap := make(map[string][]int)
+
+	tsvFile, err := os.Open("files/Generiques.txt")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open generiques file: %w", err)
+	}
+	defer tsvFile.Close()
+
+	scanner := bufio.NewScanner(tsvFile)
+
+	// Skip header line
+	if scanner.Scan() {
+		// Header line, skip it
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Split(line, "\t")
+		if len(fields) < 5 {
+			continue
+		}
+
+		groupID := fields[4] // Group ID is in the 5th column (index 4)
+		cisStr := fields[2]  // CIS is in the 3rd column (index 2)
+
+		cis, err := strconv.Atoi(cisStr)
+		if err != nil {
+			continue // Skip invalid CIS values
+		}
+
+		if groupID != "" {
+			generiquesMap[groupID] = append(generiquesMap[groupID], cis)
+		}
+	}
+
+	return generiquesMap, nil
+}
 
 func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
 
@@ -29,7 +70,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	}
 
 	// generiques file: [groupid]:[]cis of medicaments in the same group
-	generiquesFile, err := generiqueFileToJSON()
+	generiquesFile, err := readGeneriquesFromTSV()
 	if err != nil {
 		logging.Error("Failed to read generiques file", "error", err)
 		return nil, nil, fmt.Errorf("failed to read generiques file: %w", err)
@@ -63,14 +104,6 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	}
 
 	// Write debug file
-	marshalledGeneriques, err := json.MarshalIndent(generiques, "", " ")
-	if err != nil {
-		logging.Error("Error marshalling generiques", "error", err)
-	} else {
-		if writeErr := os.WriteFile("src/GeneriquesFull.json", marshalledGeneriques, 0644); writeErr != nil {
-			logging.Error("Error writing GeneriquesFull.json", "error", writeErr)
-		}
-	}
 
 	fmt.Println("Generiques parsing completed", "count", len(generiques))
 	return generiques, generiquesMap, nil

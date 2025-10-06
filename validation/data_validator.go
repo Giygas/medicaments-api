@@ -112,7 +112,7 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 	return nil
 }
 
-// ValidateInput validates user input strings
+// ValidateInput validates user input strings with enhanced security
 func (v *DataValidatorImpl) ValidateInput(input string) error {
 	if strings.TrimSpace(input) == "" {
 		return fmt.Errorf("input cannot be empty")
@@ -126,11 +126,49 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("input too long: maximum 50 characters")
 	}
 
-	// Allow only alphanumeric characters, spaces, and common punctuation
-	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s\-'\.]+$`)
+	// Check for potentially dangerous patterns
+	dangerousPatterns := []string{
+		"<script", "</script>", "javascript:", "vbscript:", "onload=", "onerror=",
+		"onclick=", "onmouseover=", "onfocus=", "onblur=", "onchange=", "onsubmit=",
+		"eval(", "expression(", "url(", "import ", "@import", "binding(", "behavior(",
+	}
+
+	lowerInput := strings.ToLower(input)
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(lowerInput, pattern) {
+			return fmt.Errorf("input contains potentially dangerous content")
+		}
+	}
+
+	// Allow only alphanumeric characters, spaces, and safe punctuation
+	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, and periods
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s\-\.'àâäéèêëïîôöùûüÿç]+$`)
 	if !validPattern.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters")
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and common French accented characters are allowed")
+	}
+
+	// Additional checks for repeated characters (potential DoS)
+	if v.hasExcessiveRepetition(input) {
+		return fmt.Errorf("input contains excessive character repetition")
 	}
 
 	return nil
+}
+
+// hasExcessiveRepetition checks for potential DoS patterns with excessive character repetition
+func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
+	// Check for the same character repeated more than 10 times consecutively
+	for i := 0; i < len(input)-10; i++ {
+		allSame := true
+		for j := 1; j <= 10; j++ {
+			if input[i] != input[i+j] {
+				allSame = false
+				break
+			}
+		}
+		if allSame {
+			return true
+		}
+	}
+	return false
 }

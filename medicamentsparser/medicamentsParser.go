@@ -2,9 +2,7 @@
 package medicamentsparser
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/giygas/medicaments-api/logging"
@@ -42,6 +40,12 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	errorChan := make(chan error, 5)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic recovered in conditions goroutine", "panic", r)
+				errorChan <- fmt.Errorf("panic in conditions: %v", r)
+			}
+		}()
 		result, err := makeConditions(&wg)
 		if err != nil {
 			logging.Error("Failed to parse conditions", "error", err)
@@ -52,6 +56,12 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic recovered in presentations goroutine", "panic", r)
+				errorChan <- fmt.Errorf("panic in presentations: %v", r)
+			}
+		}()
 		result, err := makePresentations(&wg)
 		if err != nil {
 			logging.Error("Failed to parse presentations", "error", err)
@@ -62,6 +72,12 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic recovered in specialites goroutine", "panic", r)
+				errorChan <- fmt.Errorf("panic in specialites: %v", r)
+			}
+		}()
 		result, err := makeSpecialites(&wg)
 		if err != nil {
 			logging.Error("Failed to parse specialites", "error", err)
@@ -72,6 +88,12 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic recovered in generiques goroutine", "panic", r)
+				errorChan <- fmt.Errorf("panic in generiques: %v", r)
+			}
+		}()
 		result, err := makeGeneriques(&wg)
 		if err != nil {
 			logging.Error("Failed to parse generiques", "error", err)
@@ -82,6 +104,12 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic recovered in compositions goroutine", "panic", r)
+				errorChan <- fmt.Errorf("panic in compositions: %v", r)
+			}
+		}()
 		result, err := makeCompositions(&wg)
 		if err != nil {
 			logging.Error("Failed to parse compositions", "error", err)
@@ -92,6 +120,14 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}()
 
 	wg.Wait()
+
+	// Check for any errors that occurred during concurrent processing
+	select {
+	case err := <-errorChan:
+		return nil, fmt.Errorf("error during data parsing: %w", err)
+	default:
+		// No errors, continue processing
+	}
 
 	conditions := <-conditionsChan
 	presentations := <-presentationsChan
@@ -180,18 +216,6 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	}
 
 	logging.Info("All medicaments parsed successfully")
-	jsonMedicament, err := json.MarshalIndent(medicamentsSlice, "", "  ")
-	if err != nil {
-		logging.Error("Error marshalling medicaments", "error", err)
-		return nil, err
-	}
-
-	err = os.WriteFile("src/Medicaments.json", jsonMedicament, 0644)
-	if err != nil {
-		logging.Error("Error writing Medicaments.json", "error", err)
-		return nil, err
-	}
-	os.Stdout.Sync()
 
 	conditions = nil
 	presentations = nil

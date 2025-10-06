@@ -181,7 +181,7 @@ type MockDataValidator struct {
 
 func (m *MockDataValidator) ValidateMedicament(med *entities.Medicament) error {
 	if m.shouldFail {
-		return &mockError{"validation failed"}
+		return fmt.Errorf("validation failed")
 	}
 	return nil
 }
@@ -189,6 +189,13 @@ func (m *MockDataValidator) ValidateMedicament(med *entities.Medicament) error {
 func (m *MockDataValidator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	if m.shouldFail {
 		return fmt.Errorf("validation failed")
+	}
+	return nil
+}
+
+func (m *MockDataValidator) ValidateInput(input string) error {
+	if m.shouldFail {
+		return fmt.Errorf("input validation failed")
 	}
 	return nil
 }

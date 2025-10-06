@@ -2,7 +2,6 @@ package medicamentsparser
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -161,15 +160,6 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 		if cis != 0 {
 			generiquesList[group] = append(generiquesList[group], cis)
 		}
-	}
-
-	jsonGeneriques, err := json.MarshalIndent(generiquesList, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling generiques: %w", err)
-	}
-
-	if wg != nil {
-		_ = os.WriteFile("src/Generiques.json", jsonGeneriques, 0644)
 	}
 
 	fmt.Println("Generiques file conversion completed", "records_count", len(jsonRecords))

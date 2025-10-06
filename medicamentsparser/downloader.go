@@ -58,11 +58,6 @@ func downloadAndParseAll() error {
 	if err != nil {
 		return fmt.Errorf("failed to create files directory: %w", err)
 	}
-	filePath = filepath.Join(".", "src")
-	err = os.MkdirAll(filePath, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to create src directory: %w", err)
-	}
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
