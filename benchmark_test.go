@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -79,7 +80,8 @@ func BenchmarkDatabase(b *testing.B) {
 // Benchmark paginated database endpoint
 func BenchmarkDatabasePage(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.ServePagedMedicaments(container)
+	validator := validation.NewDataValidator()
+	handler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -88,7 +90,13 @@ func BenchmarkDatabasePage(b *testing.B) {
 		req := httptest.NewRequest("GET", "/database/1", nil)
 		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("pageNumber", "1")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.ServePagedMedicaments(w, req)
 	}
 }
 
@@ -96,7 +104,7 @@ func BenchmarkDatabasePage(b *testing.B) {
 func BenchmarkMedicamentSearch(b *testing.B) {
 	container := createBenchmarkData()
 	validator := validation.NewDataValidator()
-	handler := handlers.FindMedicament(container, validator)
+	handler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -104,14 +112,20 @@ func BenchmarkMedicamentSearch(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/medicament/Medicament", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("element", "Medicament")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.FindMedicament(w, req)
 	}
 }
 
 // Benchmark medicament lookup by CIS
 func BenchmarkMedicamentByID(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.FindMedicamentByID(container)
+	handler := handlers.NewHTTPHandler(container, validation.NewDataValidator())
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -119,7 +133,13 @@ func BenchmarkMedicamentByID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/medicament/id/500", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("cis", "500")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.FindMedicamentByID(w, req)
 	}
 }
 
@@ -127,7 +147,7 @@ func BenchmarkMedicamentByID(b *testing.B) {
 func BenchmarkGeneriquesSearch(b *testing.B) {
 	container := createBenchmarkData()
 	validator := validation.NewDataValidator()
-	handler := handlers.FindGeneriques(container, validator)
+	handler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -135,14 +155,20 @@ func BenchmarkGeneriquesSearch(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/generiques/Groupe", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("libelle", "Groupe")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.FindGeneriques(w, req)
 	}
 }
 
 // Benchmark generiques by group ID
 func BenchmarkGeneriquesByID(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.FindGeneriquesByGroupID(container)
+	handler := handlers.NewHTTPHandler(container, validation.NewDataValidator())
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -150,14 +176,20 @@ func BenchmarkGeneriquesByID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/generiques/group/50", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("groupId", "50")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.FindGeneriquesByGroupID(w, req)
 	}
 }
 
 // Benchmark health check
 func BenchmarkHealth(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.HealthCheck(container)
+	handler := handlers.NewHTTPHandler(container, validation.NewDataValidator())
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -165,7 +197,7 @@ func BenchmarkHealth(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+		handler.HealthCheck(w, req)
 	}
 }
 
@@ -233,7 +265,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 // Benchmark with realistic response sizes
 func BenchmarkRealisticResponse(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.ServePagedMedicaments(container)
+	handler := handlers.NewHTTPHandler(container, validation.NewDataValidator())
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -242,7 +274,13 @@ func BenchmarkRealisticResponse(b *testing.B) {
 		req := httptest.NewRequest("GET", "/database/1", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 		w := httptest.NewRecorder()
-		handler(w, req)
+
+		// Create chi router context to properly extract URL parameters
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("pageNumber", "1")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		handler.ServePagedMedicaments(w, req)
 
 		// Simulate response processing time
 		_ = w.Body.Len()
