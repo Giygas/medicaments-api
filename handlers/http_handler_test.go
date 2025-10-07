@@ -17,6 +17,299 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// ============================================================================
+// TEST DATA FACTORY
+// ============================================================================
+
+// TestDataFactory creates consistent test data across all tests
+type TestDataFactory struct{}
+
+func NewTestDataFactory() *TestDataFactory {
+	return &TestDataFactory{}
+}
+
+// CreateMedicament creates a single test medicament with full realistic data
+func (f *TestDataFactory) CreateMedicament(cis int, denomination string) entities.Medicament {
+	return entities.Medicament{
+		Cis:                   cis,
+		Denomination:          denomination,
+		FormePharmaceutique:   "Comprimé pelliculé",
+		VoiesAdministration:   []string{"Orale"},
+		StatusAutorisation:    "Autorisé",
+		TypeProcedure:         "Procédure nationale",
+		EtatComercialisation:  "Commercialisé",
+		DateAMM:               "2020-01-15",
+		Titulaire:             "Laboratoire Test",
+		SurveillanceRenforcee: "Non",
+		Composition: []entities.Composition{
+			{
+				Cis:                   cis,
+				CodeSubstance:         1001,
+				DenominationSubstance: "Test Substance",
+				Dosage:                "500 mg",
+				ReferenceDosage:       "mg",
+				NatureComposant:       "Actif",
+			},
+		},
+		Generiques: []entities.Generique{},
+		Presentation: []entities.Presentation{
+			{
+				Cis:                  cis,
+				Cip7:                 1234567,
+				Libelle:              "Boîte de 20 comprimés",
+				StatusAdministratif:  "Présentation commercialisée",
+				EtatComercialisation: "Commercialisée",
+				DateDeclaration:      "2020-02-01",
+			},
+		},
+		Conditions: []string{},
+	}
+}
+
+// CreateMedicaments creates multiple test medicaments
+func (f *TestDataFactory) CreateMedicaments(count int) []entities.Medicament {
+	medicaments := make([]entities.Medicament, count)
+	for i := 0; i < count; i++ {
+		medicaments[i] = f.CreateMedicament(i+1, fmt.Sprintf("Médicament Test %d", i+1))
+	}
+	return medicaments
+}
+
+// CreateMedicamentsMap creates a medicaments map for O(1) lookups
+func (f *TestDataFactory) CreateMedicamentsMap(medicaments []entities.Medicament) map[int]entities.Medicament {
+	medicamentsMap := make(map[int]entities.Medicament)
+	for _, med := range medicaments {
+		medicamentsMap[med.Cis] = med
+	}
+	return medicamentsMap
+}
+
+// CreateGeneriqueList creates a test generique list
+func (f *TestDataFactory) CreateGeneriqueList(groupID int, libelle string, medicamentCIS []int) entities.GeneriqueList {
+	generiqueMedicaments := make([]entities.GeneriqueMedicament, len(medicamentCIS))
+	for i, cis := range medicamentCIS {
+		generiqueMedicaments[i] = entities.GeneriqueMedicament{
+			Cis:          cis,
+			Denomination: fmt.Sprintf("Médicament Générique %d", cis),
+		}
+	}
+
+	return entities.GeneriqueList{
+		GroupID:     groupID,
+		Libelle:     libelle,
+		Medicaments: generiqueMedicaments,
+	}
+}
+
+// CreateDataContainer creates a fully populated data container
+func (f *TestDataFactory) CreateDataContainer(medicamentsCount int, generiquesCount int) *data.DataContainer {
+	medicaments := f.CreateMedicaments(medicamentsCount)
+	medicamentsMap := f.CreateMedicamentsMap(medicaments)
+
+	var generiques []entities.GeneriqueList
+	for i := 0; i < generiquesCount; i++ {
+		generiques = append(generiques, f.CreateGeneriqueList(
+			i+1,
+			fmt.Sprintf("Générique Test %d", i+1),
+			[]int{(i % medicamentsCount) + 1}, // Link to existing medicaments
+		))
+	}
+
+	generiquesMap := make(map[int]entities.Generique)
+	// Note: In real implementation, you'd populate this with actual Generique entities
+
+	dataContainer := &data.DataContainer{}
+	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+	return dataContainer
+}
+
+// ============================================================================
+// MOCK BUILDERS
+// ============================================================================
+
+// MockDataStoreBuilder provides fluent interface for building mock data stores
+type MockDataStoreBuilder struct {
+	mock *MockDataStore
+}
+
+func NewMockDataStoreBuilder() *MockDataStoreBuilder {
+	return &MockDataStoreBuilder{
+		mock: &MockDataStore{
+			medicaments:    []entities.Medicament{},
+			generiques:     []entities.GeneriqueList{},
+			medicamentsMap: make(map[int]entities.Medicament),
+			generiquesMap:  make(map[int]entities.Generique),
+			lastUpdated:    time.Now(),
+			updating:       false,
+		},
+	}
+}
+
+func (b *MockDataStoreBuilder) WithMedicaments(medicaments []entities.Medicament) *MockDataStoreBuilder {
+	b.mock.medicaments = medicaments
+	b.mock.medicamentsMap = make(map[int]entities.Medicament)
+	for _, med := range medicaments {
+		b.mock.medicamentsMap[med.Cis] = med
+	}
+	return b
+}
+
+func (b *MockDataStoreBuilder) WithGeneriques(generiques []entities.GeneriqueList) *MockDataStoreBuilder {
+	b.mock.generiques = generiques
+	return b
+}
+
+func (b *MockDataStoreBuilder) WithUpdating(updating bool) *MockDataStoreBuilder {
+	b.mock.updating = updating
+	return b
+}
+
+func (b *MockDataStoreBuilder) WithLastUpdated(lastUpdated time.Time) *MockDataStoreBuilder {
+	b.mock.lastUpdated = lastUpdated
+	return b
+}
+
+func (b *MockDataStoreBuilder) Build() *MockDataStore {
+	return b.mock
+}
+
+// MockDataValidatorBuilder provides fluent interface for building mock validators
+type MockDataValidatorBuilder struct {
+	mock *MockDataValidator
+}
+
+func NewMockDataValidatorBuilder() *MockDataValidatorBuilder {
+	return &MockDataValidatorBuilder{
+		mock: &MockDataValidator{
+			validateInputError:      nil,
+			validateMedicamentError: nil,
+		},
+	}
+}
+
+func (b *MockDataValidatorBuilder) WithInputError(err error) *MockDataValidatorBuilder {
+	b.mock.validateInputError = err
+	return b
+}
+
+func (b *MockDataValidatorBuilder) WithMedicamentError(err error) *MockDataValidatorBuilder {
+	b.mock.validateMedicamentError = err
+	return b
+}
+
+func (b *MockDataValidatorBuilder) Build() *MockDataValidator {
+	return b.mock
+}
+
+// ============================================================================
+// HTTP TEST UTILITIES
+// ============================================================================
+
+// HTTPTestHelper provides utilities for HTTP handler testing
+type HTTPTestHelper struct {
+	t *testing.T
+}
+
+func NewHTTPTestHelper(t *testing.T) *HTTPTestHelper {
+	return &HTTPTestHelper{t: t}
+}
+
+// ExecuteRequest executes an HTTP handler with the given parameters
+func (h *HTTPTestHelper) ExecuteRequest(handler http.HandlerFunc, method, path string, urlParams map[string]string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, nil)
+
+	if len(urlParams) > 0 {
+		rctx := chi.NewRouteContext()
+		for key, value := range urlParams {
+			rctx.URLParams.Add(key, value)
+		}
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	}
+
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	return rr
+}
+
+// AssertJSONResponse asserts that the response contains valid JSON with the expected status
+func (h *HTTPTestHelper) AssertJSONResponse(resp *httptest.ResponseRecorder, expectedStatus int, target interface{}) {
+	if resp.Code != expectedStatus {
+		h.t.Errorf("Expected status %d, got %d", expectedStatus, resp.Code)
+	}
+
+	bodyStr := resp.Body.String()
+	if bodyStr == "" {
+		h.t.Error("Response body should not be empty")
+	}
+
+	err := json.Unmarshal([]byte(bodyStr), target)
+	if err != nil {
+		h.t.Errorf("Response should be valid JSON, got error: %v", err)
+	}
+}
+
+// AssertErrorResponse asserts that the response contains an error with the expected status
+func (h *HTTPTestHelper) AssertErrorResponse(resp *httptest.ResponseRecorder, expectedStatus int) {
+	if resp.Code != expectedStatus {
+		h.t.Errorf("Expected status %d, got %d", expectedStatus, resp.Code)
+	}
+
+	var errorResp map[string]interface{}
+	err := json.Unmarshal([]byte(resp.Body.String()), &errorResp)
+	if err != nil {
+		h.t.Errorf("Error response should be valid JSON, got error: %v", err)
+	}
+
+	// Check that it has error fields
+	if _, ok := errorResp["message"]; !ok {
+		h.t.Error("Error response should have message field")
+	}
+	if _, ok := errorResp["code"]; !ok {
+		h.t.Error("Error response should have code field")
+	}
+}
+
+// AssertPaginationResponse asserts pagination-specific response structure
+func (h *HTTPTestHelper) AssertPaginationResponse(resp *httptest.ResponseRecorder, expectedPage, expectedMaxPage, expectedDataCount int) {
+	var response map[string]interface{}
+	h.AssertJSONResponse(resp, http.StatusOK, &response)
+
+	if response["page"] != float64(expectedPage) {
+		h.t.Errorf("Page number mismatch: expected %d, got %v", expectedPage, response["page"])
+	}
+	if response["maxPage"] != float64(expectedMaxPage) {
+		h.t.Errorf("Max page mismatch: expected %d, got %v", expectedMaxPage, response["maxPage"])
+	}
+
+	data, ok := response["data"].([]interface{})
+	if !ok {
+		h.t.Error("Data field should be an array")
+	}
+	if len(data) != expectedDataCount {
+		h.t.Errorf("Data count mismatch: expected %d, got %d", expectedDataCount, len(data))
+	}
+}
+
+// AssertHealthResponse asserts health check response structure
+func (h *HTTPTestHelper) AssertHealthResponse(resp *httptest.ResponseRecorder, expectedStatus string) {
+	var response map[string]interface{}
+	h.AssertJSONResponse(resp, http.StatusOK, &response)
+
+	if response["status"] != expectedStatus {
+		h.t.Errorf("Status mismatch: expected %s, got %v", expectedStatus, response["status"])
+	}
+	if _, ok := response["data"]; !ok {
+		h.t.Error("Response should have data field")
+	}
+	if _, ok := response["system"]; !ok {
+		h.t.Error("Response should have system field")
+	}
+}
+
+// ============================================================================
+// LEGACY MOCKS (kept for compatibility with existing tests)
+// ============================================================================
+
 // MockDataStore implements interfaces.DataStore for testing
 type MockDataStore struct {
 	medicaments    []entities.Medicament
@@ -106,33 +399,6 @@ func (m *MockDataValidator) ValidateInput(input string) error {
 	m.validateInputCalled = true
 	m.lastValidatedInput = input
 	return m.validateInputError
-}
-
-// Helper function to create test medicaments
-func createTestMedicament(cis int, denomination string) entities.Medicament {
-	return entities.Medicament{
-		Cis:                  cis,
-		Denomination:         denomination,
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisé",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisé",
-	}
-}
-
-// Helper function to create test generique list
-func createTestGeneriqueList(groupID int, libelle string) entities.GeneriqueList {
-	return entities.GeneriqueList{
-		GroupID: groupID,
-		Libelle: libelle,
-		Medicaments: []entities.GeneriqueMedicament{
-			{
-				Cis:          1,
-				Denomination: "Test Med",
-			},
-		},
-	}
 }
 
 // TestNewHTTPHandler tests handler creation
@@ -282,6 +548,8 @@ func TestRespondWithError(t *testing.T) {
 
 // TestServeAllMedicaments tests the medicaments endpoint
 func TestServeAllMedicaments(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name         string
 		medicaments  []entities.Medicament
@@ -291,8 +559,8 @@ func TestServeAllMedicaments(t *testing.T) {
 		{
 			name: "with medicaments",
 			medicaments: []entities.Medicament{
-				createTestMedicament(1, "Test Med 1"),
-				createTestMedicament(2, "Test Med 2"),
+				factory.CreateMedicament(1, "Test Med 1"),
+				factory.CreateMedicament(2, "Test Med 2"),
 			},
 			expectedCode: http.StatusOK,
 			expectArray:  true,
@@ -343,6 +611,8 @@ func TestServeAllMedicaments(t *testing.T) {
 
 // TestServePagedMedicaments tests pagination
 func TestServePagedMedicaments(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name         string
 		pageNumber   string
@@ -353,34 +623,34 @@ func TestServePagedMedicaments(t *testing.T) {
 		{
 			name:         "valid page 1",
 			pageNumber:   "1",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med 1")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "valid page 2",
 			pageNumber:   "2",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med 1")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
 			expectedCode: http.StatusNotFound,
 			expectError:  "Page not found",
 		},
 		{
 			name:         "invalid page number",
 			pageNumber:   "invalid",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med 1")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
 			expectedCode: http.StatusBadRequest,
 			expectError:  "Invalid page number",
 		},
 		{
 			name:         "negative page number",
 			pageNumber:   "-1",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med 1")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
 			expectedCode: http.StatusBadRequest,
 			expectError:  "Invalid page number",
 		},
 		{
 			name:         "zero page number",
 			pageNumber:   "0",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med 1")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
 			expectedCode: http.StatusBadRequest,
 			expectError:  "Invalid page number",
 		},
@@ -450,6 +720,8 @@ func TestServePagedMedicaments(t *testing.T) {
 
 // TestFindMedicament tests medicament search
 func TestFindMedicament(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name         string
 		element      string
@@ -461,15 +733,15 @@ func TestFindMedicament(t *testing.T) {
 			name:    "valid search term",
 			element: "Doliprane",
 			medicaments: []entities.Medicament{
-				createTestMedicament(1, "Doliprane"),
-				createTestMedicament(2, "Ibuprofène"),
+				factory.CreateMedicament(1, "Doliprane"),
+				factory.CreateMedicament(2, "Ibuprofène"),
 			},
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "empty search term",
 			element:      "",
-			medicaments:  []entities.Medicament{createTestMedicament(1, "Test Med")},
+			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
 			expectedCode: http.StatusBadRequest,
 			expectError:  "Missing search term",
 		},
@@ -477,7 +749,7 @@ func TestFindMedicament(t *testing.T) {
 			name:    "no results",
 			element: "NonExistent",
 			medicaments: []entities.Medicament{
-				createTestMedicament(1, "Doliprane"),
+				factory.CreateMedicament(1, "Doliprane"),
 			},
 			expectedCode: http.StatusNotFound,
 			expectError:  "No medicaments found",
@@ -521,6 +793,8 @@ func TestFindMedicament(t *testing.T) {
 
 // TestFindMedicamentByID tests medicament lookup by CIS
 func TestFindMedicamentByID(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name           string
 		cis            string
@@ -533,17 +807,17 @@ func TestFindMedicamentByID(t *testing.T) {
 			name: "valid CIS",
 			cis:  "1",
 			medicaments: []entities.Medicament{
-				createTestMedicament(1, "Doliprane"),
+				factory.CreateMedicament(1, "Doliprane"),
 			},
 			medicamentsMap: map[int]entities.Medicament{
-				1: createTestMedicament(1, "Doliprane"),
+				1: factory.CreateMedicament(1, "Doliprane"),
 			},
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:           "invalid CIS (non-numeric)",
 			cis:            "invalid",
-			medicaments:    []entities.Medicament{createTestMedicament(1, "Test Med")},
+			medicaments:    []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
 			medicamentsMap: map[int]entities.Medicament{},
 			expectedCode:   http.StatusBadRequest,
 			expectError:    "Invalid CIS",
@@ -551,7 +825,7 @@ func TestFindMedicamentByID(t *testing.T) {
 		{
 			name:           "non-existent CIS",
 			cis:            "999",
-			medicaments:    []entities.Medicament{createTestMedicament(1, "Test Med")},
+			medicaments:    []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
 			medicamentsMap: map[int]entities.Medicament{},
 			expectedCode:   http.StatusNotFound,
 			expectError:    "Medicament not found",
@@ -598,6 +872,8 @@ func TestFindMedicamentByID(t *testing.T) {
 
 // TestFindGeneriques tests generique search
 func TestFindGeneriques(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name         string
 		libelle      string
@@ -609,14 +885,14 @@ func TestFindGeneriques(t *testing.T) {
 			name:    "valid libelle search",
 			libelle: "Paracetamol",
 			generiques: []entities.GeneriqueList{
-				createTestGeneriqueList(1, "Paracetamol"),
+				factory.CreateGeneriqueList(1, "Paracetamol", []int{1}),
 			},
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "empty libelle",
 			libelle:      "",
-			generiques:   []entities.GeneriqueList{createTestGeneriqueList(1, "Test")},
+			generiques:   []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
 			expectedCode: http.StatusBadRequest,
 			expectError:  "Missing libelle",
 		},
@@ -624,7 +900,7 @@ func TestFindGeneriques(t *testing.T) {
 			name:    "no results",
 			libelle: "NonExistent",
 			generiques: []entities.GeneriqueList{
-				createTestGeneriqueList(1, "Test"),
+				factory.CreateGeneriqueList(1, "Test", []int{1}),
 			},
 			expectedCode: http.StatusNotFound,
 			expectError:  "No generiques found",
@@ -668,6 +944,8 @@ func TestFindGeneriques(t *testing.T) {
 
 // TestFindGeneriquesByGroupID tests generique lookup by group ID
 func TestFindGeneriquesByGroupID(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name          string
 		groupID       string
@@ -680,7 +958,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			name:    "valid group ID",
 			groupID: "1",
 			generiques: []entities.GeneriqueList{
-				createTestGeneriqueList(1, "Test Group"),
+				factory.CreateGeneriqueList(1, "Test Group", []int{1}),
 			},
 			generiquesMap: map[int]entities.Generique{
 				1: {Group: 1, Libelle: "Test Group"},
@@ -690,7 +968,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 		{
 			name:          "invalid group ID (non-numeric)",
 			groupID:       "invalid",
-			generiques:    []entities.GeneriqueList{createTestGeneriqueList(1, "Test")},
+			generiques:    []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
 			generiquesMap: map[int]entities.Generique{},
 			expectedCode:  http.StatusBadRequest,
 			expectError:   "Invalid group ID",
@@ -698,7 +976,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 		{
 			name:          "non-existent group ID",
 			groupID:       "999",
-			generiques:    []entities.GeneriqueList{createTestGeneriqueList(1, "Test")},
+			generiques:    []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
 			generiquesMap: map[int]entities.Generique{},
 			expectedCode:  http.StatusNotFound,
 			expectError:   "Generique group not found",
@@ -745,6 +1023,8 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 
 // TestHealthCheck tests health check endpoint
 func TestHealthCheck(t *testing.T) {
+	factory := NewTestDataFactory()
+
 	tests := []struct {
 		name           string
 		medicaments    []entities.Medicament
@@ -756,8 +1036,8 @@ func TestHealthCheck(t *testing.T) {
 	}{
 		{
 			name:           "healthy system",
-			medicaments:    []entities.Medicament{createTestMedicament(1, "Test Med")},
-			generiques:     []entities.GeneriqueList{createTestGeneriqueList(1, "Test Group")},
+			medicaments:    []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
+			generiques:     []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test Group", []int{1})},
 			lastUpdated:    time.Now().Add(-1 * time.Hour),
 			updating:       false,
 			expectedCode:   http.StatusOK,
@@ -765,8 +1045,8 @@ func TestHealthCheck(t *testing.T) {
 		},
 		{
 			name:           "system during update",
-			medicaments:    []entities.Medicament{createTestMedicament(1, "Test Med")},
-			generiques:     []entities.GeneriqueList{createTestGeneriqueList(1, "Test Group")},
+			medicaments:    []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
+			generiques:     []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test Group", []int{1})},
 			lastUpdated:    time.Now().Add(-1 * time.Hour),
 			updating:       true,
 			expectedCode:   http.StatusOK,
@@ -774,8 +1054,8 @@ func TestHealthCheck(t *testing.T) {
 		},
 		{
 			name:           "stale data",
-			medicaments:    []entities.Medicament{createTestMedicament(1, "Test Med")},
-			generiques:     []entities.GeneriqueList{createTestGeneriqueList(1, "Test Group")},
+			medicaments:    []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
+			generiques:     []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test Group", []int{1})},
 			lastUpdated:    time.Now().Add(-25 * time.Hour),
 			updating:       false,
 			expectedCode:   http.StatusOK,
@@ -857,9 +1137,10 @@ func TestHealthCheck(t *testing.T) {
 
 // BenchmarkServeAllMedicaments benchmarks the medicaments endpoint
 func BenchmarkServeAllMedicaments(b *testing.B) {
+	factory := NewTestDataFactory()
 	medicaments := make([]entities.Medicament, 1000)
 	for i := 0; i < 1000; i++ {
-		medicaments[i] = createTestMedicament(i, "Test Med "+string(rune(i)))
+		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
 	mockStore := &MockDataStore{medicaments: medicaments}
@@ -876,9 +1157,10 @@ func BenchmarkServeAllMedicaments(b *testing.B) {
 
 // BenchmarkFindMedicament benchmarks the medicament search
 func BenchmarkFindMedicament(b *testing.B) {
+	factory := NewTestDataFactory()
 	medicaments := make([]entities.Medicament, 1000)
 	for i := 0; i < 1000; i++ {
-		medicaments[i] = createTestMedicament(i, "Test Med "+string(rune(i)))
+		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
 	mockStore := &MockDataStore{medicaments: medicaments}
