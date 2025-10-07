@@ -3,12 +3,15 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
@@ -1486,6 +1489,486 @@ func TestRespondWithError_Standalone(t *testing.T) {
 				t.Error("Expected 'code' field to be a number")
 			} else if int(codeFloat) != tt.code {
 				t.Errorf("Expected code %d, got %d", tt.code, int(codeFloat))
+			}
+		})
+	}
+}
+
+// Phase 3: Handler Function Tests
+// TestServeAllMedicaments_Handler tests the ServeAllMedicaments HTTP handler function
+func TestServeAllMedicaments_Handler(t *testing.T) {
+	tests := []struct {
+		name               string
+		medicamentsCount   int
+		expectedStatusCode int
+		expectData         bool
+	}{
+		{
+			name:               "with medicaments",
+			medicamentsCount:   5,
+			expectedStatusCode: http.StatusOK,
+			expectData:         true,
+		},
+		{
+			name:               "empty medicaments",
+			medicamentsCount:   0,
+			expectedStatusCode: http.StatusOK,
+			expectData:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test data
+			var medicaments []entities.Medicament
+			for i := 0; i < tt.medicamentsCount; i++ {
+				medicaments = append(medicaments, entities.Medicament{
+					Cis:          i,
+					Denomination: fmt.Sprintf("Medicament %d", i),
+				})
+			}
+
+			// Create data container
+			dataContainer := &data.DataContainer{}
+			dataContainer.UpdateData(medicaments, nil, make(map[int]entities.Medicament), make(map[int]entities.Generique))
+
+			// Create handler
+			handler := ServeAllMedicaments(dataContainer)
+
+			// Create request and response recorder
+			req := httptest.NewRequest("GET", "/", nil)
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatusCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatusCode, rr.Code)
+			}
+
+			// Check response body
+			if tt.expectData {
+				body := rr.Body.String()
+				if body == "" {
+					t.Error("Expected response body, but it's empty")
+				}
+
+				var response []entities.Medicament
+				if err := json.Unmarshal([]byte(body), &response); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+
+				if len(response) != tt.medicamentsCount {
+					t.Errorf("Expected %d medicaments, got %d", tt.medicamentsCount, len(response))
+				}
+			}
+		})
+	}
+}
+
+// TestFindMedicamentByID_Handler tests the FindMedicamentByID HTTP handler function
+func TestFindMedicamentByID_Handler(t *testing.T) {
+	// Create test data
+	medicaments := []entities.Medicament{
+		{Cis: 1, Denomination: "Aspirin 500mg"},
+		{Cis: 2, Denomination: "Ibuprofen 400mg"},
+	}
+
+	// Create medicaments map for O(1) lookup
+	medicamentsMap := make(map[int]entities.Medicament)
+	for _, med := range medicaments {
+		medicamentsMap[med.Cis] = med
+	}
+
+	// Create data container
+	dataContainer := &data.DataContainer{}
+	dataContainer.UpdateData(medicaments, nil, medicamentsMap, make(map[int]entities.Generique))
+
+	tests := []struct {
+		name               string
+		cis                string
+		expectedStatusCode int
+		expectResult       bool
+	}{
+		{
+			name:               "valid CIS (found)",
+			cis:                "1",
+			expectedStatusCode: http.StatusOK,
+			expectResult:       true,
+		},
+		{
+			name:               "valid CIS (not found)",
+			cis:                "999",
+			expectedStatusCode: http.StatusNotFound,
+			expectResult:       false,
+		},
+		{
+			name:               "invalid CIS (non-numeric)",
+			cis:                "invalid",
+			expectedStatusCode: http.StatusBadRequest,
+			expectResult:       false,
+		},
+		{
+			name:               "empty CIS",
+			cis:                "",
+			expectedStatusCode: http.StatusBadRequest,
+			expectResult:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create handler
+			handler := FindMedicamentByID(dataContainer)
+
+			// Create request with URL parameter
+			req := httptest.NewRequest("GET", "/"+tt.cis, nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("cis", tt.cis)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatusCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatusCode, rr.Code)
+			}
+
+			// For successful responses, validate result
+			if tt.expectResult {
+				body := rr.Body.String()
+				if body == "" {
+					t.Error("Expected response body, but it's empty")
+				}
+
+				var response entities.Medicament
+				if err := json.Unmarshal([]byte(body), &response); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+
+				if response.Denomination != "Aspirin 500mg" {
+					t.Errorf("Expected 'Aspirin 500mg', got '%s'", response.Denomination)
+				}
+			}
+		})
+	}
+}
+
+// TestHealthCheck_Handler tests the HealthCheck HTTP handler function
+func TestHealthCheck_Handler(t *testing.T) {
+	tests := []struct {
+		name               string
+		medicamentsCount   int
+		expectedStatusCode int
+		expectedStatus     string
+	}{
+		{
+			name:               "healthy system",
+			medicamentsCount:   10,
+			expectedStatusCode: http.StatusOK,
+			expectedStatus:     "healthy",
+		},
+		{
+			name:               "no data",
+			medicamentsCount:   0,
+			expectedStatusCode: http.StatusServiceUnavailable,
+			expectedStatus:     "unhealthy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test data
+			var medicaments []entities.Medicament
+			for i := 0; i < tt.medicamentsCount; i++ {
+				medicaments = append(medicaments, entities.Medicament{
+					Cis:          i,
+					Denomination: fmt.Sprintf("Medicament %d", i),
+				})
+			}
+
+			// Create data container
+			dataContainer := &data.DataContainer{}
+			dataContainer.UpdateData(medicaments, nil, make(map[int]entities.Medicament), make(map[int]entities.Generique))
+
+			// Create handler
+			handler := HealthCheck(dataContainer)
+
+			// Create request and response recorder
+			req := httptest.NewRequest("GET", "/health", nil)
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatusCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatusCode, rr.Code)
+			}
+
+			// Check response body
+			body := rr.Body.String()
+			if body == "" {
+				t.Error("Expected response body, but it's empty")
+			}
+
+			var response map[string]interface{}
+			if err := json.Unmarshal([]byte(body), &response); err != nil {
+				t.Errorf("Response body is not valid JSON: %v", err)
+			}
+
+			// Check status field
+			if statusField, exists := response["status"]; !exists {
+				t.Error("Expected 'status' field in response")
+			} else if statusStr, ok := statusField.(string); !ok {
+				t.Error("Expected 'status' field to be a string")
+			} else if statusStr != tt.expectedStatus {
+				t.Errorf("Expected status='%s', got '%s'", tt.expectedStatus, statusStr)
+			}
+
+			// Check data field exists
+			if _, exists := response["data"]; !exists {
+				t.Error("Expected 'data' field in response")
+			}
+
+			// Check system field exists
+			if _, exists := response["system"]; !exists {
+				t.Error("Expected 'system' field in response")
+			}
+		})
+	}
+}
+
+// TestFindMedicament_Handler tests the FindMedicament HTTP handler function
+func TestFindMedicament_Handler(t *testing.T) {
+	// Create test data
+	medicaments := []entities.Medicament{
+		{Cis: 1, Denomination: "Aspirin 500mg"},
+		{Cis: 2, Denomination: "Ibuprofen 400mg"},
+		{Cis: 3, Denomination: "Paracetamol 1000mg"},
+	}
+
+	// Create data container
+	dataContainer := &data.DataContainer{}
+	dataContainer.UpdateData(medicaments, nil, make(map[int]entities.Medicament), make(map[int]entities.Generique))
+
+	// Create validator
+	validator := &MockDataValidator{}
+
+	tests := []struct {
+		name               string
+		searchTerm         string
+		validatorError     error
+		expectedStatusCode int
+		expectedResults    int
+	}{
+		{
+			name:               "exact match",
+			searchTerm:         "Aspirin 500mg",
+			expectedStatusCode: http.StatusOK,
+			expectedResults:    1,
+		},
+		{
+			name:               "partial match (case insensitive)",
+			searchTerm:         "aspirin",
+			expectedStatusCode: http.StatusOK,
+			expectedResults:    1,
+		},
+		{
+			name:               "no results",
+			searchTerm:         "NonExistent",
+			expectedStatusCode: http.StatusNotFound,
+			expectedResults:    0,
+		},
+		{
+			name:               "empty search term",
+			searchTerm:         "",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResults:    0,
+		},
+		{
+			name:               "invalid input (validator error)",
+			searchTerm:         "test",
+			validatorError:     fmt.Errorf("validation error"),
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResults:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup validator mock
+			validator.validateInputError = tt.validatorError
+
+			// Create handler
+			handler := FindMedicament(dataContainer, validator)
+
+			// Create request with URL parameter
+			req := httptest.NewRequest("GET", "/search", nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("element", tt.searchTerm)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatusCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatusCode, rr.Code)
+			}
+
+			// For successful responses, validate results
+			if tt.expectedStatusCode == http.StatusOK {
+				body := rr.Body.String()
+				if body == "" {
+					t.Error("Expected response body, but it's empty")
+				}
+
+				var response []entities.Medicament
+				if err := json.Unmarshal([]byte(body), &response); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+
+				if len(response) != tt.expectedResults {
+					t.Errorf("Expected %d results, got %d", tt.expectedResults, len(response))
+				}
+			}
+		})
+	}
+}
+
+// TestServePagedMedicaments_Handler tests the ServePagedMedicaments HTTP handler function
+func TestServePagedMedicaments_Handler(t *testing.T) {
+	// Create test data (25 medicaments for pagination testing)
+	var medicaments []entities.Medicament
+	for i := 0; i < 25; i++ {
+		medicaments = append(medicaments, entities.Medicament{
+			Cis:          i,
+			Denomination: fmt.Sprintf("Medicament %d", i),
+		})
+	}
+
+	// Create data container
+	dataContainer := &data.DataContainer{}
+	dataContainer.UpdateData(medicaments, nil, make(map[int]entities.Medicament), make(map[int]entities.Generique))
+
+	tests := []struct {
+		name               string
+		pageNumber         string
+		expectedStatusCode int
+		expectedDataCount  int
+		expectedMaxPage    int
+	}{
+		{
+			name:               "valid page 1",
+			pageNumber:         "1",
+			expectedStatusCode: http.StatusOK,
+			expectedDataCount:  10,
+			expectedMaxPage:    3,
+		},
+		{
+			name:               "valid page 2",
+			pageNumber:         "2",
+			expectedStatusCode: http.StatusOK,
+			expectedDataCount:  10,
+			expectedMaxPage:    3,
+		},
+		{
+			name:               "valid page 3 (last page)",
+			pageNumber:         "3",
+			expectedStatusCode: http.StatusOK,
+			expectedDataCount:  5,
+			expectedMaxPage:    3,
+		},
+		{
+			name:               "invalid page number (non-numeric)",
+			pageNumber:         "invalid",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedDataCount:  0,
+			expectedMaxPage:    0,
+		},
+		{
+			name:               "invalid page number (zero)",
+			pageNumber:         "0",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedDataCount:  0,
+			expectedMaxPage:    0,
+		},
+		{
+			name:               "page not found (too high)",
+			pageNumber:         "999",
+			expectedStatusCode: http.StatusNotFound,
+			expectedDataCount:  0,
+			expectedMaxPage:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create handler
+			handler := ServePagedMedicaments(dataContainer)
+
+			// Create request with URL parameter
+			req := httptest.NewRequest("GET", "/"+tt.pageNumber, nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("pageNumber", tt.pageNumber)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+			rr := httptest.NewRecorder()
+
+			// Call handler
+			handler(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatusCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatusCode, rr.Code)
+			}
+
+			// For successful responses, validate pagination structure
+			if tt.expectedStatusCode == http.StatusOK {
+				body := rr.Body.String()
+				if body == "" {
+					t.Error("Expected response body, but it's empty")
+				}
+
+				var response map[string]interface{}
+				if err := json.Unmarshal([]byte(body), &response); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+
+				// Check page field
+				if page, exists := response["page"]; !exists {
+					t.Error("Expected 'page' field in response")
+				} else if pageFloat, ok := page.(float64); !ok {
+					t.Error("Expected 'page' field to be a number")
+				} else {
+					expectedPage, _ := strconv.Atoi(tt.pageNumber)
+					if int(pageFloat) != expectedPage {
+						t.Errorf("Expected page %d, got %d", expectedPage, int(pageFloat))
+					}
+				}
+
+				// Check maxPage field
+				if maxPage, exists := response["maxPage"]; !exists {
+					t.Error("Expected 'maxPage' field in response")
+				} else if maxPageFloat, ok := maxPage.(float64); !ok {
+					t.Error("Expected 'maxPage' field to be a number")
+				} else if int(maxPageFloat) != tt.expectedMaxPage {
+					t.Errorf("Expected maxPage %d, got %d", tt.expectedMaxPage, int(maxPageFloat))
+				}
+
+				// Check data array
+				if data, ok := response["data"].([]interface{}); !ok {
+					t.Error("Expected data field to be an array")
+				} else if len(data) != tt.expectedDataCount {
+					t.Errorf("Expected %d data items, got %d", tt.expectedDataCount, len(data))
+				}
 			}
 		})
 	}
