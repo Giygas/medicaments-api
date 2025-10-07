@@ -3,20 +3,110 @@ package logging
 import (
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 type LoggingService struct {
-	Logger *slog.Logger
+	Logger         *slog.Logger
+	RotatingLogger *RotatingLogger
 }
 
 var DefaultLoggingService *LoggingService
 
 // InitLogger initializes the global logger instance
 func InitLogger(logDir string) {
-	DefaultLoggingService = &LoggingService{
-		Logger: SetupLogger(logDir),
+	InitLoggerWithRetention(logDir, 4) // Default 4 weeks retention
+}
+
+// InitLoggerWithRetention initializes the global logger with custom retention
+func InitLoggerWithRetention(logDir string, retentionWeeks int) {
+	InitLoggerWithRetentionAndSize(logDir, retentionWeeks, 100*1024*1024) // Default 100MB
+}
+
+// InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
+func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	// Create rotating logger with size limit
+	rotatingLogger := NewRotatingLoggerWithSizeLimit(logDir, retentionWeeks, maxFileSize)
+
+	// Initialize the rotating logger
+	if err := rotatingLogger.rotateIfNeeded(); err != nil {
+		// Fallback to console logger if rotation fails
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}))
+		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
+		DefaultLoggingService = &LoggingService{
+			Logger:         consoleLogger,
+			RotatingLogger: rotatingLogger,
+		}
+		slog.SetDefault(consoleLogger)
+		return
 	}
-	slog.SetDefault(DefaultLoggingService.Logger)
+
+	// Start cleanup goroutine with proper cancellation
+	go func() {
+		defer close(rotatingLogger.cleanupDone)
+		ticker := time.NewTicker(24 * time.Hour) // Check daily
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-rotatingLogger.ctx.Done():
+				// Context cancelled, exit gracefully
+				return
+			case <-ticker.C:
+				rotatingLogger.cleanupOldLogs()
+			}
+		}
+	}()
+
+	// Create multi-handler that writes to both console and rotating file
+	consoleHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+
+	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+
+	// Combine handlers - write to both
+	multiHandler := &multiHandler{
+		handlers: []slog.Handler{consoleHandler, fileHandler},
+	}
+
+	logger := slog.New(multiHandler)
+
+	DefaultLoggingService = &LoggingService{
+		Logger:         logger,
+		RotatingLogger: rotatingLogger,
+	}
+	slog.SetDefault(logger)
+
+	// Setup graceful shutdown to close log file
+	setupGracefulShutdown()
+}
+
+// setupGracefulShutdown ensures log files are properly closed on exit
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+			DefaultLoggingService.RotatingLogger.Close()
+		}
+		os.Exit(0)
+	}()
+}
+
+// Close closes the logging service and cleans up resources
+func Close() {
+	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+		DefaultLoggingService.RotatingLogger.Close()
+	}
 }
 
 // Package-level functions for direct access

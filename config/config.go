@@ -11,23 +11,27 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Port           string
-	Address        string
-	Env            string
-	LogLevel       string
-	MaxRequestBody int64 // Maximum request body size in bytes
-	MaxHeaderSize  int64 // Maximum header size in bytes
+	Port              string
+	Address           string
+	Env               string
+	LogLevel          string
+	LogRetentionWeeks int   // Number of weeks to keep log files
+	MaxLogFileSize    int64 // Maximum log file size in bytes
+	MaxRequestBody    int64 // Maximum request body size in bytes
+	MaxHeaderSize     int64 // Maximum header size in bytes
 }
 
 // Load loads and validates configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:           getEnvWithDefault("PORT", "8000"),
-		Address:        getEnvWithDefault("ADDRESS", "127.0.0.1"),
-		Env:            getEnvWithDefault("ENV", "dev"),
-		LogLevel:       getEnvWithDefault("LOG_LEVEL", "info"),
-		MaxRequestBody: getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576), // 1MB default
-		MaxHeaderSize:  getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),  // 1MB default
+		Port:              getEnvWithDefault("PORT", "8000"),
+		Address:           getEnvWithDefault("ADDRESS", "127.0.0.1"),
+		Env:               getEnvWithDefault("ENV", "dev"),
+		LogLevel:          getEnvWithDefault("LOG_LEVEL", "info"),
+		LogRetentionWeeks: getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
+		MaxLogFileSize:    getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
+		MaxRequestBody:    getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576),    // 1MB default
+		MaxHeaderSize:     getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),     // 1MB default
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -67,6 +71,16 @@ func validateConfig(cfg *Config) error {
 	// Validate MAX_HEADER_SIZE
 	if err := validateSizeLimit(cfg.MaxHeaderSize, "MAX_HEADER_SIZE"); err != nil {
 		return fmt.Errorf("invalid MAX_HEADER_SIZE: %w", err)
+	}
+
+	// Validate LOG_RETENTION_WEEKS
+	if err := validateLogRetentionWeeks(cfg.LogRetentionWeeks); err != nil {
+		return fmt.Errorf("invalid LOG_RETENTION_WEEKS: %w", err)
+	}
+
+	// Validate MAX_LOG_FILE_SIZE
+	if err := validateMaxLogFileSize(cfg.MaxLogFileSize); err != nil {
+		return fmt.Errorf("invalid MAX_LOG_FILE_SIZE: %w", err)
 	}
 
 	return nil
@@ -170,10 +184,51 @@ func validateSizeLimit(size int64, configName string) error {
 	return nil
 }
 
+// validateLogRetentionWeeks validates the LOG_RETENTION_WEEKS environment variable
+func validateLogRetentionWeeks(weeks int) error {
+	if weeks <= 0 {
+		return fmt.Errorf("LOG_RETENTION_WEEKS must be positive, got: %d", weeks)
+	}
+
+	if weeks > 52 { // 1 year maximum
+		return fmt.Errorf("LOG_RETENTION_WEEKS is too large (max 52 weeks), got: %d", weeks)
+	}
+
+	return nil
+}
+
+// validateMaxLogFileSize validates the MAX_LOG_FILE_SIZE environment variable
+func validateMaxLogFileSize(size int64) error {
+	if size <= 0 {
+		return fmt.Errorf("MAX_LOG_FILE_SIZE must be positive, got: %d", size)
+	}
+
+	// Minimum 1MB, maximum 1GB
+	if size < 1024*1024 {
+		return fmt.Errorf("MAX_LOG_FILE_SIZE is too small (min 1MB), got: %d bytes", size)
+	}
+
+	if size > 1024*1024*1024 {
+		return fmt.Errorf("MAX_LOG_FILE_SIZE is too large (max 1GB), got: %d bytes", size)
+	}
+
+	return nil
+}
+
 // getEnvWithDefault gets an environment variable with a default value
 func getEnvWithDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getIntEnvWithDefault gets an environment variable as int with a default value
+func getIntEnvWithDefault(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }
@@ -195,6 +250,8 @@ func GetEnvVars() []string {
 		"ADDRESS",
 		"ENV",
 		"LOG_LEVEL",
+		"LOG_RETENTION_WEEKS",
+		"MAX_LOG_FILE_SIZE",
 		"MAX_REQUEST_BODY",
 		"MAX_HEADER_SIZE",
 	}

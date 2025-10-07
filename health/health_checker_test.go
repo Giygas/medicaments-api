@@ -239,14 +239,23 @@ func TestCalculateNextUpdate_Before6AM(t *testing.T) {
 	mockDataStore := &MockHealthDataStore{}
 	healthChecker := NewHealthChecker(mockDataStore)
 
-	// We need to mock time.Now(), but since we can't easily do that,
-	// we'll test the logic by checking the expected behavior
-	// For this test, we'll assume current time is before 6 AM
+	now := time.Now()
 
+	// Calculate what the next update should be based on current time
 	nextUpdate := healthChecker.CalculateNextUpdate()
 
-	// Should be today at 6:00 AM
-	expected := time.Date(nextUpdate.Year(), nextUpdate.Month(), nextUpdate.Day(), 6, 0, 0, 0, nextUpdate.Location())
+	sixAM := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, now.Location())
+	sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
+
+	var expected time.Time
+	if now.Before(sixAM) {
+		expected = sixAM
+	} else if now.Before(sixPM) {
+		expected = sixPM
+	} else {
+		tomorrow := now.AddDate(0, 0, 1)
+		expected = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
+	}
 
 	if !nextUpdate.Equal(expected) {
 		t.Errorf("Expected next update at %v, got %v", expected, nextUpdate)

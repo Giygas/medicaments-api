@@ -32,8 +32,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize structured logging
-	logging.InitLogger("logs")
+	// Initialize structured logging with rotating logs using config values
+	logging.InitLoggerWithRetentionAndSize("logs", cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
 
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",
