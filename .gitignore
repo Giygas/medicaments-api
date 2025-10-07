@@ -4,6 +4,7 @@ AGENTS.md
 logs/
 extras/
 main
+*.log
 **/files/*.txt
 */files/*.txt
 files/

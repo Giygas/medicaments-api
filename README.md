@@ -16,9 +16,9 @@ par token bucket avec coûts variables par endpoint.
 | ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
 | `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
 | `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 100  | ~0.2ms        | ETag/CC/RL  | `^[a-zA-Z0-9 ]+$`     |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 100  | ~0.2ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
 | `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 100  | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | ETag/CC/RL  | `^[a-zA-Z0-9 ]+$`     |
+| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
 | `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
 | `GET /health`                | Santé système + rate limit headers | -     | 5    | ~0.06ms       | RL         | -                     |
 | `GET /`                      | Accueil (SPA)                      | 1h    | 0    | ~0.02ms       | CC         | -                     |
@@ -100,31 +100,6 @@ curl https://medicamentsapi.giygas.dev/health
 
 # Vérification des headers de rate limiting
 curl -I https://medicamentsapi.giygas.dev/health
-```
-
-```json
-{
-  "status": "healthy",
-  "last_update": "2025-10-05T22:04:32+02:00",
-  "data_age_hours": 1.4483066186805555,
-  "uptime_seconds": 86400.000000375,
-  "data": {
-    "api_version": "1.0",
-    "generiques": 1618,
-    "is_updating": false,
-    "medicaments": 15803,
-    "next_update": "2025-10-06T06:00:00+02:00"
-  },
-  "system": {
-    "goroutines": 10,
-    "memory": {
-      "alloc_mb": 31,
-      "num_gc": 60,
-      "sys_mb": 187,
-      "total_alloc_mb": 264
-    }
-  }
-}
 ```
 
 ### Exemples détaillés
@@ -264,14 +239,14 @@ class MedicamentsAPI {
   async example() {
     // Recherche par nom
     const paracetamolMeds = await this.searchByName('paracetamol');
-    
+
     // Recherche par CIS
     const specificMed = await this.getByCis(61504672);
-    
+
     // Pagination de la base de données
     const firstPage = await this.getDatabase(1);
     console.log(`Page ${firstPage.page} of ${firstPage.maxPage}`);
-    
+
     return { paracetamolMeds, specificMed, firstPage };
   }
 }
@@ -677,6 +652,97 @@ errorChan := make(chan error, 5)
 
 // Lancement concurrent des 5 parsers...
 ```
+
+## 📝 Logging et Monitoring
+
+### 🔄 Rotation Automatique des Logs
+
+L'API implémente un système de logging structuré avec rotation automatique :
+
+#### Fonctionnalités
+
+- **Rotation Hebdomadaire** : Nouveau fichier chaque semaine (format ISO : `app-YYYY-Www.log`)
+- **Rotation par Taille** : Rotation forcée si fichier dépasse `MAX_LOG_FILE_SIZE`
+- **Nettoyage Automatique** : Suppression des fichiers plus anciens que `LOG_RETENTION_WEEKS`
+- **Double Sortie** : Console (texte) + Fichier (JSON) pour faciliter le parsing
+- **Arrêt Propre** : Fermeture gracieuse des fichiers avec context cancellation
+
+#### Configuration
+
+```bash
+# Configuration des logs
+LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation (1-52)
+MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (1MB-1GB, défaut: 100MB)
+LOG_LEVEL=info               # Niveau de log (debug/info/warn/error)
+```
+
+#### Structure des Fichiers
+
+```
+logs/
+├── app-2025-W41.log              # Semaine en cours
+├── app-2025-W40.log              # Semaine précédente
+├── app-2025-W39.log              # 2 semaines ago
+└── app-2025-W38_size_20251007_143022.log  # Rotation par taille
+```
+
+#### Format des Logs
+
+```json
+{
+  "time": "2025-10-07T16:45:55.190+02:00",
+  "level": "INFO",
+  "msg": "Files downloaded and parsed successfully"
+}
+```
+
+### 📊 Monitoring Intégré
+
+#### Health Endpoint
+
+```bash
+GET /health
+```
+
+Réponse avec métriques complètes :
+
+```json
+{
+  "status": "healthy",
+  "last_update": "2025-10-07T17:30:03+02:00",
+  "data_age_hours": 0.0009391726388888889,
+  "uptime_seconds": 86400.00000025,
+  "data": {
+    "api_version": "1.0",
+    "generiques": 38,
+    "is_updating": false,
+    "medicaments": 15803,
+    "next_update": "2025-10-07T18:00:00+02:00"
+  },
+  "system": {
+    "goroutines": 16,
+    "memory": {
+      "alloc_mb": 40,
+      "num_gc": 16,
+      "sys_mb": 62,
+      "total_alloc_mb": 125
+    }
+  }
+}
+```
+
+#### Métriques Clés
+
+- **`status`** : État de santé (healthy/degraded/unhealthy)
+- **`last_update`** : Dernière mise à jour réussie des données
+- **`data_age_hours`** : Âge des données en heures
+- **`uptime_seconds`** : Temps d'exécution de l'application
+- **`medicaments`** : Nombre de médicaments en mémoire
+- **`generiques`** : Nombre de groupes génériques
+- **`is_updating`** : Indique si une mise à jour est en cours
+- **`next_update`** : Prochaine mise à jour planifiée
+- **`goroutines`** : Nombre de goroutines actives
+- **`memory`** : Statistiques mémoire détaillées (alloc, sys, total_alloc, num_gc)
 
 ## 🏗️ Architecture système
 
