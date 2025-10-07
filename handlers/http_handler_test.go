@@ -1134,3 +1134,359 @@ func TestCalculateNextUpdate(t *testing.T) {
 		t.Errorf("Seconds should be 0, got %d", nextUpdate.Second())
 	}
 }
+
+// Phase 2: Response Function Tests
+// These tests target the response functions in handlers.go to increase coverage from 44.3% to ~65%
+
+func TestRespondWithJSONAndETag(t *testing.T) {
+	tests := []struct {
+		name           string
+		code           int
+		payload        interface{}
+		ifNoneMatch    string
+		expectedStatus int
+		expectBody     bool
+		expectETag     bool
+	}{
+		{
+			name:           "successful response with data",
+			code:           http.StatusOK,
+			payload:        map[string]string{"test": "data"},
+			expectedStatus: http.StatusOK,
+			expectBody:     true,
+			expectETag:     true,
+		},
+		{
+			name:           "created response with data",
+			code:           http.StatusCreated,
+			payload:        map[string]int{"id": 123},
+			expectedStatus: http.StatusCreated,
+			expectBody:     true,
+			expectETag:     true,
+		},
+		{
+			name:           "empty payload",
+			code:           http.StatusOK,
+			payload:        nil,
+			expectedStatus: http.StatusOK,
+			expectBody:     true,
+			expectETag:     true,
+		},
+		{
+			name:           "array payload",
+			code:           http.StatusOK,
+			payload:        []string{"item1", "item2"},
+			expectedStatus: http.StatusOK,
+			expectBody:     true,
+			expectETag:     true,
+		},
+		{
+			name:           "matching ETag returns 304",
+			code:           http.StatusOK,
+			payload:        map[string]string{"test": "data"},
+			ifNoneMatch:    `"test-etag"`, // This will need to match the generated ETag
+			expectedStatus: http.StatusNotModified,
+			expectBody:     false,
+			expectETag:     true,
+		},
+		{
+			name:           "non-matching ETag returns full response",
+			code:           http.StatusOK,
+			payload:        map[string]string{"test": "data"},
+			ifNoneMatch:    `"different-etag"`,
+			expectedStatus: http.StatusOK,
+			expectBody:     true,
+			expectETag:     true,
+		},
+		{
+			name:           "non-OK status with matching ETag returns full response",
+			code:           http.StatusBadRequest,
+			payload:        map[string]string{"error": "bad request"},
+			ifNoneMatch:    `"test-etag"`,
+			expectedStatus: http.StatusBadRequest,
+			expectBody:     true,
+			expectETag:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/", nil)
+
+			if tt.ifNoneMatch != "" {
+				req.Header.Set("If-None-Match", tt.ifNoneMatch)
+			}
+
+			// For the matching ETag test, we need to generate the ETag first
+			if tt.name == "matching ETag returns 304" {
+				data, _ := json.Marshal(tt.payload)
+				expectedETag := generateETag(data)
+				req.Header.Set("If-None-Match", expectedETag)
+			}
+
+			RespondWithJSONAndETag(rr, req, tt.code, tt.payload)
+
+			// Check status code
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+
+			// Check headers
+			if contentType := rr.Header().Get("Content-Type"); tt.expectBody && contentType != "application/json; charset=utf-8" {
+				t.Errorf("Expected Content-Type application/json, got %s", contentType)
+			}
+
+			etag := rr.Header().Get("ETag")
+			if tt.expectETag && etag == "" {
+				t.Error("Expected ETag header, but it's empty")
+			}
+			if !tt.expectETag && etag != "" {
+				t.Error("Did not expect ETag header, but got one")
+			}
+
+			// Check cache headers
+			if cacheControl := rr.Header().Get("Cache-Control"); cacheControl != "public, max-age=3600" {
+				t.Errorf("Expected Cache-Control 'public, max-age=3600', got %s", cacheControl)
+			}
+
+			// Check Cloudflare headers (only set for non-304 responses)
+			if tt.expectedStatus != http.StatusNotModified {
+				if cfCacheStatus := rr.Header().Get("CF-Cache-Status"); cfCacheStatus != "DYNAMIC" {
+					t.Errorf("Expected CF-Cache-Status 'DYNAMIC', got %s", cfCacheStatus)
+				}
+			} else {
+				// For 304 responses, CF-Cache-Status should not be set
+				if cfCacheStatus := rr.Header().Get("CF-Cache-Status"); cfCacheStatus != "" {
+					t.Errorf("Did not expect CF-Cache-Status for 304 response, got %s", cfCacheStatus)
+				}
+			}
+
+			// Check body
+			body := rr.Body.String()
+			if tt.expectBody && body == "" {
+				t.Error("Expected response body, but it's empty")
+			}
+			if !tt.expectBody && body != "" {
+				t.Errorf("Did not expect response body, but got: %s", body)
+			}
+
+			// Validate JSON if body is expected
+			if tt.expectBody && body != "" {
+				var result interface{}
+				if err := json.Unmarshal([]byte(body), &result); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestRespondWithJSONAndETag_MarshalError(t *testing.T) {
+	// Test with a payload that cannot be marshaled to JSON
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Use a function as payload (cannot be marshaled to JSON)
+	RespondWithJSONAndETag(rr, req, http.StatusOK, func() {})
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", rr.Code)
+	}
+
+	// Should not have Content-Type header on error
+	if contentType := rr.Header().Get("Content-Type"); contentType != "" {
+		t.Errorf("Did not expect Content-Type header on error, got %s", contentType)
+	}
+}
+
+func TestRespondWithJSON_Standalone(t *testing.T) {
+	tests := []struct {
+		name       string
+		code       int
+		payload    interface{}
+		expectBody bool
+	}{
+		{
+			name:       "successful response with data",
+			code:       http.StatusOK,
+			payload:    map[string]string{"test": "data"},
+			expectBody: true,
+		},
+		{
+			name:       "error response with data",
+			code:       http.StatusBadRequest,
+			payload:    map[string]string{"error": "bad request"},
+			expectBody: true,
+		},
+		{
+			name:       "empty payload",
+			code:       http.StatusNoContent,
+			payload:    nil,
+			expectBody: true,
+		},
+		{
+			name:       "array payload",
+			code:       http.StatusOK,
+			payload:    []string{"item1", "item2"},
+			expectBody: true,
+		},
+		{
+			name:       "numeric payload",
+			code:       http.StatusOK,
+			payload:    42,
+			expectBody: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+
+			RespondWithJSON(rr, tt.code, tt.payload)
+
+			// Check status code
+			if rr.Code != tt.code {
+				t.Errorf("Expected status %d, got %d", tt.code, rr.Code)
+			}
+
+			// Check headers
+			if contentType := rr.Header().Get("Content-Type"); contentType != "application/json; charset=utf-8" {
+				t.Errorf("Expected Content-Type application/json, got %s", contentType)
+			}
+
+			// Check Last-Modified header
+			if lastModified := rr.Header().Get("Last-Modified"); lastModified == "" {
+				t.Error("Expected Last-Modified header, but it's empty")
+			}
+
+			// Check body
+			body := rr.Body.String()
+			if tt.expectBody && body == "" {
+				t.Error("Expected response body, but it's empty")
+			}
+
+			// Validate JSON if body is expected
+			if tt.expectBody && body != "" {
+				var result interface{}
+				if err := json.Unmarshal([]byte(body), &result); err != nil {
+					t.Errorf("Response body is not valid JSON: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestRespondWithJSON_MarshalError_Standalone(t *testing.T) {
+	// Test with a payload that cannot be marshaled to JSON
+	rr := httptest.NewRecorder()
+
+	// Use a function as payload (cannot be marshaled to JSON)
+	RespondWithJSON(rr, http.StatusOK, func() {})
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", rr.Code)
+	}
+
+	// Should not have Content-Type header on error
+	if contentType := rr.Header().Get("Content-Type"); contentType != "" {
+		t.Errorf("Did not expect Content-Type header on error, got %s", contentType)
+	}
+}
+
+func TestRespondWithError_Standalone(t *testing.T) {
+	tests := []struct {
+		name           string
+		code           int
+		message        string
+		expectedStatus int
+	}{
+		{
+			name:           "bad request error",
+			code:           http.StatusBadRequest,
+			message:        "Invalid input",
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "not found error",
+			code:           http.StatusNotFound,
+			message:        "Resource not found",
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "internal server error",
+			code:           http.StatusInternalServerError,
+			message:        "Something went wrong",
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:           "unauthorized error",
+			code:           http.StatusUnauthorized,
+			message:        "Access denied",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "empty error message",
+			code:           http.StatusBadRequest,
+			message:        "",
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+
+			RespondWithError(rr, tt.code, tt.message)
+
+			// Check status code
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+
+			// Check headers
+			if contentType := rr.Header().Get("Content-Type"); contentType != "application/json; charset=utf-8" {
+				t.Errorf("Expected Content-Type application/json, got %s", contentType)
+			}
+
+			// Check body
+			body := rr.Body.String()
+			if body == "" {
+				t.Error("Expected response body, but it's empty")
+			}
+
+			// Parse and validate JSON response
+			var response map[string]interface{}
+			if err := json.Unmarshal([]byte(body), &response); err != nil {
+				t.Errorf("Response body is not valid JSON: %v", err)
+			}
+
+			// Check error field
+			if errorField, exists := response["error"]; !exists {
+				t.Error("Expected 'error' field in response")
+			} else if errorStr, ok := errorField.(string); !ok {
+				t.Error("Expected 'error' field to be a string")
+			} else if errorStr == "" {
+				t.Error("Expected 'error' field to not be empty")
+			}
+
+			// Check message field
+			if messageField, exists := response["message"]; !exists {
+				t.Error("Expected 'message' field in response")
+			} else if messageStr, ok := messageField.(string); !ok {
+				t.Error("Expected 'message' field to be a string")
+			} else if messageStr != tt.message {
+				t.Errorf("Expected message '%s', got '%s'", tt.message, messageStr)
+			}
+
+			// Check code field
+			if codeField, exists := response["code"]; !exists {
+				t.Error("Expected 'code' field in response")
+			} else if codeFloat, ok := codeField.(float64); !ok {
+				t.Error("Expected 'code' field to be a number")
+			} else if int(codeFloat) != tt.code {
+				t.Errorf("Expected code %d, got %d", tt.code, int(codeFloat))
+			}
+		})
+	}
+}
