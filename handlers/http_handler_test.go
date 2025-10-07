@@ -1174,7 +1174,7 @@ func BenchmarkFindMedicament(b *testing.B) {
 		rr := httptest.NewRecorder()
 		rctx := chi.NewRouteContext()
 		rctx.URLParams.Add("element", "Test Med")
-		req := httptest.NewRequest("GET", "/medicament/Test Med", nil)
+		req := httptest.NewRequest("GET", "/medicament/Test+Med", nil)
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 		handler.FindMedicament(rr, req)
 	}

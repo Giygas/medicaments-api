@@ -495,6 +495,10 @@ func TestServerConfiguration(t *testing.T) {
 
 // BenchmarkNewServer benchmarks server creation
 func BenchmarkNewServer(b *testing.B) {
+	// Initialize logging service to prevent nil pointer
+	logging.InitLoggerWithRetention("", 1)
+	defer logging.Close()
+
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
