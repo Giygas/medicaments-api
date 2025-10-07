@@ -307,7 +307,7 @@ func (h *HTTPTestHelper) AssertHealthResponse(resp *httptest.ResponseRecorder, e
 }
 
 // ============================================================================
-// LEGACY MOCKS (kept for compatibility with existing tests)
+// MOCK IMPLEMENTATIONS
 // ============================================================================
 
 // MockDataStore implements interfaces.DataStore for testing
@@ -410,17 +410,17 @@ func TestNewHTTPHandler(t *testing.T) {
 	}{
 		{
 			name:      "valid dependencies",
-			dataStore: &MockDataStore{},
-			validator: &MockDataValidator{},
+			dataStore: NewMockDataStoreBuilder().Build(),
+			validator: NewMockDataValidatorBuilder().Build(),
 		},
 		{
 			name:      "nil data store",
 			dataStore: nil,
-			validator: &MockDataValidator{},
+			validator: NewMockDataValidatorBuilder().Build(),
 		},
 		{
 			name:      "nil validator",
-			dataStore: &MockDataStore{},
+			dataStore: NewMockDataStoreBuilder().Build(),
 			validator: nil,
 		},
 	}
@@ -441,8 +441,8 @@ func TestNewHTTPHandler(t *testing.T) {
 
 // TestRespondWithJSON tests JSON response formatting
 func TestRespondWithJSON(t *testing.T) {
-	mockStore := &MockDataStore{}
-	mockValidator := &MockDataValidator{}
+	mockStore := NewMockDataStoreBuilder().Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
 	handler := NewHTTPHandler(mockStore, mockValidator).(*HTTPHandlerImpl)
 
 	tests := []struct {
@@ -498,8 +498,8 @@ func TestRespondWithJSON(t *testing.T) {
 
 // TestRespondWithError tests error response formatting
 func TestRespondWithError(t *testing.T) {
-	mockStore := &MockDataStore{}
-	mockValidator := &MockDataValidator{}
+	mockStore := NewMockDataStoreBuilder().Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
 	handler := NewHTTPHandler(mockStore, mockValidator).(*HTTPHandlerImpl)
 
 	tests := []struct {
@@ -834,11 +834,12 @@ func TestFindMedicamentByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{
-				medicaments:    tt.medicaments,
-				medicamentsMap: tt.medicamentsMap,
-			}
-			mockValidator := &MockDataValidator{}
+			mockStore := NewMockDataStoreBuilder().
+				WithMedicaments(tt.medicaments).
+				Build()
+			// Manually set the medicaments map for this specific test
+			mockStore.medicamentsMap = tt.medicamentsMap
+			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
 			// Create a request with chi URL parameters
@@ -909,8 +910,8 @@ func TestFindGeneriques(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{generiques: tt.generiques}
-			mockValidator := &MockDataValidator{}
+			mockStore := NewMockDataStoreBuilder().WithGeneriques(tt.generiques).Build()
+			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
 			// Create a request with chi URL parameters
@@ -985,11 +986,12 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{
-				generiques:    tt.generiques,
-				generiquesMap: tt.generiquesMap,
-			}
-			mockValidator := &MockDataValidator{}
+			mockStore := NewMockDataStoreBuilder().
+				WithGeneriques(tt.generiques).
+				Build()
+			// Manually set the generiques map for this specific test
+			mockStore.generiquesMap = tt.generiquesMap
+			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
 			// Create a request with chi URL parameters
@@ -1074,13 +1076,13 @@ func TestHealthCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{
-				medicaments: tt.medicaments,
-				generiques:  tt.generiques,
-				lastUpdated: tt.lastUpdated,
-				updating:    tt.updating,
-			}
-			mockValidator := &MockDataValidator{}
+			mockStore := NewMockDataStoreBuilder().
+				WithMedicaments(tt.medicaments).
+				WithGeneriques(tt.generiques).
+				WithLastUpdated(tt.lastUpdated).
+				WithUpdating(tt.updating).
+				Build()
+			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
 			req := httptest.NewRequest("GET", "/health", nil)
@@ -1143,8 +1145,8 @@ func BenchmarkServeAllMedicaments(b *testing.B) {
 		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
-	mockStore := &MockDataStore{medicaments: medicaments}
-	mockValidator := &MockDataValidator{}
+	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
 	handler := NewHTTPHandler(mockStore, mockValidator)
 
 	b.ResetTimer()
@@ -1163,8 +1165,8 @@ func BenchmarkFindMedicament(b *testing.B) {
 		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
-	mockStore := &MockDataStore{medicaments: medicaments}
-	mockValidator := &MockDataValidator{}
+	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
 	handler := NewHTTPHandler(mockStore, mockValidator)
 
 	b.ResetTimer()
