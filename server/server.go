@@ -226,6 +226,18 @@ func (s *Server) GetHealthData() HealthData {
 	// Extract data from details
 	data := details["data"].(map[string]interface{})
 
+	// Helper function to convert interface{} to int, handling both int and float64
+	toInt := func(v interface{}) int {
+		switch val := v.(type) {
+		case int:
+			return val
+		case float64:
+			return int(val)
+		default:
+			return 0
+		}
+	}
+
 	return HealthData{
 		Status:          status,
 		Uptime:          formatUptimeHuman(uptime),
@@ -233,7 +245,7 @@ func (s *Server) GetHealthData() HealthData {
 		LastUpdate:      details["last_update"].(string),
 		NextUpdate:      data["next_update"].(string),
 		IsUpdating:      data["is_updating"].(bool),
-		MedicamentCount: int(data["medicaments"].(float64)),
-		GeneriqueCount:  int(data["generiques"].(float64)),
+		MedicamentCount: toInt(data["medicaments"]),
+		GeneriqueCount:  toInt(data["generiques"]),
 	}
 }
