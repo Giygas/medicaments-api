@@ -37,7 +37,7 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 			continue
 		}
 
-		groupID := fields[4] // Group ID is in the 5th column (index 4)
+		groupID := fields[0] // Group ID is in the 1st column (index 0)
 		cisStr := fields[2]  // CIS is in the 3rd column (index 2)
 
 		cis, err := strconv.Atoi(cisStr)
@@ -64,9 +64,14 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	}
 
 	// Create a map of all the generiques to reduce algorithm complexity
+	// We need to preserve the libelle for each group, not overwrite it
 	generiquesMap := make(map[int]entities.Generique)
 	for i := range allGeneriques {
-		generiquesMap[allGeneriques[i].Group] = allGeneriques[i]
+		group := allGeneriques[i].Group
+		// Only set if not already present to preserve the first (correct) libelle
+		if _, exists := generiquesMap[group]; !exists {
+			generiquesMap[group] = allGeneriques[i]
+		}
 	}
 
 	// generiques file: [groupid]:[]cis of medicaments in the same group
