@@ -2,6 +2,11 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
+[![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
+[![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicamentsapi.giygas.dev/docs)
+[![Performance](https://img.shields.io/badge/performance-1.6M%20req%2Fs-brightgreen)](https://medicamentsapi.giygas.dev/health)
+[![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicamentsapi.giygas.dev/health)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,

@@ -27,6 +27,21 @@ func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	// Create logs directory if it doesn't exist
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		// If we can't create logs directory, just log to console
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}))
+		consoleLogger.Error("Failed to create logs directory", "error", err)
+		DefaultLoggingService = &LoggingService{
+			Logger:         consoleLogger,
+			RotatingLogger: nil,
+		}
+		slog.SetDefault(consoleLogger)
+		return
+	}
+
 	// Create rotating logger with size limit
 	rotatingLogger := NewRotatingLoggerWithSizeLimit(logDir, retentionWeeks, maxFileSize)
 
