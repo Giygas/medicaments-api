@@ -892,3 +892,245 @@ func BenchmarkFindMedicament(b *testing.B) {
 		handler.FindMedicament(rr, req)
 	}
 }
+
+// Phase 1: Utility Function Tests
+// These tests target the utility functions in handlers.go to increase coverage from 36.8% to ~52%
+
+func TestGenerateETag(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{
+			name: "empty data",
+			data: []byte(""),
+		},
+		{
+			name: "simple data",
+			data: []byte("hello world"),
+		},
+		{
+			name: "json data",
+			data: []byte(`{"test": "data", "number": 123}`),
+		},
+		{
+			name: "binary data",
+			data: []byte{0x00, 0x01, 0x02, 0x03, 0xFF},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateETag(tt.data)
+			if !strings.HasPrefix(result, `"`) {
+				t.Errorf("ETag should be quoted, got %s", result)
+			}
+			if !strings.HasSuffix(result, `"`) {
+				t.Errorf("ETag should be quoted, got %s", result)
+			}
+			if len(strings.Trim(result, `"`)) != 16 {
+				t.Errorf("ETag hash should be 16 hex characters (8 bytes), got %d", len(strings.Trim(result, `"`)))
+			}
+		})
+	}
+
+	// Test consistency - same data should always generate same ETag
+	data := []byte("consistency test")
+	etag1 := generateETag(data)
+	etag2 := generateETag(data)
+	if etag1 != etag2 {
+		t.Errorf("ETag should be consistent for same data, got %s and %s", etag1, etag2)
+	}
+
+	// Test uniqueness - different data should generate different ETags
+	data2 := []byte("consistency test modified")
+	etag3 := generateETag(data2)
+	if etag1 == etag3 {
+		t.Errorf("Different data should generate different ETags, got same %s", etag1)
+	}
+}
+
+func TestCheckETag(t *testing.T) {
+	tests := []struct {
+		name          string
+		ifNoneMatch   string
+		currentETag   string
+		expectedMatch bool
+	}{
+		{
+			name:          "no If-None-Match header",
+			ifNoneMatch:   "",
+			currentETag:   `"test-etag"`,
+			expectedMatch: false,
+		},
+		{
+			name:          "matching ETag",
+			ifNoneMatch:   `"test-etag"`,
+			currentETag:   `"test-etag"`,
+			expectedMatch: true,
+		},
+		{
+			name:          "non-matching ETag",
+			ifNoneMatch:   `"different-etag"`,
+			currentETag:   `"test-etag"`,
+			expectedMatch: false,
+		},
+		{
+			name:          "wildcard ETag",
+			ifNoneMatch:   `*`,
+			currentETag:   `"test-etag"`,
+			expectedMatch: false, // Current implementation only does exact match
+		},
+		{
+			name:          "empty ETag header",
+			ifNoneMatch:   `""`,
+			currentETag:   `"test-etag"`,
+			expectedMatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.ifNoneMatch != "" {
+				req.Header.Set("If-None-Match", tt.ifNoneMatch)
+			}
+
+			match := checkETag(req, tt.currentETag)
+			if match != tt.expectedMatch {
+				t.Errorf("Expected match %v, got %v", tt.expectedMatch, match)
+			}
+		})
+	}
+}
+
+func TestFormatUptimeHuman(t *testing.T) {
+	tests := []struct {
+		name     string
+		uptime   time.Duration
+		expected string
+	}{
+		{
+			name:     "zero duration",
+			uptime:   0,
+			expected: "0s",
+		},
+		{
+			name:     "seconds only",
+			uptime:   45 * time.Second,
+			expected: "45s",
+		},
+		{
+			name:     "one minute",
+			uptime:   60 * time.Second,
+			expected: "1m 0s",
+		},
+		{
+			name:     "minutes and seconds",
+			uptime:   2*time.Minute + 30*time.Second,
+			expected: "2m 30s",
+		},
+		{
+			name:     "one hour",
+			uptime:   60 * time.Minute,
+			expected: "1h 0m 0s",
+		},
+		{
+			name:     "hours and minutes",
+			uptime:   2*time.Hour + 30*time.Minute,
+			expected: "2h 30m 0s",
+		},
+		{
+			name:     "hours, minutes, seconds",
+			uptime:   2*time.Hour + 30*time.Minute + 45*time.Second,
+			expected: "2h 30m 45s",
+		},
+		{
+			name:     "one day",
+			uptime:   24 * time.Hour,
+			expected: "1d 0h 0m 0s",
+		},
+		{
+			name:     "days and hours",
+			uptime:   2*24*time.Hour + 6*time.Hour,
+			expected: "2d 6h 0m 0s",
+		},
+		{
+			name:     "complex duration",
+			uptime:   3*24*time.Hour + 12*time.Hour + 30*time.Minute + 15*time.Second,
+			expected: "3d 12h 30m 15s",
+		},
+		{
+			name:     "very long duration",
+			uptime:   30*24*time.Hour + 12*time.Hour + 45*time.Minute,
+			expected: "30d 12h 45m 0s",
+		},
+		{
+			name:     "milliseconds only",
+			uptime:   500 * time.Millisecond,
+			expected: "0s",
+		},
+		{
+			name:     "with milliseconds",
+			uptime:   2*time.Minute + 500*time.Millisecond,
+			expected: "2m 0s",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatUptimeHuman(tt.uptime)
+			if result != tt.expected {
+				t.Errorf("Expected %s, got %s", tt.expected, result)
+			}
+		})
+	}
+
+	// Test with current time
+	startTime := time.Now()
+	time.Sleep(10 * time.Millisecond)
+	uptime := time.Since(startTime)
+	result := formatUptimeHuman(uptime)
+	if !strings.Contains(result, "s") {
+		t.Errorf("Should contain seconds, got %s", result)
+	}
+	if result == "" {
+		t.Error("Should not be empty")
+	}
+}
+
+func TestCalculateNextUpdate(t *testing.T) {
+	// Since calculateNextUpdate() uses time.Now() internally, we can't test exact times
+	// but we can test the logic and ensure it returns a valid time
+
+	nextUpdate := calculateNextUpdate()
+
+	// Should always return a valid time
+	if nextUpdate.IsZero() {
+		t.Error("Next update should not be zero time")
+	}
+
+	// Should be in the future or very close to now
+	now := time.Now()
+	timeDiff := nextUpdate.Sub(now)
+	if timeDiff < 0 {
+		t.Errorf("Next update should be in the future or now, got %v", timeDiff)
+	}
+	if timeDiff > 24*time.Hour {
+		t.Errorf("Next update should be within 24 hours, got %v", timeDiff)
+	}
+
+	// Should be at either 6:00 or 18:00
+	hour := nextUpdate.Hour()
+	if hour != 6 && hour != 18 {
+		t.Errorf("Next update should be at 6:00 or 18:00, got %d:00", hour)
+	}
+
+	// Minutes and seconds should be 0
+	if nextUpdate.Minute() != 0 {
+		t.Errorf("Minutes should be 0, got %d", nextUpdate.Minute())
+	}
+	if nextUpdate.Second() != 0 {
+		t.Errorf("Seconds should be 0, got %d", nextUpdate.Second())
+	}
+}
