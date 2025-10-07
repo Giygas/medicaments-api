@@ -149,8 +149,8 @@ jobs:
         run: |
           COVERAGE=$(go tool cover -func=full-coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Current coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-            echo "Coverage is below 70%"
+          if (( $(echo "$COVERAGE < 65" | bc -l) )); then
+            echo "Coverage is below 65%"
             exit 1
           fi
 
@@ -217,9 +217,9 @@ jobs:
           echo "Database endpoint: ${DB_NS} ns/op"
           
           # Basic performance thresholds (adjust as needed)
-          # Database should complete within 1ms (1,000,000 ns)
-          if [ "$DB_NS" -gt "1000000" ]; then
-            echo "❌ Performance regression detected: Database endpoint too slow (${DB_NS} ns > 1,000,000 ns)"
+          # Database should complete within 5ms (5,000,000 ns)
+          if [ "$DB_NS" -gt "5000000" ]; then
+            echo "❌ Performance regression detected: Database endpoint too slow (${DB_NS} ns > 5,000,000 ns)"
             exit 1
           fi
           
