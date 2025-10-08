@@ -2,20 +2,12 @@ openapi: 3.1.0
 info:
   title: API Médicaments FR
   description: |
-    API RESTful haute performance pour accéder aux données des médicaments français.
-
-    Architecture basée sur interfaces avec parsing concurrent BDPM, zero-downtime updates, 
-    cache HTTP intelligent et rate limiting par token bucket.
+    API haute performance pour accéder aux données des médicaments français issus de la BDPM.
 
     ## Caractéristiques
-    - 15K+ médicaments issus de la BDPM
     - Mises à jour automatiques 2x/jour (6h/18h)
     - Rate limiting : 1000 tokens initiaux, 3 tokens/sec recharge
-    - Cache HTTP avec ETag/Last-Modified
-    - Compression gzip (80% réduction)
-    - Temps de réponse ~2.1s (dataset complet), <100ms (recherche)
-
-    ## Intégrité des données
+    - Totalement gratuite avec système de rate limiting pour éviter le spam
     - Intégrité : Aucune altération des données originales
     - Source : Base de Données Publique des Médicaments (BDPM)
 
@@ -28,14 +20,11 @@ info:
     - `/medicament/id/{cis}` : 100 tokens
     - `/database` : 200 tokens
 
-    ## Headers Rate Limiting
-    Les informations relatives au rate limiting se trouvent dans les headers de l'endpoint /health :
-
+    ## Rate Limiting
+    Les informations relatives au rate limiting se trouvent dans les headers des réponses :
     - X-RateLimit-Limit : Capacité maximale de tokens
     - X-RateLimit-Remaining : Tokens restants pour cette IP  
     - X-RateLimit-Rate : Taux de recharge (tokens/sec)
-
-    Pour obtenir seulement les headers : curl -I "https://medicamentsapi.giygas.dev/health"
   version: 1.0.0
   contact:
     name: GitHub Repository
@@ -54,10 +43,9 @@ paths:
       description: Récupérer la liste complète de tous les médicaments dans la base de données
       tags:
         - Médicaments
-      x-token-cost: 200
       responses:
         "200":
-          description: Successful response
+          description: Réponse réussie
           content:
             application/json:
               schema:
@@ -104,7 +92,7 @@ paths:
                     - "Non remboursable si prescrit hors AMM"
 
         "400":
-          description: Invalid page number
+          description: Numéro de page invalide
           content:
             application/json:
               schema:
@@ -114,7 +102,7 @@ paths:
                 message: "Invalid page number"
                 code: 400
         "404":
-          description: Page not found (exceeds maximum pages)
+          description: Page non trouvée (dépasse le nombre maximum de pages)
           content:
             application/json:
               schema:
@@ -124,7 +112,7 @@ paths:
                 message: "Page not found"
                 code: 404
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -140,12 +128,11 @@ paths:
       description: Rechercher des médicaments par dénomination (insensible à la casse)
       tags:
         - Médicaments
-      x-token-cost: 100
       parameters:
         - name: element
           in: path
           required: true
-          description: Search term (3-50 characters, alphanumeric with spaces)
+          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
           schema:
             type: string
             minLength: 3
@@ -154,7 +141,7 @@ paths:
           example: "paracetamol"
       responses:
         "200":
-          description: Successful response
+          description: Réponse réussie
           content:
             application/json:
               schema:
@@ -191,19 +178,18 @@ paths:
                   presentation: []
                   conditions: []
 
-
         "400":
-          description: Invalid search term
+          description: Terme de recherche invalide
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
-                message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+                message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
                 code: 400
         "404":
-          description: No medicaments found
+          description: Aucun médicament trouvé
           content:
             application/json:
               schema:
@@ -213,7 +199,7 @@ paths:
                 message: "No medicaments found"
                 code: 404
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -223,20 +209,17 @@ paths:
                 message: "Internal server error"
                 code: 500
 
-
-
   /medicament/id/{cis}:
     get:
       summary: Obtenir un médicament par code CIS
       description: Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité)
       tags:
         - Médicaments
-      x-token-cost: 100
       parameters:
         - name: cis
           in: path
           required: true
-          description: CIS code (positive integer less than 1,000,000,000)
+          description: Code CIS (entier positif inférieur à 1 000 000 000)
           schema:
             type: integer
             minimum: 1
@@ -244,14 +227,14 @@ paths:
           example: 61504672
       responses:
         "200":
-          description: Successful response
+          description: Réponse réussie
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MedicamentResponse"
 
         "400":
-          description: Invalid CIS code
+          description: Code CIS invalide
           content:
             application/json:
               schema:
@@ -261,7 +244,7 @@ paths:
                 message: "Invalid CIS"
                 code: 400
         "404":
-          description: Medicament not found
+          description: Médicament non trouvé
           content:
             application/json:
               schema:
@@ -271,7 +254,7 @@ paths:
                 message: "Medicament not found"
                 code: 404
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -281,19 +264,17 @@ paths:
                 message: "Internal server error"
                 code: 500
 
-
   /generiques/{libelle}:
     get:
       summary: Rechercher des groupes génériques par nom
       description: Rechercher des groupes génériques par libellé (insensible à la casse)
       tags:
         - Génériques
-      x-token-cost: 20
       parameters:
         - name: libelle
           in: path
           required: true
-          description: Search term (3-50 characters, alphanumeric with spaces)
+          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
           schema:
             type: string
             minLength: 3
@@ -302,7 +283,7 @@ paths:
           example: "paracetamol"
       responses:
         "200":
-          description: Successful response
+          description: Réponse réussie
           content:
             application/json:
               schema:
@@ -311,17 +292,17 @@ paths:
                   $ref: "#/components/schemas/GeneriqueListResponse"
 
         "400":
-          description: Invalid search term
+          description: Terme de recherche invalide
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "Bad Request"
-                message: "Terme de recherche invalide : doit être alphanumérique avec espaces, max 50 caractères"
+                message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
                 code: 400
         "404":
-          description: No generics found
+          description: Aucun générique trouvé
           content:
             application/json:
               schema:
@@ -331,7 +312,7 @@ paths:
                 message: "No generiques found"
                 code: 404
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -341,20 +322,17 @@ paths:
                 message: "Internal server error"
                 code: 500
 
-
-
   /generiques/group/{groupId}:
     get:
       summary: Obtenir un groupe générique par ID
       description: Récupérer un groupe générique spécifique par son ID de groupe
       tags:
         - Génériques
-      x-token-cost: 20
       parameters:
         - name: groupId
           in: path
           required: true
-          description: Group ID (positive integer less than 100,000)
+          description: ID de groupe (entier positif inférieur à 100 000)
           schema:
             type: integer
             minimum: 1
@@ -362,14 +340,14 @@ paths:
           example: 1234
       responses:
         "200":
-          description: Successful response
+          description: Réponse réussie
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneriqueResponse"
 
         "400":
-          description: Invalid group ID
+          description: ID de groupe invalide
           content:
             application/json:
               schema:
@@ -379,7 +357,7 @@ paths:
                 message: "Invalid group ID"
                 code: 400
         "404":
-          description: Generic group not found
+          description: Groupe générique non trouvé
           content:
             application/json:
               schema:
@@ -389,7 +367,7 @@ paths:
                 message: "Generique group not found"
                 code: 404
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -399,18 +377,15 @@ paths:
                 message: "Internal server error"
                 code: 500
 
-
-
   /health:
     get:
       summary: Point de terminaison de vérification de santé
       description: Vérifier l'état de santé de l'API et de la base de données
       tags:
         - Système
-      x-token-cost: 5
       responses:
         "200":
-          description: System health
+          description: État du système
           content:
             application/json:
               schema:
@@ -487,7 +462,7 @@ paths:
                     memory_usage_mb: 130
                     goroutines: 45
         "500":
-          description: Internal server error
+          description: Erreur interne du serveur
           content:
             application/json:
               schema:
@@ -513,36 +488,36 @@ components:
       properties:
         cis:
           type: integer
-          title: CIS Code
+          title: Code CIS
         elementPharmaceutique:
           type: string
-          title: Pharmaceutical Name
+          title: Nom pharmaceutique
         formePharmaceutique:
           type: string
-          title: Pharmaceutical Form
+          title: Forme pharmaceutique
         voiesAdministration:
           type: array
           items:
             type: string
-          title: Administration Routes
+          title: Voies d'administration
         statusAutorisation:
           type: string
-          title: Authorization Status
+          title: Statut d'autorisation
         typeProcedure:
           type: string
-          title: Procedure Type
+          title: Type de procédure
         etatComercialisation:
           type: string
-          title: Commercialization Status
+          title: Statut de commercialisation
         dateAMM:
           type: string
-          title: AMM Date
+          title: Date AMM
         titulaire:
           type: string
-          title: Authorization Holder
+          title: Titulaire de l'autorisation
         surveillanceRenforce:
           type: string
-          title: Enhanced Surveillance
+          title: Surveillance renforcée
         composition:
           type: array
           items:
@@ -552,17 +527,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GeneriqueResponse"
-          title: Associated Generics
+          title: Génériques associés
         presentation:
           type: array
           items:
             $ref: "#/components/schemas/PresentationResponse"
-          title: Available Presentations
+          title: Présentations disponibles
         conditions:
           type: array
           items:
             type: string
-          title: Prescription Conditions
+          title: Conditions de prescription
 
     CompositionResponse:
       type: object
@@ -570,25 +545,25 @@ components:
       properties:
         cis:
           type: integer
-          title: CIS Code
+          title: Code CIS
         elementPharmaceutique:
           type: string
-          title: Pharmaceutical Element
+          title: Élément pharmaceutique
         codeSubstance:
           type: integer
-          title: Substance Code
+          title: Code de substance
         denominationSubstance:
           type: string
-          title: Substance Denomination
+          title: Dénomination de substance
         dosage:
           type: string
           title: Dosage
         referenceDosage:
           type: string
-          title: Reference Dosage
+          title: Dosage de référence
         natureComposant:
           type: string
-          title: Component Nature
+          title: Nature du composant
 
     GeneriqueResponse:
       type: object
@@ -596,16 +571,16 @@ components:
       properties:
         cis:
           type: integer
-          title: CIS Code
+          title: Code CIS
         group:
           type: integer
-          title: Generic Group ID
+          title: ID de groupe générique
         libelle:
           type: string
-          title: Generic Group Label
+          title: Libellé de groupe générique
         type:
           type: string
-          title: Generic Type
+          title: Type de générique
 
     PresentationResponse:
       type: object
@@ -613,35 +588,35 @@ components:
       properties:
         cis:
           type: integer
-          title: CIS Code
+          title: Code CIS
         cip7:
           type: integer
-          title: CIP-7 Code
+          title: Code CIP-7
         libelle:
           type: string
-          title: Presentation Label
+          title: Libellé de présentation
         statusAdministratif:
           type: string
-          title: Administrative Status
+          title: Statut administratif
         etatComercialisation:
           type: string
-          title: Commercialization Status
+          title: Statut de commercialisation
         dateDeclaration:
           type: string
-          title: Declaration Date
+          title: Date de déclaration
         cip13:
           type: integer
-          title: CIP-13 Code
+          title: Code CIP-13
         agreement:
           type: string
-          title: Agreement Status
+          title: Statut d'agrément
         tauxRemboursement:
           type: string
-          title: Reimbursement Rate
+          title: Taux de remboursement
         prix:
           type: number
           format: float
-          title: Price
+          title: Prix
 
     GeneriqueListResponse:
       type: object
@@ -649,15 +624,15 @@ components:
       properties:
         groupID:
           type: integer
-          title: Generic Group ID
+          title: ID de groupe générique
         libelle:
           type: string
-          title: Generic Group Label
+          title: Libellé de groupe générique
         medicaments:
           type: array
           items:
             $ref: "#/components/schemas/GeneriqueMedicamentResponse"
-          title: Medicaments in Group
+          title: Médicaments du groupe
 
     GeneriqueMedicamentResponse:
       type: object
@@ -665,21 +640,21 @@ components:
       properties:
         cis:
           type: integer
-          title: CIS Code
+          title: Code CIS
         elementPharmaceutique:
           type: string
-          title: Pharmaceutical Name
+          title: Nom pharmaceutique
         formePharmaceutique:
           type: string
-          title: Pharmaceutical Form
+          title: Forme pharmaceutique
         type:
           type: string
-          title: Generic Type
+          title: Type de générique
         composition:
           type: array
           items:
             $ref: "#/components/schemas/GeneriqueCompositionResponse"
-          title: Composition for Generic Grouping
+          title: Composition pour groupement générique
 
     GeneriqueCompositionResponse:
       type: object
@@ -687,10 +662,10 @@ components:
       properties:
         elementPharmaceutique:
           type: string
-          title: Pharmaceutical Element
+          title: Élément pharmaceutique
         substance:
           type: string
-          title: Substance Name
+          title: Nom de substance
         dosage:
           type: string
           title: Dosage
@@ -701,10 +676,10 @@ components:
       properties:
         error:
           type: string
-          title: Error Status
+          title: Statut d'erreur
         message:
           type: string
-          title: Error Message
+          title: Message d'erreur
         code:
           type: integer
-          title: HTTP Status Code
+          title: Code de statut HTTP
