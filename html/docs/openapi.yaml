@@ -2,20 +2,12 @@ openapi: 3.1.0
 info:
   title: API Médicaments FR
   description: |
-    API RESTful haute performance pour accéder aux données des médicaments français.
-
-    Architecture basée sur interfaces avec parsing concurrent BDPM, zero-downtime updates, 
-    cache HTTP intelligent et rate limiting par token bucket.
+    API haute performance pour accéder aux données des médicaments français issus de la BDPM.
 
     ## Caractéristiques
-    - 15K+ médicaments issus de la BDPM
     - Mises à jour automatiques 2x/jour (6h/18h)
     - Rate limiting : 1000 tokens initiaux, 3 tokens/sec recharge
-    - Cache HTTP avec ETag/Last-Modified
-    - Compression gzip (80% réduction)
-    - Temps de réponse ~2.1s (dataset complet), <100ms (recherche)
-
-    ## Intégrité des données
+    - Totalement gratuite avec système de rate limiting pour éviter le spam
     - Intégrité : Aucune altération des données originales
     - Source : Base de Données Publique des Médicaments (BDPM)
 
@@ -28,14 +20,11 @@ info:
     - `/medicament/id/{cis}` : 100 tokens
     - `/database` : 200 tokens
 
-    ## Headers Rate Limiting
-    Les informations relatives au rate limiting se trouvent dans les headers de l'endpoint /health :
-
+    ## Rate Limiting
+    Les informations relatives au rate limiting se trouvent dans les headers des réponses :
     - X-RateLimit-Limit : Capacité maximale de tokens
     - X-RateLimit-Remaining : Tokens restants pour cette IP  
     - X-RateLimit-Rate : Taux de recharge (tokens/sec)
-
-    Pour obtenir seulement les headers : curl -I "https://medicamentsapi.giygas.dev/health"
   version: 1.0.0
   contact:
     name: GitHub Repository
