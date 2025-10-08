@@ -515,7 +515,7 @@ Retry-After: 60              # Si limite dépassée
 | **Recherche CIS** | ~1.6µs  | O(1) lookup via maps      |
 | **Base complète** | ~2.1s   | 15K médicaments (23MB)    |
 | **Health check**  | ~59µs   | Métriques système (8.8KB) |
-| **Mises à jour**  | 1-2min  | Parsing 5 fichiers TSV    |
+| **Mises à jour**  | ~0.5s   | Parsing 5 fichiers TSV    |
 | **Disponibilité** | 99.9%   | Redémarrage auto          |
 | **Fraîcheur**     | 2x/jour | 6h et 18h auto            |
 
