@@ -4,9 +4,9 @@
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
 [![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
-[![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicamentsapi.giygas.dev/docs)
-[![Performance](https://img.shields.io/badge/performance-1.6M%20req%2Fs-brightgreen)](https://medicamentsapi.giygas.dev/health)
-[![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicamentsapi.giygas.dev/health)
+[![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
+[![Performance](https://img.shields.io/badge/performance-1.6M%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
+[![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
@@ -75,36 +75,36 @@ Response: {
 
 ```bash
 # Base de données complète (~20MB)
-curl https://medicamentsapi.giygas.dev/database
+curl https://medicaments-api.giygas.dev/database
 
 # Pagination (10 médicaments par page)
-curl https://medicamentsapi.giygas.dev/database/1
+curl https://medicaments-api.giygas.dev/database/1
 
 # Recherche par nom (insensible à la casse, regex supporté)
-curl https://medicamentsapi.giygas.dev/medicament/paracetamol
+curl https://medicaments-api.giygas.dev/medicament/paracetamol
 
 # Recherche par CIS (Code Identifiant de Spécialité)
-curl https://medicamentsapi.giygas.dev/medicament/id/61504672
+curl https://medicaments-api.giygas.dev/medicament/id/61504672
 ```
 
 #### Génériques
 
 ```bash
 # Génériques par libellé
-curl https://medicamentsapi.giygas.dev/generiques/paracetamol
+curl https://medicaments-api.giygas.dev/generiques/paracetamol
 
 # Groupe générique par ID avec détails complets
-curl https://medicamentsapi.giygas.dev/generiques/group/1234
+curl https://medicaments-api.giygas.dev/generiques/group/1234
 ```
 
 #### Monitoring et santé
 
 ```bash
 # Health check avec métriques système
-curl https://medicamentsapi.giygas.dev/health
+curl https://medicaments-api.giygas.dev/health
 
 # Vérification des headers de rate limiting
-curl -I https://medicamentsapi.giygas.dev/health
+curl -I https://medicaments-api.giygas.dev/health
 ```
 
 ### Exemples détaillés
@@ -220,7 +220,7 @@ curl -I https://medicamentsapi.giygas.dev/health
 ```javascript
 // Client JavaScript/TypeScript pour l'API Médicaments
 class MedicamentsAPI {
-  private readonly baseUrl = 'https://medicamentsapi.giygas.dev';
+  private readonly baseUrl = 'https://medicaments-api.giygas.dev';
 
   async searchByName(name: string): Promise<any[]> {
     const response = await fetch(`${this.baseUrl}/medicament/${name}`);
@@ -273,7 +273,7 @@ import requests
 from typing import List, Dict, Any
 
 class MedicamentsAPI:
-    BASE_URL = "https://medicamentsapi.giygas.dev"
+    BASE_URL = "https://medicaments-api.giygas.dev"
 
     def __init__(self):
         self.session = requests.Session()
@@ -835,9 +835,9 @@ s.router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 
 ### Accès à la documentation
 
-- **Swagger UI** : [https://medicamentsapi.giygas.dev/docs](https://medicamentsapi.giygas.dev/docs)
-- **OpenAPI spec** : [https://medicamentsapi.giygas.dev/docs/openapi.yaml](https://medicamentsapi.giygas.dev/docs/openapi.yaml)
-- **Health check** : [https://medicamentsapi.giygas.dev/health](https://medicamentsapi.giygas.dev/health)
+- **Swagger UI** : [https://medicaments-api.giygas.dev/docs](https://medicaments-api.giygas.dev/docs)
+- **OpenAPI spec** : [https://medicaments-api.giygas.dev/docs/openapi.yaml](https://medicaments-api.giygas.dev/docs/openapi.yaml)
+- **Health check** : [https://medicaments-api.giygas.dev/health](https://medicaments-api.giygas.dev/health)
 
 ### 📊 Modèle de données
 
@@ -1167,9 +1167,9 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 
 ### Obtenir de l'aide
 
-- **Documentation** : [https://medicamentsapi.giygas.dev/docs](https://medicamentsapi.giygas.dev/docs)
+- **Documentation** : [https://medicaments-api.giygas.dev/docs](https://medicaments-api.giygas.dev/docs)
 - **Issues** : [GitHub Issues](https://github.com/giygas/medicaments-api/issues)
-- **Health check** : [https://medicamentsapi.giygas.dev/health](https://medicamentsapi.giygas.dev/health)
+- **Health check** : [https://medicaments-api.giygas.dev/health](https://medicaments-api.giygas.dev/health)
 
 ## 📄 Licence et conformité
 
@@ -1199,7 +1199,7 @@ Si vous utilisez cette API dans vos projets, merci de citer :
 
 ```text
 Données issues de la Base de Données Publique des Médicaments (BDPM)
-API : https://medicamentsapi.giygas.dev/
+API : https://medicaments-api.giygas.dev/
 Source : https://base-donnees-publique.medicaments.gouv.fr
 ```
 
@@ -1211,7 +1211,7 @@ Source : https://base-donnees-publique.medicaments.gouv.fr
 
 ```bash
 # Benchmark avec hey (10K requêtes, 50 concurrents)
-hey -n 10000 -c 50 -m GET https://medicamentsapi.giygas.dev/medicament/id/61504672
+hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504672
 
 # Résultats typiques :
 # - Requests/sec: 1,200-1,500
