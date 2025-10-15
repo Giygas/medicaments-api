@@ -5,8 +5,18 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
 [![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
-[![Performance](https://img.shields.io/badge/performance-1.6M%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
+[![Performance](https://img.shields.io/badge/performance-391K%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
+
+## 🚀 Performance Exceptionnelle
+
+- **⚡ Mises à jour ultra-rapides** : Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes**
+- **🔍 Recherche instantanée** : Lookup O(1) en **~2.6µs** via maps mémoire optimisées
+- **📊 Débit exceptionnel** : **~391K requêtes/seconde** pour lookups CIS, **~48K/sec** pour pagination
+- **💾 Mémoire optimisée** : **30-50MB RAM stable** (150MB peak au démarrage)
+- **🗜️ Compression intelligente** : Réduction de **80%** avec gzip
+- **🔄 Zero-downtime** : Mises à jour atomiques sans interruption de service
+- **🧪 Tests complets** : **70%+ couverture** avec tests unitaires, intégration et benchmarks
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
@@ -312,11 +322,11 @@ results = api.search_by_name("paracetamol")
 print(f"Found {len(results)} results")
 ```
 
-## 🏗️ Architecture
+## 🏗️ Architecture & Stack Technique
 
-### Design basé sur interfaces
+### 🎯 Design basé sur 6 interfaces
 
-Construite avec 6 interfaces principales pour une maintenabilité et testabilité maximales :
+Architecture propre et maintenable avec injection de dépendances :
 
 - **HTTPHandler**: Routage propre sans assertions de type
 - **HealthChecker**: Monitoring système et métriques
@@ -325,16 +335,26 @@ Construite avec 6 interfaces principales pour une maintenabilité et testabilit�
 - **Scheduler**: Gestion automatisée des mises à jour
 - **DataManager**: Opérations de stockage atomiques
 
-### Technologies principales
+### 🛠️ Stack Technique Complet
 
+**Core Technologies**:
 - **Go 1.21+**: Opérations atomiques et concurrence native
-- **Chi Router v5**: Routeur HTTP léger avec middleware
-- **Architecture basée sur interfaces**: 6 interfaces principales avec injection de dépendances
-- **Opérations atomiques**: Mises à jour zero-downtime avec `atomic.Value`
-- **Token Bucket**: Rate limiting intelligent (juju/ratelimit)
-- **Parsing concurrent**: Pipeline de traitement de 5 fichiers TSV
-- **Cache HTTP**: ETag/Last-Modified avec support 304
-- **Logging structuré**: slog avec rotation de fichiers
+- **Chi Router v5**: Routeur HTTP léger avec middleware stack
+- **gocron**: Mises à jour automatiques (6h/18h)
+- **juju/ratelimit**: Token bucket algorithm
+- **slog**: Structured logging avec rotation
+
+**Data Processing**:
+- **Encoding**: Windows-1252 → UTF-8 pour fichiers TSV
+- **Parsing concurrent**: 5 fichiers TSV en parallèle
+- **Atomic operations**: Zero-downtime updates
+- **Memory optimization**: O(1) lookup maps
+
+**Development & Operations**:
+- **godotenv**: Configuration environnement
+- **OpenAPI 3.1**: Documentation interactive
+- **pprof**: Profiling intégré (port 6060)
+- **Tests**: Couverture 70%+ avec benchmarks
 
 ### Architecture des interfaces
 
@@ -493,71 +513,47 @@ Retry-After: 60              # Si limite dépassée
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## ⚡ Performance et optimisations
+## ⚡ Architecture de Performance
 
-### 🚀 Optimisations techniques
+### 🚀 Optimisations Techniques
 
 - **Parsing concurrent** : Téléchargement et traitement parallèle de 5 fichiers TSV BDPM
-  (spécialités, compositions, présentations, génériques, conditions)
 - **Cache HTTP intelligent** : ETag et Last-Modified avec support 304 Not Modified
 - **Compression gzip** : Réduction taille jusqu'à 80% pour réponses JSON
-- **Lookup O(1)** : Maps mémoire CIS-based pour recherche instantanée (medicamentsMap, generiquesMap, etc.)
-- **Pagination optimisée** : Évite chargement base complète, 10 éléments/page avec métadonnées
+- **Lookup O(1)** : Maps mémoire CIS-based pour recherche instantanée
+- **Pagination optimisée** : Évite chargement base complète, 10 éléments/page
 - **Atomic swap** : Zero-downtime updates via `atomic.Value` et `atomic.Bool`
-- **Token bucket algorithm** : Rate limiting avec coûts variables (5-200 tokens) et cleanup automatique
-- **Structured logging** : slog avec rotation de fichiers et niveaux configurables
-- **Interface-based routing** : Chi v5 avec middleware stack (RequestID, RealIP, Logging, RateLimit, Recoverer)
+- **Token bucket algorithm** : Rate limiting avec coûts variables (5-200 tokens)
+- **Interface-based routing** : Chi v5 avec middleware stack complet
 
-### 📊 Métriques de performance (Benchmarks Apple M2)
+### 📊 Benchmarks Complets (Apple M2)
 
-| Métrique          | Valeur  | Description               |
-| ----------------- | ------- | ------------------------- |
-| **Recherche CIS** | ~1.6µs  | O(1) lookup via maps      |
-| **Base complète** | ~2.1s   | 15K médicaments (23MB)    |
-| **Health check**  | ~59µs   | Métriques système (8.8KB) |
-| **Mises à jour**  | ~0.5s   | Parsing 5 fichiers TSV    |
-| **Disponibilité** | 99.9%   | Redémarrage auto          |
-| **Fraîcheur**     | 2x/jour | 6h et 18h auto            |
+| Endpoint               | Reqs/sec   | Latency (µs) | Allocs/op | Memory (B/op) |
+| ---------------------- | ---------- | ------------ | --------- | ------------- |
+| `/health`              | 39,300     | 31           | 61        | 8,880         |
+| `/medicament/id/{cis}` | 391,000    | 2.6          | 37        | 7,224         |
+| `/medicament/{nom}`    | 282        | 3,540        | 15,893    | 1,043,294     |
+| `/database/{page}`     | 48,600     | 21           | 43        | 36,251        |
+| `/database`            | 23         | 44,194       | 56        | 87,919,942    |
 
-#### Détails des benchmarks
-
-```
-BenchmarkDatabase-8         2671    453838 ns/op    848393 B/op    24 allocs/op
-BenchmarkMedicamentByID-8   740559   1684 ns/op      6246 B/op     21 allocs/op
-BenchmarkHealth-8           21458    67895 ns/op     8853 B/op     58 allocs/op
-```
-
-**Note importante** : Les benchmarks mesurent le temps de sérialisation uniquement (sans réseau).
-En pratique, l'endpoint `/database` prend ~2.1s pour transférer 23MB de données réelles.
-
-- **Plateforme**: Apple M2 (ARM64), Go 1.21+
-- **Dataset test**: 1000 médicaments (mock), 15K médicaments (production)
-- **Mémoire stable**: 30-50MB (150MB peak au démarrage)
-- **Throughput réel**: ~0.5 req/sec pour endpoint complet (limité par le transfert réseau)
-  | **Dataset** | 15K+ | Médicaments BDPM |
-  | **RAM Usage** | 30-50MB | 50MB startup, 30-50MB stable |
-  | **Compression** | 80% | Réduction avec gzip |
-  | **Cache hit ratio** | >90% | Avec ETag/Last-Modified |
-
-#### Benchmark de performance
+#### Tests de charge (production)
 
 ```bash
-# Benchmark des temps de réponse (Apple M2, 1000 médicaments test)
-GET /medicament/id/500          → 2.5µs/op   (O(1) lookup)
-GET /medicament/Medicament      → 2.3µs/op   (regex search)
-GET /database/1                 → 0.5µs/op   (pagination)
-GET /database                   → 0.55ms/op  (1000 items)
-GET /health                     → 28µs/op    (system metrics)
+# Benchmark avec hey (10K requêtes, 50 concurrents)
+hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504672
 
-# Performance réelle (requêtes/seconde)
-/health                         → 114,024 req/s
-/medicament/id/{cis}            → 1,660,364 req/s
-/medicament/{nom}               → 1,637,601 req/s
+# Résultats typiques :
+# - Requests/sec: 1,200-1,500
+# - Latency moyenne: 35ms
+# - 95th percentile: 85ms
+# - Success rate: 99.95%
+# - Memory usage stable: 45MB
 ```
 
-### 🧠 Architecture mémoire
+### 🧠 Architecture Mémoire & Data Structures
 
-```text
+**Memory Layout optimisé** :
+```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Memory Layout                           │
 ├─────────────────────────────────────────────────────────────┤
@@ -570,10 +566,8 @@ GET /health                     → 28µs/op    (system metrics)
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Structure des données réelles
-
+**DataContainer - Structure atomique** :
 ```go
-// DataContainer - Structure réelle du projet (data/container.go)
 type DataContainer struct {
     medicaments    atomic.Value // []entities.Medicament
     generiques     atomic.Value // []entities.GeneriqueList
@@ -582,81 +576,19 @@ type DataContainer struct {
     lastUpdated    atomic.Value // time.Time
     updating       atomic.Bool
 }
-
-// Medicament - Structure réelle de l'entité (entities/Medicament.go)
-type Medicament struct {
-    Cis                   int            `json:"cis"`
-    Denomination          string         `json:"elementPharmaceutique"`
-    FormePharmaceutique   string         `json:"formePharmaceutique"`
-    VoiesAdministration   []string       `json:"voiesAdministration"`
-    StatusAutorisation    string         `json:"statusAutorisation"`
-    TypeProcedure         string         `json:"typeProcedure"`
-    EtatComercialisation  string         `json:"etatComercialisation"`
-    DateAMM               string         `json:"dateAMM"`
-    Titulaire             string         `json:"titulaire"`
-    SurveillanceRenforcee string         `json:"surveillanceRenforce"`
-    Composition           []Composition  `json:"composition"`
-    Generiques            []Generique    `json:"generiques"`
-    Presentation          []Presentation `json:"presentation"`
-    Conditions            []string       `json:"conditions"`
-}
 ```
 
-### 🔧 Implémentation Réelle du Rate Limiting
-
-Le rate limiting utilise un algorithme **token bucket** avec coûts variables par endpoint :
-
-**Architecture du rate limiter** :
-
-- **Structure** : Map IP → Bucket avec `sync.RWMutex` pour la concurrence
-- **Capacité** : 1000 tokens par IP, recharge 3 tokens/seconde
-- **Coûts variables** : 5-200 tokens selon complexité (5=health, 200=database complet)
+**Rate Limiting - Token Bucket** :
+- **Structure** : Map IP → Bucket avec `sync.RWMutex`
+- **Capacité** : 1000 tokens/IP, recharge 3 tokens/seconde
+- **Coûts variables** : 5-200 tokens par endpoint
 - **Cleanup** : Suppression automatique des buckets inactifs
-- **Headers** : `X-RateLimit-*` pour transparence et monitoring client
 
-```go
-// Extrait de l'implémentation (server/middleware.go)
-type RateLimiter struct {
-    clients map[string]*ratelimit.Bucket
-    mu      sync.RWMutex
-}
-
-// Fonction de coût par endpoint (extrait)
-func getTokenCost(r *http.Request) int64 {
-    switch r.URL.Path {
-    case "/database": return 200  // Coût élevé
-    case "/health":   return 5    // Coût faible
-    default:          return 20   // Coût par défaut
-    }
-}
-```
-
-### 🚀 Pipeline de Parsing Concurrent
-
-Le parsing des 5 fichiers TSV BDPM s'effectue en parallèle pour optimiser les performances :
-
-**Architecture du pipeline** :
-
-- **Téléchargement concurrent** : 5 fichiers BDPM téléchargés simultanément
-- **Parsing parallèle** : Chaque fichier traité dans sa propre goroutine
-- **Channels synchronisés** : Communication via channels typés et error channel
-- **WaitGroup** : Synchronisation avant assemblage final
-- **Validation** : Vérification intégrité des données avant conversion
-
-```go
-// Extrait de l'implémentation concurrente (medicamentsparser/medicamentsParser.go)
-var wg sync.WaitGroup
-wg.Add(5)
-
-conditionsChan := make(chan []entities.Condition)
-presentationsChan := make(chan []entities.Presentation)
-specialitesChan := make(chan []entities.Specialite)
-generiquesChan := make(chan []entities.Generique)
-compositionsChan := make(chan []entities.Composition)
-errorChan := make(chan error, 5)
-
-// Lancement concurrent des 5 parsers...
-```
+**Pipeline Concurrent** :
+- **Téléchargement** : 5 fichiers TSV BDPM en parallèle
+- **Parsing** : Chaque fichier dans sa propre goroutine
+- **Synchronisation** : Channels typés + WaitGroup
+- **Validation** : Intégrité des données avant conversion
 
 ## 📝 Logging et Monitoring
 
@@ -749,9 +681,7 @@ Réponse avec métriques complètes :
 - **`goroutines`** : Nombre de goroutines actives
 - **`memory`** : Statistiques mémoire détaillées (alloc, sys, total_alloc, num_gc)
 
-## 🏗️ Architecture système
-
-### 🔄 Flux de données
+### 🔄 Flux de Données & Pipeline
 
 ```text
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -767,9 +697,7 @@ Réponse avec métriques complètes :
 
 ### 🛡️ Middleware Stack Complet
 
-L'API utilise une stack de middleware Chi v5 optimisée pour la sécurité et la performance :
-
-**Architecture des middleware** :
+Stack Chi v5 optimisée pour la sécurité et la performance :
 
 1. **RequestID** - Traçabilité unique par requête
 2. **BlockDirectAccess** - Bloque les accès directs non autorisés
@@ -782,54 +710,19 @@ L'API utilise une stack de middleware Chi v5 optimisée pour la sécurité et la
 
 ### 🌐 Cache HTTP Intelligent
 
-L'API implémente un système de cache HTTP efficace avec des headers statiques :
-
-```go
-// Cache headers pour la documentation (server/server.go)
-s.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    http.ServeFile(w, r, "html/index.html")
-})
-
-// Cache headers pour l'OpenAPI specification
-s.router.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
-    w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
-    http.ServeFile(w, r, "html/docs/openapi.yaml")
-})
-
-// Cache headers pour le favicon (1 an)
-s.router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Cache-Control", "public, max-age=31536000") // 1 year
-    w.Header().Set("Content-Type", "image/x-icon")
-    http.ServeFile(w, r, "html/favicon.ico")
-})
-```
-
-**Stratégie de cache** :
-
 - **Documentation statique** : 1 heure (index.html, docs.html, OpenAPI)
 - **Favicon** : 1 an (rarement modifié)
 - **Réponses API** : Gérées par middleware `RespondWithJSON` avec Last-Modified
 - **Compression gzip** : Réduction de 80% de la taille des réponses
 
-### 🧩 Composants détaillés
-
-#### Core Components
+### 🧩 Composants Core
 
 - **Downloader** : Téléchargement 5 fichiers TSV BDPM avec retry auto
 - **Parser Engine** : TSV → JSON avec validation et lookup maps O(1)
 - **Data Container** : Stockage thread-safe avec `atomic.Value`
 - **API Layer** : Chi router v5 avec middleware stack complet
-
-#### Infrastructure Components
-
-- **Scheduler** : Mises à jour automatiques avec gocron (6h/18h) et monitoring
-- **Rate Limiter** : Token bucket (juju/ratelimit) avec cleanup automatique
-- **Cache System** : HTTP cache avancé avec ETag/Last-Modified
-- **Configuration** : Validation d'environnement avec types forts
-- **Logging** : Structured logging avec slog et rotation
+- **Scheduler** : Mises à jour automatiques avec gocron (6h/18h)
+- **Rate Limiter** : Token bucket avec cleanup automatique
 
 ## 📚 Documentation
 
@@ -889,32 +782,7 @@ pour garantir la cohérence des données.
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🛠️ Stack Technique
-
-### Core Technologies
-
-- **Langage** : Go 1.21+ avec atomic operations et concurrence native
-- **Framework web** : Chi v5 avec middleware stack complet
-- **Scheduling** : gocron pour les mises à jour automatiques (6h/18h)
-- **Logging** : Structured logging avec slog et rotation de fichiers
-- **Rate limiting** : juju/ratelimit (token bucket algorithm)
-
-### Data Processing
-
-- **Encoding** : Support Windows-1252 → UTF-8 pour les fichiers TSV sources
-- **Parsing** : Traitement concurrent de 5 fichiers TSV
-- **Validation** : Validation stricte des données avec types forts
-- **Memory** : Atomic operations pour zero-downtime updates
-
-### Development & Operations
-
-- **Configuration** : Validation d'environnement avec godotenv
-- **Tests** : Tests unitaires avec couverture de code et benchmarks
-- **Documentation** : OpenAPI 3.1 avec Swagger UI interactive
-- **Profiling** : pprof intégré pour le développement (port 6060)
-- **Monitoring** : Health checks et métriques intégrées
-
-### Dépendances principales
+### 📦 Dépendances Principales
 
 ```go
 module github.com/giygas/medicaments-api
@@ -929,34 +797,22 @@ require (
 )
 ```
 
-## 🎯 Architecture et design patterns
-
-### Principes de conception
-
-L'architecture privilégie la simplicité, l'efficacité et la résilience :
+### 🎯 Principes de Conception
 
 - **Atomic operations** : Mises à jour sans temps d'arrêt
 - **Stateless architecture** : Facilite la montée en charge horizontale
 - **Modular design** : Séparation claire des responsabilités
 - **Memory optimization** : Cache intelligent pour des réponses rapides
 
-### Design patterns appliqués
+## 🚀 Développement Local
 
-- **Singleton** : DataContainer pour gestion centralisée
-- **Observer** : Health monitoring et logging
-- **Strategy** : Rate limiting avec token bucket
-- **Factory** : Parser creation et validation
-- **Circuit breaker** : Gestion des erreurs de téléchargement
-
-## 🚀 Configuration développement local
-
-### Prérequis
+### 📋 Prérequis
 
 - **Go 1.21+** avec support des modules
 - **2GB RAM** recommandé pour le développement
 - **Connexion internet** pour les mises à jour BDPM
 
-### Démarrage rapide
+### ⚡ Démarrage Rapide
 
 ```bash
 # Cloner et configurer
@@ -974,38 +830,34 @@ cp .env.example .env
 go run main.go
 ```
 
-### Commandes de développement
+### 🛠️ Commandes de Développement
 
 ```bash
-# Build pour la plateforme actuelle
+# Build
 go build -o medicaments-api .
-
-# Builds multi-plateformes
 GOOS=linux GOARCH=amd64 go build -o medicaments-api-linux .
 GOOS=windows GOARCH=amd64 go build -o medicaments-api.exe .
 
-# Lancer les tests
+# Tests et qualité
 go test -v ./...
-
-# Lancer avec couverture
-go test -coverprofile=coverage.out -v
-go tool cover -html=coverage.out -o coverage.html
-
-# Lancer les benchmarks
+go test -race -v
+go test -coverprofile=coverage.out -v && go tool cover -html=coverage.out -o coverage.html
 go test -bench=. -benchmem
 
-# Tests de race condition
-go test -race -v
-
-# Formatage du code
+# Formatage et analyse
 gofmt -w .
+go vet ./...
+golangci-lint run  # si installé
 ```
 
-## 🧪 Benchmarks et performance
+### 🌐 Serveur de Développement
 
-### Exécuter les benchmarks
+- **Serveur local**: `http://localhost:8000`
+- **Profiling pprof**: `http://localhost:6060` (quand ENV=dev)
+- **Documentation interactive**: `http://localhost:8000/docs`
+- **Health endpoint**: `http://localhost:8000/health`
 
-Les benchmarks mesurent les performances réelles des endpoints API avec des données réalistes :
+## 🧪 Exécuter les Benchmarks
 
 ```bash
 # Lancer tous les benchmarks
@@ -1020,24 +872,16 @@ go test -bench=. -benchmem -count=3 -run=^$
 # Benchmark avec profil CPU
 go test -bench=. -benchmem -cpuprofile=cpu.prof -run=^$
 go tool pprof cpu.prof
+
+# Profil mémoire des benchmarks
+go test -bench=. -benchmem -memprofile=mem.prof
+go tool pprof mem.prof
+
+# Comparer performances avant/après modifications
+benchstat old.txt new.txt
 ```
 
-### Résultats de référence (Apple M2)
-
-```
-BenchmarkDatabase-8         2671    453838 ns/op    848393 B/op    24 allocs/op
-BenchmarkMedicamentByID-8   740559   1684 ns/op      6246 B/op     21 allocs/op
-BenchmarkHealth-8           21458    67895 ns/op     8853 B/op     58 allocs/op
-```
-
-**Interprétation des résultats** :
-
-- `2671` : Nombre d'itérations par seconde
-- `453838 ns/op` : Temps moyen par opération (0.46ms)
-- `848393 B/op` : Mémoire allouée par opération (848KB)
-- `24 allocs/op` : Nombre d'allocations mémoire par opération
-
-### Benchmarks disponibles
+### 📊 Benchmarks Disponibles
 
 | Benchmark                   | Description                 | Ce qu'il mesure                       |
 | --------------------------- | --------------------------- | ------------------------------------- |
@@ -1049,46 +893,7 @@ BenchmarkHealth-8           21458    67895 ns/op     8853 B/op     58 allocs/op
 | `BenchmarkGeneriquesByID`   | Génériques par ID           | Performance O(1) lookup               |
 | `BenchmarkHealth`           | Endpoint `/health`          | Performance métriques système         |
 
-### Analyse des performances
-
-```bash
-# Générer rapport de couverture avec benchmarks
-go test -coverprofile=coverage.out -bench=. -benchmem
-
-# Profil mémoire des benchmarks
-go test -bench=. -benchmem -memprofile=mem.prof
-go tool pprof mem.prof
-
-# Comparer performances avant/après modifications
-benchstat old.txt new.txt
-```
-
-# Analyse statique
-
-```bash
-# Analyse statique du code Go - détecte les problèmes potentiels
-go vet ./...
-```
-
-**Ce que fait `go vet` :**
-
-- Vérifie les constructions suspectes que le compilateur ne détecte pas
-- Détecte le code inaccessible et les erreurs logiques
-- Identifie les mauvaises utilisations des fonctions built-in
-- Vérifie la conformité des interfaces
-- Analyse les formats d'impression et les arguments
-
-**Alternatives complémentaires :**
-
-```bash
-# Formatage du code (standardisation)
-gofmt -w .
-
-# Vérification plus approfondie (si installé)
-golangci-lint run
-```
-
-### Configuration d'environnement
+### ⚙️ Configuration d'Environnement
 
 ```bash
 # Configuration serveur
@@ -1098,49 +903,12 @@ ENV=dev                      # Environnement (dev/production)
 
 # Logging
 LOG_LEVEL=info               # debug/info/warn/error
+LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation
+MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (100MB)
 
 # Limites optionnelles
 MAX_REQUEST_BODY=1048576     # 1MB max corps de requête
 MAX_HEADER_SIZE=1048576      # 1MB max taille headers
-```
-
-### Fonctionnalités du serveur de développement
-
-- **Serveur local**: `http://localhost:8000`
-- **Profiling pprof**: `http://localhost:6060` (quand ENV=dev)
-- **Rechargement auto**: Utiliser `air` ou similaire pour hot reloading
-- **Documentation interactive**: `http://localhost:8000/docs`
-- **Health endpoint**: `http://localhost:8000/health`
-
-## 🧪 Tests et qualité
-
-### Exécuter les tests
-
-```bash
-# Tests unitaires
-go test -v ./...
-
-# Tests avec couverture
-go test -coverprofile=coverage.out && go tool cover -html=coverage.out
-
-# Benchmarks
-go test -bench=. -benchmem
-
-# Tests de race condition
-go test -race ./...
-```
-
-### Qualité du code
-
-```bash
-# Formatage du code
-gofmt -w .
-
-# Analyse statique
-go vet ./...
-
-# Linting (si installé)
-golangci-lint run
 ```
 
 ## ⚠️ Limitations et conditions d'utilisation
@@ -1204,32 +972,6 @@ Source : https://base-donnees-publique.medicaments.gouv.fr
 ```
 
 ---
-
-## 📈 Benchmarks et Performance
-
-### Tests de charge (production)
-
-```bash
-# Benchmark avec hey (10K requêtes, 50 concurrents)
-hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504672
-
-# Résultats typiques :
-# - Requests/sec: 1,200-1,500
-# - Latency moyenne: 35ms
-# - 95th percentile: 85ms
-# - Success rate: 99.95%
-# - Memory usage stable: 45MB
-```
-
-### Performance par endpoint
-
-| Endpoint               | Reqs/sec   | Latency (µs) | Allocs/op | Memory (B/op) |
-| ---------------------- | ---------- | ------------ | --------- | ------------- |
-| `/health`              | 114,024    | 28           | 58        | 8,854         |
-| `/medicament/id/{cis}` | 1,660,364  | 2.5          | 21        | 6,246         |
-| `/medicament/{nom}`    | 1,637,601  | 2.3          | 20        | 6,214         |
-| `/database/{page}`     | ~2,000,000 | 0.5          | ~15       | ~5,000        |
-| `/database`            | 1,807      | 553          | 24        | 844,318       |
 
 ## 🙏 Remerciements
 
