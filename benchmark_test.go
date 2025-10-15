@@ -4,62 +4,53 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 )
 
-// Create realistic test data for benchmarks
+var (
+	benchmarkContainer *data.DataContainer
+	benchmarkOnce      sync.Once
+)
+
+// Create realistic test data for benchmarks using full medicaments database
+// Cache the data to avoid re-downloading/parsing for each benchmark
 func createBenchmarkData() *data.DataContainer {
-	// Create 1000 mock medicaments for realistic performance testing
-	medicaments := make([]entities.Medicament, 1000)
-	medicamentsMap := make(map[int]entities.Medicament)
-	generiques := make([]entities.GeneriqueList, 100)
-	generiquesMap := make(map[int]entities.Generique)
+	benchmarkOnce.Do(func() {
+		fmt.Println("Loading full medicaments database for benchmarks...")
 
-	for i := 0; i < 1000; i++ {
-		cis := i + 1
-		medicaments[i] = entities.Medicament{
-			Cis:                   cis,
-			Denomination:          fmt.Sprintf("Medicament %d", cis),
-			FormePharmaceutique:   "Comprimé",
-			VoiesAdministration:   []string{"orale"},
-			StatusAutorisation:    "Autorisation active",
-			TypeProcedure:         "Procédure nationale",
-			EtatComercialisation:  "Commercialisée",
-			DateAMM:               "2020-01-01",
-			Titulaire:             "Laboratoire Test",
-			SurveillanceRenforcee: "Non",
-			Composition:           []entities.Composition{},
-			Generiques:            []entities.Generique{},
-			Presentation:          []entities.Presentation{},
-			Conditions:            []string{},
+		// Parse the full medicaments database for realistic performance testing
+		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		if err != nil {
+			panic(fmt.Sprintf("Failed to parse medicaments for benchmarks: %v", err))
 		}
-		medicamentsMap[cis] = medicaments[i]
-	}
 
-	for i := 0; i < 100; i++ {
-		groupID := i + 1
-		generiques[i] = entities.GeneriqueList{
-			GroupID:     groupID,
-			Libelle:     fmt.Sprintf("Groupe Générique %d", groupID),
-			Medicaments: []entities.GeneriqueMedicament{},
+		// Create medicaments map as done in production
+		medicamentsMap := make(map[int]entities.Medicament)
+		for i := range medicaments {
+			medicamentsMap[medicaments[i].Cis] = medicaments[i]
 		}
-		generiquesMap[groupID] = entities.Generique{
-			Cis:     1,
-			Group:   groupID,
-			Libelle: fmt.Sprintf("Groupe Générique %d", groupID),
-			Type:    "Générique",
-		}
-	}
 
-	container := data.NewDataContainer()
-	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
-	return container
+		// Parse generiques with real data
+		generiques, generiquesMap, err := medicamentsparser.GeneriquesParser(&medicaments, &medicamentsMap)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to parse generiques for benchmarks: %v", err))
+		}
+
+		benchmarkContainer = data.NewDataContainer()
+		benchmarkContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+
+		fmt.Printf("Benchmark data loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
+	})
+
+	return benchmarkContainer
 }
 
 // Benchmark database endpoint (full data)
