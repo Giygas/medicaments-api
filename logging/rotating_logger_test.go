@@ -1,6 +1,10 @@
 package logging
 
 import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -295,5 +299,338 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 	err = rl.Close()
 	if err != nil {
 		t.Fatalf("Failed to close logger: %v", err)
+	}
+}
+
+func TestRotatingLoggerErrorCases(t *testing.T) {
+	// Test with invalid directory
+	invalidDir := "/invalid/directory/that/does/not/exist"
+	rl := NewRotatingLogger(invalidDir, 1)
+
+	// Try to rotate with invalid directory
+	err := rl.rotateIfNeeded()
+	if err == nil {
+		t.Error("Expected error when rotating with invalid directory, got nil")
+	}
+
+	// Try to write with invalid directory
+	_, err = rl.Write([]byte("test message"))
+	if err == nil {
+		t.Error("Expected error when writing with invalid directory, got nil")
+	}
+
+	// Close should still work even with invalid directory
+	err = rl.Close()
+	if err != nil {
+		t.Errorf("Unexpected error when closing logger with invalid directory: %v", err)
+	}
+}
+
+func TestRotatingLoggerConcurrentWrites(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "concurrent-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	rl := NewRotatingLogger(tempDir, 1)
+	defer rl.Close()
+
+	// Initialize rotation
+	err = rl.rotateIfNeeded()
+	if err != nil {
+		t.Fatalf("Failed to rotate: %v", err)
+	}
+
+	// Test concurrent writes
+	const numGoroutines = 10
+	const numWrites = 5
+
+	done := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			for j := 0; j < numWrites; j++ {
+				message := fmt.Sprintf("Goroutine %d, Write %d", id, j)
+				_, err := rl.Write([]byte(message))
+				if err != nil {
+					t.Errorf("Concurrent write failed: %v", err)
+				}
+			}
+			done <- true
+		}(i)
+	}
+
+	// Wait for all goroutines to complete
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify log file exists and has content
+	currentWeek := getWeekKey(time.Now())
+	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
+	content, err := os.ReadFile(expectedFileName)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Error("Log file is empty after concurrent writes")
+	}
+}
+
+func TestRotatingLoggerEdgeCases(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "edge-cases-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	rl := NewRotatingLogger(tempDir, 1)
+	defer rl.Close()
+
+	// Test writing empty message
+	_, err = rl.Write([]byte(""))
+	if err != nil {
+		t.Errorf("Failed to write empty message: %v", err)
+	}
+
+	// Test writing very large message
+	largeMessage := strings.Repeat("x", 10000)
+	_, err = rl.Write([]byte(largeMessage))
+	if err != nil {
+		t.Errorf("Failed to write large message: %v", err)
+	}
+
+	// Test multiple rotations in quick succession
+	rl.currentWeek = "2025-W40"
+	err = rl.rotateIfNeeded()
+	if err != nil {
+		t.Fatalf("Failed first rotation: %v", err)
+	}
+
+	rl.currentWeek = "2025-W41"
+	err = rl.rotateIfNeeded()
+	if err != nil {
+		t.Fatalf("Failed second rotation: %v", err)
+	}
+
+	// Verify both files exist
+	week40File := filepath.Join(tempDir, "app-2025-W40.log")
+	week41File := filepath.Join(tempDir, "app-2025-W41.log")
+
+	if _, err := os.Stat(week40File); os.IsNotExist(err) {
+		t.Error("Week 40 file was not created")
+	}
+	if _, err := os.Stat(week41File); os.IsNotExist(err) {
+		t.Error("Week 41 file was not created")
+	}
+}
+
+func TestSetupLoggerFunctions(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "setup-logger-func-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Test SetupLogger function (currently 0% coverage)
+	logger := SetupLogger(tempDir)
+	if logger == nil {
+		t.Error("SetupLogger returned nil")
+	}
+
+	// Test that logger works
+	logger.Info("Test message from SetupLogger")
+}
+
+func TestLoggingServiceMethods(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "logging-service-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Save original service
+	originalService := DefaultLoggingService
+	defer func() {
+		DefaultLoggingService = originalService
+	}()
+
+	// Initialize logger
+	InitLoggerWithRetention(tempDir, 2)
+
+	// Test all logging methods (currently 0-40% coverage)
+	Info("Info message")
+	Error("Error message")
+	Warn("Warning message")
+	Debug("Debug message")
+
+	// Check that log file was created
+	currentWeek := getWeekKey(time.Now())
+	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
+	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
+		t.Errorf("Expected log file %s was not created", expectedFileName)
+	}
+}
+
+func TestInitLoggerFunctions(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "init-logger-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Save original service
+	originalService := DefaultLoggingService
+	defer func() {
+		DefaultLoggingService = originalService
+	}()
+
+	// Test InitLogger (currently 0% coverage)
+	InitLogger(tempDir)
+	if DefaultLoggingService == nil {
+		t.Error("InitLogger did not initialize DefaultLoggingService")
+	}
+
+	// Test InitLoggerWithRetentionAndSize (currently 60.7% coverage)
+	InitLoggerWithRetentionAndSize(tempDir, 2, 1024*1024) // 1MB size limit
+	if DefaultLoggingService == nil {
+		t.Error("InitLoggerWithRetentionAndSize did not initialize DefaultLoggingService")
+	}
+
+	// Test that logger works
+	Info("Test message from InitLoggerWithRetentionAndSize")
+}
+
+func TestMultiHandlerMethods(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "multi-handler-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a rotating logger for testing
+	rotatingLogger := NewRotatingLogger(tempDir, 1)
+	defer rotatingLogger.Close()
+
+	// Create multiHandler directly to test its methods
+	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	consoleHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+
+	multi := &multiHandler{
+		handlers: []slog.Handler{consoleHandler, fileHandler},
+	}
+
+	// Test Enabled method (currently 75% coverage)
+	if !multi.Enabled(nil, slog.LevelInfo) {
+		t.Error("Expected Enabled() to return true for info level")
+	}
+
+	// Test Handle method (currently 80% coverage)
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Test message", 0)
+
+	err = multi.Handle(nil, record)
+	if err != nil {
+		t.Errorf("Handle method failed: %v", err)
+	}
+
+	// Test WithAttrs method (currently 0% coverage)
+	attrs := []slog.Attr{slog.String("key", "value")}
+	newHandler := multi.WithAttrs(attrs)
+	if newHandler == nil {
+		t.Error("WithAttrs returned nil")
+	}
+
+	// Test WithGroup method (currently 0% coverage)
+	newHandler = multi.WithGroup("test-group")
+	if newHandler == nil {
+		t.Error("WithGroup returned nil")
+	}
+}
+
+func TestLoggingMiddleware(t *testing.T) {
+	// Create temporary directory for test logs
+	tempDir, err := os.MkdirTemp("", "middleware-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a logger for testing
+	logger := SetupLoggerWithRetention(tempDir, 2)
+
+	// Create a simple handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Hello, World!"))
+	})
+
+	// Wrap with logging middleware
+	middleware := LoggingMiddleware(logger)
+	wrappedHandler := middleware(handler)
+
+	// Create a test request
+	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	w := httptest.NewRecorder()
+
+	// Serve the request
+	wrappedHandler.ServeHTTP(w, req)
+
+	// Check response
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Check that log file was created
+	currentWeek := getWeekKey(time.Now())
+	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
+	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
+		t.Errorf("Expected log file %s was not created", expectedFileName)
+	}
+}
+
+func TestResponseWriterWrapper(t *testing.T) {
+	// Test the custom response writer wrapper
+	recorder := httptest.NewRecorder()
+
+	// Create wrapper
+	wrapper := &responseWriterWrapper{ResponseWriter: recorder}
+
+	// Test WriteHeader method
+	wrapper.WriteHeader(http.StatusNotFound)
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, recorder.Code)
+	}
+
+	// Test Write method
+	data := []byte("test data")
+	n, err := wrapper.Write(data)
+	if err != nil {
+		t.Errorf("Write failed: %v", err)
+	}
+	if n != len(data) {
+		t.Errorf("Expected to write %d bytes, wrote %d", len(data), n)
+	}
+
+	// Test that status is not written twice
+	wrapper.WriteHeader(http.StatusInternalServerError)
+	if recorder.Code != http.StatusNotFound {
+		t.Error("Status should not be changed after first write")
+	}
+
+	// Test bytes written tracking
+	if wrapper.bytesWritten != len(data) {
+		t.Errorf("Expected bytesWritten %d, got %d", len(data), wrapper.bytesWritten)
 	}
 }
