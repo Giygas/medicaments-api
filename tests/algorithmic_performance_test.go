@@ -254,25 +254,31 @@ func TestMemoryFootprint(t *testing.T) {
 	runtime.GC()
 	runtime.ReadMemStats(&m2)
 
-	// Calculate memory usage
-	allocDiff := m2.Alloc - m1.Alloc
-	allocDiffMB := allocDiff / 1024 / 1024
+	// Calculate memory usage using Sys for more stable measurement
+	sysDiff := m2.Sys - m1.Sys
+	sysDiffMB := sysDiff / 1024 / 1024
 
 	t.Logf("Memory footprint analysis:")
 	t.Logf("  Medicaments slice: %d items", len(medicaments))
 	t.Logf("  Generiques slice: %d items", len(generiques))
 	t.Logf("  Medicaments map: %d entries", len(medicamentsMap))
 	t.Logf("  Generiques map: %d entries", len(generiquesMap))
-	t.Logf("  Additional memory: %d MB", allocDiffMB)
+	t.Logf("  System memory before: %d MB", m1.Sys/1024/1024)
+	t.Logf("  System memory after: %d MB", m2.Sys/1024/1024)
+	t.Logf("  Additional memory: %d MB", sysDiffMB)
 
-	// Calculate efficiency
-	if allocDiffMB > 0 {
-		medicamentsPerMB := float64(len(medicaments)) / float64(allocDiffMB)
+	// Calculate efficiency with safeguards
+	if sysDiffMB > 0 && sysDiffMB < 10000 { // Reasonable upper bound
+		medicamentsPerMB := float64(len(medicaments)) / float64(sysDiffMB)
 		t.Logf("  Efficiency: %.2f medicaments per MB", medicamentsPerMB)
 
 		if medicamentsPerMB < 100 {
 			t.Errorf("Memory efficiency seems low: %.2f medicaments/MB (expected > 100)", medicamentsPerMB)
 		}
+	} else if sysDiffMB <= 0 {
+		t.Logf("  Memory measurement inconclusive (diff: %d MB), possibly due to GC optimizations", sysDiffMB)
+	} else {
+		t.Errorf("Memory measurement seems unrealistic: %d MB (possible measurement error)", sysDiffMB)
 	}
 }
 

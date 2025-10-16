@@ -216,11 +216,7 @@ func FindMedicament(dataContainer *data.DataContainer, validator interfaces.Data
 			}
 		}
 
-		if len(results) == 0 {
-			RespondWithError(w, http.StatusNotFound, "No medicaments found")
-			return
-		}
-
+		// Always return 200 with results array (empty if no matches)
 		RespondWithJSONAndETag(w, r, http.StatusOK, results)
 	}
 }

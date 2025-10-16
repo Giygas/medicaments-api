@@ -190,11 +190,7 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	if len(results) == 0 {
-		h.RespondWithError(w, http.StatusNotFound, "No medicaments found")
-		return
-	}
-
+	// Always return 200 with results array (empty if no matches)
 	h.RespondWithJSON(w, http.StatusOK, results)
 }
 

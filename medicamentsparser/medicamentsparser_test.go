@@ -321,9 +321,19 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 
 	// Test createGeneriqueComposition function
 	var composition []entities.Composition
-	createGeneriqueComposition(&composition)
-	if len(composition) == 0 {
-		t.Error("Expected non-empty composition")
+	compositionResult := createGeneriqueComposition(&composition)
+	if len(compositionResult) != 0 {
+		t.Errorf("Expected empty result for empty input, got %d items", len(compositionResult))
+	}
+
+	// Test with non-empty composition
+	composition = []entities.Composition{
+		{ElementPharmaceutique: "PHARMA1", DenominationSubstance: "SUBSTANCE1", Dosage: "100mg"},
+		{ElementPharmaceutique: "PHARMA2", DenominationSubstance: "SUBSTANCE2", Dosage: "200mg"},
+	}
+	compositionResult = createGeneriqueComposition(&composition)
+	if len(compositionResult) != 2 {
+		t.Errorf("Expected 2 composition items, got %d", len(compositionResult))
 	}
 
 	// Test getMedicamentsInArray function
@@ -333,9 +343,9 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 		3: {Cis: 3, Denomination: "Med3"},
 	}
 
-	result := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
-	if len(result) != 2 {
-		t.Errorf("Expected 2 medicaments, got %d", len(result))
+	medicamentsResult := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
+	if len(medicamentsResult) != 2 {
+		t.Errorf("Expected 2 medicaments, got %d", len(medicamentsResult))
 	}
 }
 

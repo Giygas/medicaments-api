@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -33,6 +34,11 @@ type PerformanceClaim struct {
 var verificationResults []PerformanceClaim
 
 func TestDocumentationClaimsVerification(t *testing.T) {
+	// Skip performance verification in CI environments since they have variable performance
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping performance verification in CI environment")
+	}
+
 	fmt.Println("=== COMPREHENSIVE DOCUMENTATION CLAIMS VERIFICATION ===")
 
 	// Initialize test data

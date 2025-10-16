@@ -751,8 +751,8 @@ func TestFindMedicament(t *testing.T) {
 			medicaments: []entities.Medicament{
 				factory.CreateMedicament(1, "Doliprane"),
 			},
-			expectedCode: http.StatusNotFound,
-			expectError:  "No medicaments found",
+			expectedCode: http.StatusOK,
+			expectError:  "",
 		},
 	}
 
@@ -785,6 +785,18 @@ func TestFindMedicament(t *testing.T) {
 
 				if message, ok := response["message"].(string); !ok || message != tt.expectError {
 					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
+				}
+			} else {
+				// For successful responses, expect JSON array
+				var response []entities.Medicament
+				err := json.Unmarshal(rr.Body.Bytes(), &response)
+				if err != nil {
+					t.Errorf("Failed to unmarshal JSON array: %v", err)
+				}
+
+				// For "no results" case, expect empty array
+				if tt.name == "no results" && len(response) != 0 {
+					t.Errorf("Expected empty array for no results, got %d items", len(response))
 				}
 			}
 		})
@@ -2065,7 +2077,7 @@ func TestFindMedicament_Handler(t *testing.T) {
 		{
 			name:               "no results",
 			searchTerm:         "NonExistent",
-			expectedStatusCode: http.StatusNotFound,
+			expectedStatusCode: http.StatusOK,
 			expectedResults:    0,
 		},
 		{
