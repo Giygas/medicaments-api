@@ -2,10 +2,11 @@ name: Comprehensive Test Suite
 
 on:
   push:
+    branches:
+      - dev
   pull_request:
     branches:
       - main
-      - testing
   workflow_call:
 
 jobs:
