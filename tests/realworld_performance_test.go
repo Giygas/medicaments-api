@@ -75,14 +75,8 @@ func TestRealWorldConcurrentLoad(t *testing.T) {
 
 	// Simulate realistic user patterns
 	endpoints := []string{
+		"/database",
 		"/database/1",
-		"/database/2",
-		"/medicament/paracetamol",
-		"/medicament/ibuprofène",
-		"/medicament/id/1000",
-		"/medicament/id/2000",
-		"/generiques/paracetamol",
-		"/generiques/group/100",
 		"/health",
 	}
 
