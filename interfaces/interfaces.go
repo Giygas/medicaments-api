@@ -20,6 +20,7 @@ type DataStore interface {
 	GetGeneriquesMap() map[int]entities.Generique
 	GetLastUpdated() time.Time
 	IsUpdating() bool
+	GetServerStartTime() time.Time
 
 	// Data update methods
 	UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,

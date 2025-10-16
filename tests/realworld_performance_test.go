@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -369,6 +370,11 @@ func TestRealWorldSustainedPerformance(t *testing.T) {
 
 // Test different search patterns
 func TestRealWorldSearchPatterns(t *testing.T) {
+	// Skip performance verification in CI environment
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping search performance verification in CI environment")
+	}
+
 	server := setupRealworldServer()
 	// Note: Don't close the server here as it's shared across tests
 

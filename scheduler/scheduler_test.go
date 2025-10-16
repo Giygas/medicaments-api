@@ -64,6 +64,10 @@ func (m *mockSchedulerDataStore) EndUpdate() {
 	m.updating = false
 }
 
+func (m *mockSchedulerDataStore) GetServerStartTime() time.Time {
+	return time.Time{} // Return zero time for mock
+}
+
 // MockParser for testing scheduler
 type mockSchedulerParser struct {
 	parseCount int

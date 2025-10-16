@@ -58,6 +58,10 @@ func (m *MockHealthDataStore) EndUpdate() {
 	// Not used in health tests
 }
 
+func (m *MockHealthDataStore) GetServerStartTime() time.Time {
+	return time.Time{} // Return zero time for mock
+}
+
 func TestNewHealthChecker(t *testing.T) {
 	mockDataStore := &MockHealthDataStore{}
 

@@ -378,6 +378,10 @@ func (m *MockDataStore) EndUpdate() {
 	m.updating = false
 }
 
+func (m *MockDataStore) GetServerStartTime() time.Time {
+	return time.Time{} // Return zero time for mock
+}
+
 // MockDataValidator implements interfaces.DataValidator for testing
 type MockDataValidator struct {
 	validateInputError      error

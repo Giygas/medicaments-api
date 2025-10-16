@@ -17,12 +17,13 @@ var _ interfaces.DataStore = (*DataContainer)(nil)
 
 // DataContainer holds all the data with atomic pointers for zero-downtime updates
 type DataContainer struct {
-	medicaments    atomic.Value // []entities.Medicament
-	generiques     atomic.Value // []entities.GeneriqueList
-	medicamentsMap atomic.Value // map[int]entities.Medicament
-	generiquesMap  atomic.Value // map[int]entities.Generique
-	lastUpdated    atomic.Value // time.Time
-	updating       atomic.Bool
+	medicaments     atomic.Value // []entities.Medicament
+	generiques      atomic.Value // []entities.GeneriqueList
+	medicamentsMap  atomic.Value // map[int]entities.Medicament
+	generiquesMap   atomic.Value // map[int]entities.Generique
+	lastUpdated     atomic.Value // time.Time
+	updating        atomic.Bool
+	serverStartTime atomic.Value // time.Time
 }
 
 // NewDataContainer creates a new DataContainer with empty data
@@ -33,6 +34,7 @@ func NewDataContainer() *DataContainer {
 	dc.medicamentsMap.Store(make(map[int]entities.Medicament))
 	dc.generiquesMap.Store(make(map[int]entities.Generique))
 	dc.lastUpdated.Store(time.Time{})
+	dc.serverStartTime.Store(time.Time{}) // Initialize with zero value
 	return dc
 }
 
@@ -101,6 +103,23 @@ func (dc *DataContainer) GetLastUpdated() time.Time {
 // IsUpdating returns true if a data update is currently in progress
 func (dc *DataContainer) IsUpdating() bool {
 	return dc.updating.Load()
+}
+
+// SetServerStartTime sets the server start time
+func (dc *DataContainer) SetServerStartTime(startTime time.Time) {
+	dc.serverStartTime.Store(startTime)
+}
+
+// GetServerStartTime returns the server start time
+func (dc *DataContainer) GetServerStartTime() time.Time {
+	if v := dc.serverStartTime.Load(); v != nil {
+		if startTime, ok := v.(time.Time); ok {
+			return startTime
+		}
+	}
+
+	logging.Warn("Could not get the server start time value")
+	return time.Time{}
 }
 
 // UpdateData atomically updates all data in the container

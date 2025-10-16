@@ -22,7 +22,6 @@ import (
 )
 
 // Global variables (these will be moved to a better place later)
-var serverStartTime = time.Now()
 
 // generateETag creates an ETag from data using SHA256 hash
 func generateETag(data []byte) string {
@@ -316,8 +315,15 @@ func HealthCheck(dataContainer *data.DataContainer) http.HandlerFunc {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 
-		// Calculate uptime
-		uptime := time.Since(serverStartTime)
+		// Calculate uptime using actual server start time
+		serverStartTime := dataContainer.GetServerStartTime()
+		var uptime time.Duration
+		if serverStartTime.IsZero() {
+			// Fallback if start time not set (shouldn't happen in normal operation)
+			uptime = 0
+		} else {
+			uptime = time.Since(serverStartTime)
+		}
 
 		// Get data statistics
 		medicaments := dataContainer.GetMedicaments()

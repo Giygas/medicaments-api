@@ -22,9 +22,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// Global server start time
-var serverStartTime = time.Now()
-
 // formatUptimeHuman formats duration into a human-readable string
 func formatUptimeHuman(d time.Duration) string {
 	days := int(d.Hours()) / 24
@@ -56,6 +53,7 @@ type Server struct {
 	config        *config.Config
 	httpHandler   interfaces.HTTPHandler
 	healthChecker interfaces.HealthChecker
+	startTime     time.Time
 }
 
 // NewServer creates a new server instance
@@ -155,6 +153,10 @@ func (s *Server) setupDocumentationRoutes() {
 
 // Start starts the server
 func (s *Server) Start() error {
+	// Set the actual start time when server begins listening
+	s.startTime = time.Now()
+	s.dataContainer.SetServerStartTime(s.startTime)
+
 	// Start profiling server if in development mode
 	if s.config.Env == "dev" {
 		s.startProfilingServer()
@@ -215,7 +217,7 @@ func (s *Server) GetHealthData() HealthData {
 	memoryUsageMB := int(m.Alloc / 1024 / 1024)
 
 	// Calculate uptime
-	uptime := time.Since(serverStartTime)
+	uptime := time.Since(s.startTime)
 
 	// Get health data from interface-based health checker
 	status, details, err := s.healthChecker.HealthCheck()

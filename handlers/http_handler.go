@@ -272,8 +272,15 @@ func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	// Calculate uptime (using a fixed start time for now)
-	uptime := time.Since(time.Now().Add(-24 * time.Hour)) // Placeholder
+	// Calculate uptime using actual server start time
+	serverStartTime := h.dataStore.GetServerStartTime()
+	var uptime time.Duration
+	if serverStartTime.IsZero() {
+		// Fallback if start time is not available
+		uptime = 0
+	} else {
+		uptime = time.Since(serverStartTime)
+	}
 
 	// Get data statistics
 	medicaments := h.dataStore.GetMedicaments()

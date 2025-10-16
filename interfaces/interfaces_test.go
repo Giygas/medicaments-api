@@ -64,6 +64,10 @@ func (m *MockDataStore) EndUpdate() {
 	m.updating = false
 }
 
+func (m *MockDataStore) GetServerStartTime() time.Time {
+	return time.Time{} // Return zero time for mock
+}
+
 // MockParser implements Parser interface for testing
 type MockParser struct {
 	shouldFail bool

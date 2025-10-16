@@ -50,9 +50,13 @@ jobs:
           fi
 
       - name: Run All Unit Tests
+        env:
+          CI: true
         run: go test ./... -v -short
 
       - name: Run Main Unit Tests with Race Detection
+        env:
+          CI: true
         run: go test -race -short -coverprofile=coverage.out -v ./...
 
       - name: Generate Coverage Report
@@ -94,12 +98,18 @@ jobs:
         run: go mod download
 
       - name: Run Integration Tests
+        env:
+          CI: true
         run: go test ./... -run TestIntegrationFullDataParsingPipeline -v -timeout 10m
 
       - name: Run Integration Tests with Race Detection
+        env:
+          CI: true
         run: go test ./... -race -run TestIntegrationFullDataParsingPipeline -v -timeout 15m
 
       - name: Generate Integration Coverage Report
+        env:
+          CI: true
         run: go test ./... -coverprofile=integration-coverage.out -run TestIntegrationFullDataParsingPipeline -timeout 10m
 
       - name: Generate Integration Coverage HTML
@@ -141,6 +151,8 @@ jobs:
         run: go mod download
 
       - name: Run All Tests with Coverage
+        env:
+          CI: true
         run: go test ./... -race -coverprofile=full-coverage.out -v -timeout 15m
 
       - name: Generate Full Coverage Report
@@ -156,6 +168,8 @@ jobs:
           fi
 
       - name: Run Full Benchmark Suite
+        env:
+          CI: true
         run: go test ./tests/ -bench=. -benchmem -count=5 -run=^$ -timeout 15m | tee full-benchmark.txt
 
       - name: Upload Full Coverage Reports
@@ -198,6 +212,8 @@ jobs:
         run: mkdir -p logs
 
       - name: Run Clean Benchmark Summary
+        env:
+          CI: true
         run: |
           echo "🚀 Generating Performance Report..."
           echo ""

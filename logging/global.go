@@ -27,6 +27,11 @@ func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	// Handle empty log directory (common in tests)
+	if logDir == "" {
+		logDir = "logs" // Default directory
+	}
+
 	// Create logs directory if it doesn't exist
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		// If we can't create logs directory, just log to console
