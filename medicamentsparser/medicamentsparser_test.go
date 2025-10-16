@@ -66,10 +66,16 @@ func TestGeneriquesParser(t *testing.T) {
 			Denomination: "Test Med 1",
 			Generiques:   []entities.Generique{{Cis: 1, Group: 100, Libelle: "Group1", Type: "Princeps"}},
 		},
+		{
+			Cis:          2,
+			Denomination: "Test Med 2",
+			Generiques:   []entities.Generique{{Cis: 2, Group: 100, Libelle: "Group1", Type: "Générique"}},
+		},
 	}
 
 	medicamentsMap := map[int]entities.Medicament{
 		1: medicaments[0],
+		2: medicaments[1],
 	}
 
 	fmt.Println("Calling GeneriquesParser...")
@@ -124,13 +130,18 @@ func createGeneriquesTestFiles(t *testing.T) {
 	os.MkdirAll("src", os.ModePerm)
 
 	// Create Generiques.txt with correct format
-	// Format expected by tsvConverter: group_id\tlibelle\tcis\ttype\tgroup_id (5 columns with header)
-	generiquesTxt := "100\tGroup1\t1\t0\t100" // 5 columns: group_id=100, libelle=Group1, cis=1, type=0, group_id=100
-	os.WriteFile("files/Generiques.txt", []byte(generiquesTxt), 0644)
+	// Format expected: data lines with 5 columns: group_id\tlibelle\tcis\ttype\tgroup_id
+	generiquesTxt := "100\tGroup1\t1\t0\t100\n" + // Data line: group_id=100, libelle=Group1, cis=1, type=0, group_id=100
+		"100\tGroup1\t2\t1\t100" // Second data line for same group with different CIS
+	if err := os.WriteFile("files/Generiques.txt", []byte(generiquesTxt), 0644); err != nil {
+		t.Fatalf("Failed to create Generiques.txt: %v", err)
+	}
 
 	// Create Generiques.json
-	generiquesJSON := `{"100":[1]}`
-	os.WriteFile("src/Generiques.json", []byte(generiquesJSON), 0644)
+	generiquesJSON := `{"100":[1,2]}`
+	if err := os.WriteFile("src/Generiques.json", []byte(generiquesJSON), 0644); err != nil {
+		t.Fatalf("Failed to create Generiques.json: %v", err)
+	}
 }
 
 func cleanupTestFiles(t *testing.T) {

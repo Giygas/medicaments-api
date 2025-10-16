@@ -131,6 +131,17 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		"<script", "</script>", "javascript:", "vbscript:", "onload=", "onerror=",
 		"onclick=", "onmouseover=", "onfocus=", "onblur=", "onchange=", "onsubmit=",
 		"eval(", "expression(", "url(", "import ", "@import", "binding(", "behavior(",
+		// SQL injection patterns
+		"' or ", "\" or ", "union select", "drop table", "delete from", "insert into",
+		"update set", "--", "/*", "*/", "xp_", "sp_", "exec(", "execute(",
+		// Command injection patterns
+		"; ", "| ", "& ", "`", "$(", "${", // Command injection
+		// Path traversal patterns
+		"../", "..\\", "%2e%2e", "file://", // Path traversal
+		// LDAP injection patterns
+		"*)(", "*|(", "*)%", // LDAP injection
+		// NoSQL injection patterns
+		"{$ne:", "{$gt:", "{$where:", "{$or:", "{$regex:", "{$expr:", // NoSQL injection
 	}
 
 	lowerInput := strings.ToLower(input)

