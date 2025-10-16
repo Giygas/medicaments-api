@@ -288,7 +288,7 @@ func TestRealWorldSustainedPerformance(t *testing.T) {
 	}
 
 	server := setupRealworldServer()
-	defer server.Close()
+	// Note: Don't close the server here as it's shared across tests
 
 	duration := 30 * time.Second
 	requestInterval := 10 * time.Millisecond
