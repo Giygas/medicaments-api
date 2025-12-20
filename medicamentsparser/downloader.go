@@ -28,7 +28,7 @@ func downloadAndParseFile(filepath string, url string) error {
 	}
 
 	defer outFile.Close()
-	reader := charmap.Windows1252.NewDecoder().Reader(response.Body)
+	reader := charmap.ISO8859_1.NewDecoder().Reader(response.Body)
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {

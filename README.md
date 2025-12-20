@@ -11,48 +11,63 @@
 ## 🚀 Performance Exceptionnelle
 
 ### ⚡ Performance Algorithmique (Go Benchmarks)
-*Performance pure des algorithmes avec la base complète de 15,811 médicaments*
 
-| Endpoint | Reqs/sec | Latence | Mémoire/op | Allocs/op |
-|----------|----------|---------|------------|-----------|
-| `/medicament/id/{cis}` | 357,000-383,000 | **2.6-2.8µs** | 7,224 B | 37 |
-| `/generiques/group/{id}` | 347,000-472,000 | **2.1-2.9µs** | 6,752 B | 26 |
-| `/database/{page}` | 36,000-55,000 | **18-28µs** | 36,255 B | 43 |
-| `/health` | 32,000-39,000 | **26-31µs** | 8,880 B | 61 |
+_Performance pure des algorithmes avec la base complète de 15,811 médicaments_
+
+| Endpoint                 | Reqs/sec        | Latence       | Mémoire/op | Allocs/op |
+| ------------------------ | --------------- | ------------- | ---------- | --------- |
+| `/medicament/id/{cis}`   | 357,000-383,000 | **2.6-2.8µs** | 7,224 B    | 37        |
+| `/generiques/group/{id}` | 347,000-472,000 | **2.1-2.9µs** | 6,752 B    | 26        |
+| `/database/{page}`       | 36,000-55,000   | **18-28µs**   | 36,255 B   | 43        |
+| `/health`                | 32,000-39,000   | **26-31µs**   | 8,880 B    | 61        |
 
 ### 🌐 Performance Réelle (HTTP)
-*Performance en conditions réelles avec stack HTTP complet*
 
-| Endpoint | Latence moyenne | Reqs/sec | Taille réponse |
-|----------|-----------------|----------|----------------|
-| `/medicament/id/{cis}` | **0.49ms** | **357,000-383,000** | ~3KB |
-| `/database/{page}` | **0.47ms** | **36,000-55,000** | ~15KB |
-| `/medicament/{nom}` | **0.39ms** | **280,000-350,000** | ~50KB |
-| `/health` | **0.50ms** | **32,000-39,000** | ~1KB |
+_Performance en conditions réelles avec stack HTTP complet_
+
+| Endpoint               | Latence moyenne | Reqs/sec            | Taille réponse |
+| ---------------------- | --------------- | ------------------- | -------------- |
+| `/medicament/id/{cis}` | **0.49ms**      | **357,000-383,000** | ~3KB           |
+| `/database/{page}`     | **0.47ms**      | **36,000-55,000**   | ~15KB          |
+| `/medicament/{nom}`    | **0.39ms**      | **280,000-350,000** | ~50KB          |
+| `/health`              | **0.50ms**      | **32,000-39,000**   | ~1KB           |
 
 ### 📊 Performance Production (Estimée)
-*Performance attendue en production avec réseau et concurrence*
+
+_Performance attendue en production avec réseau et concurrence_
 
 - **Lookups O(1)**: ~350,000-400,000 req/sec
-- **Pagination**: ~40,000-60,000 req/sec  
+- **Pagination**: ~40,000-60,000 req/sec
 - **Recherche**: ~280,000-350,000 req/sec
 - **Health checks**: ~32,000-40,000 req/sec
+
+---
+
+## 📋 Journal des Modifications (Changelog)
+
+### Décembre 2025
+
+- **Fix encodage des caractères**: Changement de charset de `Windows1252` vers `ISO8859-1` dans le downloader
+  - Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
 
 ---
 
 ## 🎯 Interprétation des Métriques
 
 ### 🚀 **Ce que les benchmarks montrent :**
+
 - **Lookup O(1) ultra-rapide** : 2.2-2.7µs = accès direct par clé
 - **Efficacité mémoire** : 2KB/medicament avec toutes les relations
 - **Algorithmes optimisés** : Structures de données performantes
 
 ### 🌐 **Ce que la performance HTTP montre :**
+
 - **Expérience utilisateur réelle** : 19ms pour lookup complet
 - **Stack HTTP optimisé** : Middleware, sérialisation, compression
 - **Capacité de production** : Gère des charges réelles
 
 ### 💡 **Pourquoi les deux chiffres ?**
+
 - **Benchmarks** = Performance théorique maximale
 - **HTTP** = Performance pratique avec tous les overheads
 - **Ratio ~0.1x** = HTTP plus rapide que benchmarks (keep-alive, optimisations locales)
@@ -388,6 +403,7 @@ Architecture propre et maintenable avec injection de dépendances :
 ### 🛠️ Stack Technique Complet
 
 **Core Technologies**:
+
 - **Go 1.21+**: Opérations atomiques et concurrence native
 - **Chi Router v5**: Routeur HTTP léger avec middleware stack
 - **gocron**: Mises à jour automatiques (6h/18h)
@@ -395,12 +411,14 @@ Architecture propre et maintenable avec injection de dépendances :
 - **slog**: Structured logging avec rotation
 
 **Data Processing**:
-- **Encoding**: Windows-1252 → UTF-8 pour fichiers TSV
+
+- **Encoding**: ISO-8859-1 → UTF-8 pour fichiers TSV
 - **Parsing concurrent**: 5 fichiers TSV en parallèle
 - **Atomic operations**: Zero-downtime updates
 - **Memory optimization**: O(1) lookup maps
 
 **Development & Operations**:
+
 - **godotenv**: Configuration environnement
 - **OpenAPI 3.1**: Documentation interactive
 - **pprof**: Profiling intégré (port 6060)
@@ -578,13 +596,13 @@ Retry-After: 60              # Si limite dépassée
 
 ### 📊 Benchmarks Complets (Apple M2)
 
-| Endpoint               | Reqs/sec   | Latency (µs) | Allocs/op | Memory (B/op) |
-| ---------------------- | ---------- | ------------ | --------- | ------------- |
-| `/health`              | 32,000-39,000 | 26-31        | 61        | 8,880         |
-| `/medicament/id/{cis}` | 357,000-383,000 | 2.6-2.8      | 37        | 7,224         |
-| `/medicament/{nom}`    | 280,000-350,000 | 2.8-3.6      | 15,893    | 1,043,294     |
-| `/database/{page}`     | 36,000-55,000 | 18-28        | 43        | 36,255        |
-| `/database`            | 20-30         | 40,000-50,000 | 52        | 80,176,333    |
+| Endpoint               | Reqs/sec        | Latency (µs)  | Allocs/op | Memory (B/op) |
+| ---------------------- | --------------- | ------------- | --------- | ------------- |
+| `/health`              | 32,000-39,000   | 26-31         | 61        | 8,880         |
+| `/medicament/id/{cis}` | 357,000-383,000 | 2.6-2.8       | 37        | 7,224         |
+| `/medicament/{nom}`    | 280,000-350,000 | 2.8-3.6       | 15,893    | 1,043,294     |
+| `/database/{page}`     | 36,000-55,000   | 18-28         | 43        | 36,255        |
+| `/database`            | 20-30           | 40,000-50,000 | 52        | 80,176,333    |
 
 #### Tests de charge (production)
 
@@ -603,6 +621,7 @@ hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504
 ### 🧠 Architecture Mémoire & Data Structures
 
 **Memory Layout optimisé** :
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Memory Layout                           │
@@ -617,6 +636,7 @@ hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504
 ```
 
 **DataContainer - Structure atomique** :
+
 ```go
 type DataContainer struct {
     medicaments    atomic.Value // []entities.Medicament
@@ -629,12 +649,14 @@ type DataContainer struct {
 ```
 
 **Rate Limiting - Token Bucket** :
+
 - **Structure** : Map IP → Bucket avec `sync.RWMutex`
 - **Capacité** : 1000 tokens/IP, recharge 3 tokens/seconde
 - **Coûts variables** : 5-200 tokens par endpoint
 - **Cleanup** : Suppression automatique des buckets inactifs
 
 **Pipeline Concurrent** :
+
 - **Téléchargement** : 5 fichiers TSV BDPM en parallèle
 - **Parsing** : Chaque fichier dans sa propre goroutine
 - **Synchronisation** : Channels typés + WaitGroup
@@ -942,25 +964,25 @@ go test ./tests/ -run TestParsingTime -v
 
 ### 📊 Benchmarks Disponibles
 
-| Benchmark                   | Description                 | Commande                              |
-| --------------------------- | --------------------------- | ------------------------------------- |
-| `BenchmarkSummary`          | Rapport complet             | `go test ./tests/ -bench=BenchmarkSummary -v` |
-| `BenchmarkDatabase`         | Endpoint `/database`        | `go test ./tests/ -bench=BenchmarkDatabase` |
-| `BenchmarkDatabasePage`     | Endpoint `/database/{page}` | `go test ./tests/ -bench=BenchmarkDatabasePage` |
+| Benchmark                   | Description                 | Commande                                            |
+| --------------------------- | --------------------------- | --------------------------------------------------- |
+| `BenchmarkSummary`          | Rapport complet             | `go test ./tests/ -bench=BenchmarkSummary -v`       |
+| `BenchmarkDatabase`         | Endpoint `/database`        | `go test ./tests/ -bench=BenchmarkDatabase`         |
+| `BenchmarkDatabasePage`     | Endpoint `/database/{page}` | `go test ./tests/ -bench=BenchmarkDatabasePage`     |
 | `BenchmarkMedicamentSearch` | Recherche par nom           | `go test ./tests/ -bench=BenchmarkMedicamentSearch` |
-| `BenchmarkMedicamentByID`   | Recherche par CIS           | `go test ./tests/ -bench=BenchmarkMedicamentByID` |
+| `BenchmarkMedicamentByID`   | Recherche par CIS           | `go test ./tests/ -bench=BenchmarkMedicamentByID`   |
 | `BenchmarkGeneriquesSearch` | Génériques par libellé      | `go test ./tests/ -bench=BenchmarkGeneriquesSearch` |
-| `BenchmarkGeneriquesByID`   | Génériques par ID           | `go test ./tests/ -bench=BenchmarkGeneriquesByID` |
-| `BenchmarkHealth`           | Endpoint `/health`          | `go test ./tests/ -bench=BenchmarkHealth` |
+| `BenchmarkGeneriquesByID`   | Génériques par ID           | `go test ./tests/ -bench=BenchmarkGeneriquesByID`   |
+| `BenchmarkHealth`           | Endpoint `/health`          | `go test ./tests/ -bench=BenchmarkHealth`           |
 
 ### 🧪 Tests Spécialisés
 
-| Test                                    | Description                              | Commande                              |
-| --------------------------------------- | ---------------------------------------- | ------------------------------------- |
-| `TestDocumentationClaimsVerification`    | Vérification des claims documentation    | `go test ./tests/ -run TestDocumentationClaimsVerification -v` |
-| `TestParsingTime`                        | Performance parsing                     | `go test ./tests/ -run TestParsingTime -v` |
-| `TestIntegrationFullDataParsingPipeline` | Pipeline complet d'intégration          | `go test ./tests/ -run TestIntegrationFullDataParsingPipeline -v` |
-| `TestRealWorldConcurrentLoad`            | Test de charge réel                      | `go test ./tests/ -run TestRealWorldConcurrentLoad -v` |
+| Test                                     | Description                           | Commande                                                          |
+| ---------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `TestDocumentationClaimsVerification`    | Vérification des claims documentation | `go test ./tests/ -run TestDocumentationClaimsVerification -v`    |
+| `TestParsingTime`                        | Performance parsing                   | `go test ./tests/ -run TestParsingTime -v`                        |
+| `TestIntegrationFullDataParsingPipeline` | Pipeline complet d'intégration        | `go test ./tests/ -run TestIntegrationFullDataParsingPipeline -v` |
+| `TestRealWorldConcurrentLoad`            | Test de charge réel                   | `go test ./tests/ -run TestRealWorldConcurrentLoad -v`            |
 
 ### ⚙️ Configuration d'Environnement
 

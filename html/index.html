@@ -498,6 +498,7 @@
           >
             <nav>
               <a href="#introduction">Introduction</a>
+              <a href="#historique">Améliorations</a>
               <a href="#fonctions">Fonctions</a>
               <a href="#endpoints">API</a>
               <a href="#examples">Exemples</a>
@@ -526,9 +527,10 @@
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          API haute performance avec parsing concurrent en ~0.5s, 470K alg/380K real req/sec,
-          et 30-50MB RAM stable. Accès aux 15K+ médicaments français
-          avec mises à jour atomiques zero-downtime et cache intelligent.
+          API haute performance avec parsing concurrent en ~0.5s, 470K alg/380K
+          real req/sec, et 30-50MB RAM stable. Accès aux 15K+ médicaments
+          français avec mises à jour atomiques zero-downtime et cache
+          intelligent.
         </p>
         <div class="hero-stats">
           <div class="stat">
@@ -563,11 +565,12 @@
         <div class="intro-text">
           <p>
             Cette API transforme les 5 fichiers TSV de la Base de Données
-            Publique des Médicaments (BDPM) en une interface RESTful ultra-performante.
-            Parsing concurrent des sources en **~0.5 secondes** avec validation croisée et
-            structuration automatique via atomic operations pour garantir des
-            mises à jour zero-downtime. Architecture optimisée pour **380K req/sec**
-            avec seulement **30-50MB RAM** stable.
+            Publique des Médicaments (BDPM) en une interface RESTful
+            ultra-performante. Parsing concurrent des sources en **~0.5
+            secondes** avec validation croisée et structuration automatique via
+            atomic operations pour garantir des mises à jour zero-downtime.
+            Architecture optimisée pour **380K req/sec** avec seulement
+            **30-50MB RAM** stable.
           </p>
           <br />
           <p>
@@ -717,6 +720,60 @@ BASE_URL="https://medicaments-api.giygas.dev"
         </div>
       </section>
 
+      <section id="historique" class="section">
+        <h2>Historique</h2>
+        <div class="intro-text">
+          <p>
+            L'API évolue continuellement pour améliorer la qualité des données
+            et l'expérience des utilisateurs.
+          </p>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            Décembre 2025 - Amélioration de l'encodage des caractères
+          </h4>
+          <div style="color: var(--color-text-muted); line-height: 1.8">
+            <ul style="list-style: none; padding-left: 0">
+              <li
+                style="
+                  padding: 0.5rem 0;
+                  padding-left: 1.5rem;
+                  position: relative;
+                "
+              >
+                <span
+                  style="
+                    position: absolute;
+                    left: 0;
+                    color: var(--color-primary);
+                  "
+                  >•</span
+                >
+                <strong>Fix encodage des caractères</strong>:
+                <p>
+                  &emsp;Changement de charset de <code>Windows1252</code> vers
+
+                  <code>ISO8859-1</code> dans le downloader
+                </p>
+                <p>
+                  &emsp;Corrige les problèmes d'encodage pour les médicaments
+                  avec caractères spéciaux
+                </p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section id="documentation" class="section">
         <h2>Documentation & Code Source</h2>
         <div class="intro-text">
@@ -794,10 +851,11 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔄</div>
             <h3>Mises à jour atomiques ultra-rapides</h3>
             <p>
-              Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes** avec atomic.Value pour
-              zero-downtime updates. Mises à jour automatiques 2x/jour (6h/18h)
-              sans interruption de service. Architecture basée sur 6 interfaces avec dependency
-              injection et 70%+ de couverture de tests.
+              Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes**
+              avec atomic.Value pour zero-downtime updates. Mises à jour
+              automatiques 2x/jour (6h/18h) sans interruption de service.
+              Architecture basée sur 6 interfaces avec dependency injection et
+              70%+ de couverture de tests.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -840,9 +898,10 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🚀</div>
             <h3>Performance exceptionnelle</h3>
             <p>
-              Architecture optimisée pour **391K requêtes/seconde** sur les endpoints critiques.
-              Lookup O(1) en ~2.6µs via maps mémoire, compression gzip 80%, et
-              cache HTTP intelligent avec 90%+ hit ratio. Tests complets avec 70%+ couverture.
+              Architecture optimisée pour **391K requêtes/seconde** sur les
+              endpoints critiques. Lookup O(1) en ~2.6µs via maps mémoire,
+              compression gzip 80%, et cache HTTP intelligent avec 90%+ hit
+              ratio. Tests complets avec 70%+ couverture.
             </p>
             <div style="margin-top: 1rem">
               <code
