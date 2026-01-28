@@ -18,7 +18,7 @@ func TestParsingTime(t *testing.T) {
 
 	start := time.Now()
 
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}

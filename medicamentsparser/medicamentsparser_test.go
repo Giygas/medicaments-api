@@ -22,7 +22,7 @@ func TestParseAllMedicaments(t *testing.T) {
 	// Since downloadAndParseAll is private, we test with existing files
 	// In a real scenario, ensure test files are present
 	fmt.Println("Calling ParseAllMedicaments...")
-	medicaments, err := ParseAllMedicaments()
+	medicaments, _, _, err := ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Error parsing Medicaments: %v", err)
 	}
@@ -113,21 +113,22 @@ func TestFileReadingErrors(t *testing.T) {
 
 // Helper functions for testing
 func createTestFiles(t *testing.T) {
+	t.Helper()
 	// Create minimal test JSON files
 	testData := `[{"cis":1,"denomination":"Test","formePharmaceutique":"Tablet","voiesAdministration":["Oral"],"statusAutorisation":"Autorisé","typeProcedure":"Nationale","etatComercialisation":"Commercialisé","dateAMM":"2020-01-01","titulaire":"Test Lab","surveillanceRenforcee":"Non","composition":[],"generiques":[],"presentation":[],"conditions":[]}]`
 
-	os.MkdirAll("src", os.ModePerm)
-	os.WriteFile("src/Specialites.json", []byte(testData), 0644)
-	os.WriteFile("src/Compositions.json", []byte("[]"), 0644)
-	os.WriteFile("src/Conditions.json", []byte("[]"), 0644)
-	os.WriteFile("src/Presentations.json", []byte("[]"), 0644)
-	os.WriteFile("src/Generiques.json", []byte(`{"100":[1]}`), 0644)
+	_ = os.MkdirAll("src", os.ModePerm)
+	_ = os.WriteFile("src/Specialites.json", []byte(testData), 0644)
+	_ = os.WriteFile("src/Compositions.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Conditions.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Presentations.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Generiques.json", []byte(`{"100":[1]}`), 0644)
 }
 
 func createGeneriquesTestFiles(t *testing.T) {
 	// Create test files for generiques parsing
-	os.MkdirAll("files", os.ModePerm)
-	os.MkdirAll("src", os.ModePerm)
+	_ = os.MkdirAll("files", os.ModePerm)
+	_ = os.MkdirAll("src", os.ModePerm)
 
 	// Create Generiques.txt with correct format
 	// Format expected: data lines with 5 columns: group_id\tlibelle\tcis\ttype\tgroup_id
@@ -145,8 +146,9 @@ func createGeneriquesTestFiles(t *testing.T) {
 }
 
 func cleanupTestFiles(t *testing.T) {
-	os.RemoveAll("src")
-	os.RemoveAll("files")
+	t.Helper()
+	_ = os.RemoveAll("src")
+	_ = os.RemoveAll("files")
 }
 
 func TestDownloaderErrorCases(t *testing.T) {
@@ -158,16 +160,16 @@ func TestDownloaderErrorCases(t *testing.T) {
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
 	// Create temp directory for testing
 	tempDir, err := os.MkdirTemp("", "downloader-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
-	os.Chdir(tempDir)
+	_ = os.Chdir(tempDir)
 
 	// Try to download files that don't exist - this should handle errors gracefully
 	// The function should not panic but return error or handle gracefully
@@ -252,14 +254,14 @@ func TestTSVConverterErrorCases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
-	os.Chdir(tempDir)
-	os.MkdirAll("files", 0755)
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
 
 	// Create test Generiques.txt file
 	testData := `100	Group1	1	0	100
@@ -293,17 +295,17 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
 	// Create temporary directory for test files
 	tempDir, err := os.MkdirTemp("", "generiques-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
-	os.Chdir(tempDir)
-	os.MkdirAll("files", 0755)
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
 
 	// Create test TSV file
 	testData := `group_id	libelle	cis	type	group_id
@@ -387,7 +389,7 @@ func TestParserInterface(t *testing.T) {
 
 	// Test ParseAllMedicaments method
 	// This should work the same as the package-level function
-	parsedMedicaments, err := parser.ParseAllMedicaments()
+	parsedMedicaments, _, _, err := parser.ParseAllMedicaments()
 	if err != nil {
 		t.Logf("ParseAllMedicaments failed (expected in test environment): %v", err)
 		// This is expected to fail in test environment without real data
@@ -436,7 +438,7 @@ func TestConcurrentParsing(t *testing.T) {
 			}()
 
 			// Try to parse - this may fail due to missing files, but shouldn't panic
-			_, err := ParseAllMedicaments()
+			_, _, _, err := ParseAllMedicaments()
 			if err != nil {
 				t.Logf("Goroutine %d: ParseAllMedicaments failed (expected): %v", id, err)
 			}
@@ -449,4 +451,135 @@ func TestConcurrentParsing(t *testing.T) {
 	}
 
 	fmt.Println("Concurrent parsing test completed")
+}
+
+// TestCheckDuplicateCIP tests the duplicate CIP detection function
+func TestCheckDuplicateCIP(t *testing.T) {
+	fmt.Println("Testing checkDuplicateCIP function...")
+
+	testCases := []struct {
+		name             string
+		presentations    []entities.Presentation
+		expectError      bool
+		expectedCIP7Dup  int
+		expectedCIP13Dup int
+	}{
+		{
+			name: "No duplicates",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+				{Cis: 2, Cip7: 2345678, Cip13: 3400923456789},
+				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
+			},
+			expectError:      false,
+			expectedCIP7Dup:  0,
+			expectedCIP13Dup: 0,
+		},
+		{
+			name: "Duplicate CIP7 values",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789}, // Duplicate CIP7
+				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
+			},
+			expectError:      true,
+			expectedCIP7Dup:  1,
+			expectedCIP13Dup: 0,
+		},
+		{
+			name: "Duplicate CIP13 values",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+				{Cis: 2, Cip7: 2345678, Cip13: 3400912345678}, // Duplicate CIP13
+				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
+			},
+			expectError:      true,
+			expectedCIP7Dup:  0,
+			expectedCIP13Dup: 1,
+		},
+		{
+			name: "Multiple duplicates of both types",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789}, // Duplicate CIP7
+				{Cis: 3, Cip7: 2345678, Cip13: 3400923456789}, // Duplicate CIP13
+				{Cis: 4, Cip7: 3456789, Cip13: 3400934567890},
+				{Cis: 5, Cip7: 3456789, Cip13: 3400912345678}, // Duplicate both
+			},
+			expectError:      true,
+			expectedCIP7Dup:  2,
+			expectedCIP13Dup: 2,
+		},
+		{
+			name:             "Empty slice",
+			presentations:    []entities.Presentation{},
+			expectError:      false,
+			expectedCIP7Dup:  0,
+			expectedCIP13Dup: 0,
+		},
+		{
+			name: "Single presentation",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+			},
+			expectError:      false,
+			expectedCIP7Dup:  0,
+			expectedCIP13Dup: 0,
+		},
+		{
+			name: "Three duplicates of same CIP",
+			presentations: []entities.Presentation{
+				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789},
+				{Cis: 3, Cip7: 1234567, Cip13: 3400934567890}, // Third duplicate
+			},
+			expectError:      true,
+			expectedCIP7Dup:  1,
+			expectedCIP13Dup: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkDuplicateCIP(tc.presentations)
+
+			hasError := err != nil
+			if hasError != tc.expectError {
+				t.Errorf("Expected error: %v, got error: %v", tc.expectError, err)
+			}
+
+			if hasError && tc.expectedCIP7Dup > 0 {
+				if !containsString(err.Error(), fmt.Sprintf("%d duplicate CIP7", tc.expectedCIP7Dup)) {
+					t.Errorf("Expected error to mention %d duplicate CIP7, got: %v", tc.expectedCIP7Dup, err)
+				}
+			}
+
+			if hasError && tc.expectedCIP13Dup > 0 {
+				if !containsString(err.Error(), fmt.Sprintf("%d duplicate CIP13", tc.expectedCIP13Dup)) {
+					t.Errorf("Expected error to mention %d duplicate CIP13, got: %v", tc.expectedCIP13Dup, err)
+				}
+			}
+
+			// If no error expected and got one, fail the test
+			if !tc.expectError && err != nil {
+				t.Errorf("Expected no error, got: %v", err)
+			}
+		})
+	}
+
+	fmt.Println("checkDuplicateCIP tests completed")
+}
+
+// Helper function to check if a string contains a substring
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsSubstring(s, substr))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

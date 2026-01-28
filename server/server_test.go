@@ -19,11 +19,11 @@ import (
 // MockHealthChecker implements interfaces.HealthChecker for testing
 type MockHealthChecker struct {
 	status  string
-	details map[string]interface{}
+	details map[string]any
 	err     error
 }
 
-func (m *MockHealthChecker) HealthCheck() (string, map[string]interface{}, error) {
+func (m *MockHealthChecker) HealthCheck() (string, map[string]any, error) {
 	return m.status, m.details, m.err
 }
 
@@ -167,7 +167,7 @@ func TestSetupMiddleware(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test"))
+		_, _ = w.Write([]byte("test"))
 	})
 
 	server.router.ServeHTTP(rr, req)
@@ -226,7 +226,6 @@ func TestSetupRoutes(t *testing.T) {
 	// Check API routes
 	for _, route := range expectedRoutes {
 		// Chi doesn't expose route listing directly, so we'll test by making requests
-		req := httptest.NewRequest("GET", route, nil)
 		rr := httptest.NewRecorder()
 
 		// Replace path parameters with actual values for testing
@@ -236,7 +235,7 @@ func TestSetupRoutes(t *testing.T) {
 		testRoute = strings.ReplaceAll(testRoute, "{libelle}", "test")
 		testRoute = strings.ReplaceAll(testRoute, "{groupId}", "1")
 
-		req = httptest.NewRequest("GET", testRoute, nil)
+		req := httptest.NewRequest("GET", testRoute, nil)
 		req.RemoteAddr = "127.0.0.1:1234" // Set localhost RemoteAddr to pass BlockDirectAccessMiddleware
 		router.ServeHTTP(rr, req)
 
@@ -300,7 +299,7 @@ func TestServerLifecycle(t *testing.T) {
 	// Test that server is running by making a request
 	resp, err := http.Get("http://localhost:" + server.server.Addr[strings.LastIndex(server.server.Addr, ":")+1:] + "/health")
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	// Test graceful shutdown
@@ -350,7 +349,8 @@ func TestGetHealthData(t *testing.T) {
 	}
 	dc.UpdateData(testMedicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{1: testMedicaments[0], 2: testMedicaments[1]},
-		map[int]entities.Generique{})
+		map[int]entities.Generique{},
+		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	server := NewServer(cfg, dc)
 

@@ -17,7 +17,7 @@ func NewMedicamentsParser() *MedicamentsParser {
 }
 
 // ParseAllMedicaments implements the Parser interface
-func (p *MedicamentsParser) ParseAllMedicaments() ([]entities.Medicament, error) {
+func (p *MedicamentsParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 	return ParseAllMedicaments()
 }
 

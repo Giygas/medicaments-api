@@ -70,7 +70,9 @@ func (rl *RotatingLogger) rotateIfNeeded() error {
 
 	// Close current file if open
 	if rl.currentFile != nil {
-		rl.currentFile.Close()
+		if err := rl.currentFile.Close(); err != nil {
+			slog.Warn("Failed to close current log file", "error", err)
+		}
 	}
 
 	// Update current week - if currentWeek is not set, use newWeek
@@ -121,7 +123,9 @@ func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
 
 				// Close current file and create new one
 				if rl.currentFile != nil {
-					rl.currentFile.Close()
+					if err := rl.currentFile.Close(); err != nil {
+						slog.Warn("Failed to close current log file before rotation", "error", err)
+					}
 				}
 
 				// Create new log file with size suffix
@@ -268,7 +272,9 @@ func SetupLoggerWithRetention(logDir string, retentionWeeks int) *slog.Logger {
 				// Context cancelled, exit gracefully
 				return
 			case <-ticker.C:
-				rotatingLogger.cleanupOldLogs()
+				if err := rotatingLogger.cleanupOldLogs(); err != nil {
+					slog.Warn("Failed to cleanup old logs during rotation", "error", err)
+				}
 			}
 		}
 	}()

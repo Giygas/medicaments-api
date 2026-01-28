@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,7 +19,7 @@ func TestRotatingLogger(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create rotating logger with 1 week retention
 	rl := NewRotatingLogger(tempDir, 1)
@@ -32,7 +33,7 @@ func TestRotatingLogger(t *testing.T) {
 	// Check that current file is created
 	currentWeek := getWeekKey(time.Now())
 	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
-	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
+	if _, err = os.Stat(expectedFileName); os.IsNotExist(err) {
 		t.Errorf("Expected log file %s was not created", expectedFileName)
 	}
 
@@ -84,7 +85,7 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Test creating two different rotating loggers for different weeks
 	rl1 := NewRotatingLogger(tempDir, 1)
@@ -127,8 +128,8 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 		t.Errorf("Expected week 41 log file %s was not created", week41File)
 	}
 
-	rl1.Close()
-	rl2.Close()
+	_ = rl1.Close()
+	_ = rl2.Close()
 }
 
 func TestSetupLoggerWithRetention(t *testing.T) {
@@ -137,7 +138,7 @@ func TestSetupLoggerWithRetention(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Test setup with custom retention
 	logger := SetupLoggerWithRetention(tempDir, 2)
@@ -162,7 +163,7 @@ func TestGlobalLoggingService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Save original service
 	originalService := DefaultLoggingService
@@ -196,7 +197,7 @@ func TestCleanupOldLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	rl := NewRotatingLogger(tempDir, 1) // 1 week retention
 
@@ -209,8 +210,8 @@ func TestCleanupOldLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create old log file: %v", err)
 	}
-	oldLogFile.WriteString("Old log content")
-	oldLogFile.Close()
+	_, _ = oldLogFile.WriteString("Old log content")
+	_ = oldLogFile.Close()
 
 	// Set modification time to 3 weeks ago
 	threeWeeksAgo := time.Now().AddDate(0, 0, -21)
@@ -224,8 +225,8 @@ func TestCleanupOldLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create new log file: %v", err)
 	}
-	newLogFile.WriteString("New log content")
-	newLogFile.Close()
+	_, _ = newLogFile.WriteString("New log content")
+	_ = newLogFile.Close()
 
 	// Force cleanup by resetting lastCleanup time
 	rl.lastCleanup = time.Now().Add(-25 * time.Hour)
@@ -253,7 +254,7 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create rotating logger with very small size limit (100 bytes)
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 100)
@@ -332,10 +333,10 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	rl := NewRotatingLogger(tempDir, 1)
-	defer rl.Close()
+	defer func() { _ = rl.Close() }()
 
 	// Initialize rotation
 	err = rl.rotateIfNeeded()
@@ -353,7 +354,7 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 		go func(id int) {
 			for j := 0; j < numWrites; j++ {
 				message := fmt.Sprintf("Goroutine %d, Write %d", id, j)
-				_, err := rl.Write([]byte(message))
+				_, err = rl.Write([]byte(message))
 				if err != nil {
 					t.Errorf("Concurrent write failed: %v", err)
 				}
@@ -386,10 +387,10 @@ func TestRotatingLoggerEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	rl := NewRotatingLogger(tempDir, 1)
-	defer rl.Close()
+	defer func() { _ = rl.Close() }()
 
 	// Test writing empty message
 	_, err = rl.Write([]byte(""))
@@ -435,7 +436,7 @@ func TestSetupLoggerFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Test SetupLogger function (currently 0% coverage)
 	logger := SetupLogger(tempDir)
@@ -453,7 +454,7 @@ func TestLoggingServiceMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Save original service
 	originalService := DefaultLoggingService
@@ -484,7 +485,7 @@ func TestInitLoggerFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Save original service
 	originalService := DefaultLoggingService
@@ -514,11 +515,11 @@ func TestMultiHandlerMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create a rotating logger for testing
 	rotatingLogger := NewRotatingLogger(tempDir, 1)
-	defer rotatingLogger.Close()
+	defer func() { _ = rotatingLogger.Close() }()
 
 	// Create multiHandler directly to test its methods
 	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
@@ -533,14 +534,14 @@ func TestMultiHandlerMethods(t *testing.T) {
 	}
 
 	// Test Enabled method (currently 75% coverage)
-	if !multi.Enabled(nil, slog.LevelInfo) {
+	if !multi.Enabled(context.Background(), slog.LevelInfo) {
 		t.Error("Expected Enabled() to return true for info level")
 	}
 
 	// Test Handle method (currently 80% coverage)
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Test message", 0)
 
-	err = multi.Handle(nil, record)
+	err = multi.Handle(context.Background(), record)
 	if err != nil {
 		t.Errorf("Handle method failed: %v", err)
 	}
@@ -565,7 +566,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create a logger for testing
 	logger := SetupLoggerWithRetention(tempDir, 2)
@@ -573,7 +574,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	// Create a simple handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello, World!"))
+		_, _ = w.Write([]byte("Hello, World!"))
 	})
 
 	// Wrap with logging middleware

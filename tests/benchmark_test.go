@@ -28,8 +28,8 @@ func createBenchmarkData() *data.DataContainer {
 	benchmarkOnce.Do(func() {
 		fmt.Println("Loading full medicaments database for benchmarks...")
 
-		// Parse the full medicaments database for realistic performance testing
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		// Parse of full medicaments database for realistic performance testing
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments for benchmarks: %v", err))
 		}
@@ -47,7 +47,8 @@ func createBenchmarkData() *data.DataContainer {
 		}
 
 		benchmarkContainer = data.NewDataContainer()
-		benchmarkContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+		benchmarkContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+			presentationsCIP7Map, presentationsCIP13Map)
 
 		fmt.Printf("Benchmark data loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})
@@ -58,7 +59,8 @@ func createBenchmarkData() *data.DataContainer {
 // Benchmark database endpoint (full data)
 func BenchmarkDatabase(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.ServeAllMedicaments(container)
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -66,7 +68,7 @@ func BenchmarkDatabase(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/database", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+		httpHandler.ServeAllMedicaments(w, req)
 	}
 }
 
@@ -74,14 +76,14 @@ func BenchmarkDatabase(b *testing.B) {
 func BenchmarkDatabasePage(b *testing.B) {
 	container := createBenchmarkData()
 	validator := validation.NewDataValidator()
-	handler := handlers.NewHTTPHandler(container, validator)
+	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/database/1", nil)
-		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Accept-Encoding", "gzip")
 		w := httptest.NewRecorder()
 
 		// Create chi router context to properly extract URL parameters
@@ -89,7 +91,10 @@ func BenchmarkDatabasePage(b *testing.B) {
 		rctx.URLParams.Add("pageNumber", "1")
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-		handler.ServePagedMedicaments(w, req)
+		httpHandler.ServePagedMedicaments(w, req)
+
+		// Simulate response processing time
+		_ = w.Body.Len()
 	}
 }
 
@@ -198,15 +203,17 @@ func BenchmarkHealth(b *testing.B) {
 func BenchmarkFullRouter(b *testing.B) {
 	container := createBenchmarkData()
 	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	router := chi.NewRouter()
-	router.Get("/database", handlers.ServeAllMedicaments(container))
-	router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(container))
-	router.Get("/medicament/{element}", handlers.FindMedicament(container, validator))
-	router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(container))
-	router.Get("/generiques/{libelle}", handlers.FindGeneriques(container, validator))
-	router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(container))
-	router.Get("/health", handlers.HealthCheck(container))
+	router.Get("/database", httpHandler.ServeAllMedicaments)
+	router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
+	router.Get("/medicament/{element}", httpHandler.FindMedicament)
+	router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
+	router.Get("/medicament/cip/{cip}", httpHandler.FindMedicamentByCIP)
+	router.Get("/generiques/{libelle}", httpHandler.FindGeneriques)
+	router.Get("/generiques/group/{groupId}", httpHandler.FindGeneriquesByGroupID)
+	router.Get("/health", httpHandler.HealthCheck)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -221,7 +228,8 @@ func BenchmarkFullRouter(b *testing.B) {
 // Benchmark concurrent requests
 func BenchmarkConcurrentRequests(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.FindMedicamentByID(container)
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -230,7 +238,7 @@ func BenchmarkConcurrentRequests(b *testing.B) {
 		for pb.Next() {
 			req := httptest.NewRequest("GET", "/medicament/id/500", nil)
 			w := httptest.NewRecorder()
-			handler(w, req)
+			httpHandler.FindMedicamentByID(w, req)
 		}
 	})
 }
@@ -238,7 +246,8 @@ func BenchmarkConcurrentRequests(b *testing.B) {
 // Memory allocation benchmark
 func BenchmarkMemoryUsage(b *testing.B) {
 	container := createBenchmarkData()
-	handler := handlers.ServeAllMedicaments(container)
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -247,7 +256,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/database", nil)
 		w := httptest.NewRecorder()
-		handler(w, req)
+		httpHandler.ServeAllMedicaments(w, req)
 		responses = append(responses, w.Body.Bytes())
 	}
 
@@ -379,7 +388,7 @@ func BenchmarkSummary(b *testing.B) {
 		b.ResetTimer()
 		start := time.Now()
 
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			b.Fatalf("Failed to parse: %v", err)
 		}

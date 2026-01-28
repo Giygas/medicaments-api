@@ -23,10 +23,63 @@ func validateMedicamenti(m *entities.Medicament) error {
 	return nil
 }
 
-func ParseAllMedicaments() ([]entities.Medicament, error) {
+func checkDuplicateCIP(presentations []entities.Presentation) error {
+	// Check for duplicate CIP7 and CIP13 values before creating the maps
+	cip7Count := make(map[int]int)
+	cip13Count := make(map[int]int)
+
+	for _, pres := range presentations {
+		cip7Count[pres.Cip7]++
+		cip13Count[pres.Cip13]++
+	}
+
+	// Find duplicate CIP7 values
+	var cip7Duplicates []int
+	for cip, count := range cip7Count {
+		if count > 1 {
+			cip7Duplicates = append(cip7Duplicates, cip)
+		}
+	}
+
+	// Find duplicate CIP13 values
+	var cip13Duplicates []int
+	for cip, count := range cip13Count {
+		if count > 1 {
+			cip13Duplicates = append(cip13Duplicates, cip)
+		}
+	}
+
+	// Log duplicates as errors
+	if len(cip7Duplicates) > 0 {
+		logging.Error("Duplicate CIP7 values detected",
+			"count", len(cip7Duplicates),
+			"duplicates", cip7Duplicates,
+		)
+	}
+
+	if len(cip13Duplicates) > 0 {
+		logging.Error("Duplicate CIP13 values detected",
+			"count", len(cip13Duplicates),
+			"duplicates", cip13Duplicates,
+		)
+	}
+
+	// Return error if any duplicates found
+	if len(cip7Duplicates) > 0 || len(cip13Duplicates) > 0 {
+		return fmt.Errorf("found %d duplicate CIP7 and %d duplicate CIP13 values",
+			len(cip7Duplicates), len(cip13Duplicates))
+	}
+
+	return nil
+}
+
+func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 
 	// Download the neccesary files from https://base-donnees-publique.medicaments.gouv.fr/telechargement
-	downloadAndParseAll()
+	if err := downloadAndParseAll(); err != nil {
+		logging.Error("Failed to download and parse files", "error", err)
+		return nil, nil, nil, fmt.Errorf("failed to download files: %w", err)
+	}
 
 	//Make all the json files concurrently
 	var wg sync.WaitGroup
@@ -124,7 +177,7 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	// Check for any errors that occurred during concurrent processing
 	select {
 	case err := <-errorChan:
-		return nil, fmt.Errorf("error during data parsing: %w", err)
+		return nil, nil, nil, fmt.Errorf("error during data parsing: %w", err)
 	default:
 		// No errors, continue processing
 	}
@@ -155,11 +208,21 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	generiquesMap := make(map[int][]entities.Generique)
 	for _, gen := range generiques {
 		generiquesMap[gen.Cis] = append(generiquesMap[gen.Cis], gen)
+
+	}
+
+	// Check for duplicate CIP values before building maps
+	if err := checkDuplicateCIP(presentations); err != nil {
+		logging.Warn("Duplicate CIP values detected, last occurrence will be used", "error", err)
 	}
 
 	presentationsMap := make(map[int][]entities.Presentation)
+	presentationsCIP7Map := make(map[int]entities.Presentation)
+	presentationsCIP13Map := make(map[int]entities.Presentation)
 	for _, pres := range presentations {
 		presentationsMap[pres.Cis] = append(presentationsMap[pres.Cis], pres)
+		presentationsCIP7Map[pres.Cip7] = pres
+		presentationsCIP13Map[pres.Cip13] = pres
 	}
 
 	conditionsMap := make(map[int][]string)
@@ -217,11 +280,5 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 
 	logging.Info("All medicaments parsed successfully")
 
-	conditions = nil
-	presentations = nil
-	specialites = nil
-	generiques = nil
-	compositions = nil
-
-	return medicamentsSlice, nil
+	return medicamentsSlice, presentationsCIP7Map, presentationsCIP13Map, nil
 }

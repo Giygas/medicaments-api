@@ -59,6 +59,8 @@ func TestDocumentationClaimsVerification(t *testing.T) {
 func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, validator interfaces.DataValidator) {
 	fmt.Println("\n--- ALGORITHMIC PERFORMANCE VERIFICATION ---")
 
+	httpHandler := handlers.NewHTTPHandler(container, validator)
+
 	claims := []struct {
 		name       string
 		handler    http.HandlerFunc
@@ -69,7 +71,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 	}{
 		{
 			name:    "/medicament/id/{cis}",
-			handler: handlers.FindMedicamentByID(container),
+			handler: httpHandler.FindMedicamentByID,
 			setupReq: func() *http.Request {
 				req := httptest.NewRequest("GET", "/medicament/id/500", nil)
 				rctx := chi.NewRouteContext()
@@ -82,7 +84,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 		},
 		{
 			name:    "/generiques/group/{id}",
-			handler: handlers.FindGeneriquesByGroupID(container),
+			handler: httpHandler.FindGeneriquesByGroupID,
 			setupReq: func() *http.Request {
 				req := httptest.NewRequest("GET", "/generiques/group/50", nil)
 				rctx := chi.NewRouteContext()
@@ -95,7 +97,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 		},
 		{
 			name:    "/database/{page}",
-			handler: handlers.ServePagedMedicaments(container),
+			handler: httpHandler.ServePagedMedicaments,
 			setupReq: func() *http.Request {
 				req := httptest.NewRequest("GET", "/database/1", nil)
 				rctx := chi.NewRouteContext()
@@ -108,7 +110,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 		},
 		{
 			name:    "/health",
-			handler: handlers.HealthCheck(container),
+			handler: httpHandler.HealthCheck,
 			setupReq: func() *http.Request {
 				return httptest.NewRequest("GET", "/health", nil)
 			},
@@ -273,6 +275,7 @@ func testHTTPPerformance(t *testing.T, container *data.DataContainer, validator 
 }
 
 func testMemoryUsage(t *testing.T, container *data.DataContainer) {
+	t.Helper()
 	fmt.Println("\n--- MEMORY USAGE VERIFICATION ---")
 
 	// Measure memory usage
@@ -317,7 +320,7 @@ func testParsingPerformance(t *testing.T) {
 	start := time.Now()
 
 	// Parse full medicaments database
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -352,6 +355,7 @@ func testParsingPerformance(t *testing.T) {
 }
 
 func testTestCoverage(t *testing.T) {
+	t.Helper()
 	fmt.Println("\n--- TEST COVERAGE VERIFICATION ---")
 
 	// Test coverage verification
@@ -382,8 +386,8 @@ func createFullTestData() *data.DataContainer {
 	once.Do(func() {
 		fmt.Println("Loading full medicaments database for verification...")
 
-		// Parse the full medicaments database
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		// Parse of full medicaments database
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}
@@ -401,7 +405,8 @@ func createFullTestData() *data.DataContainer {
 		}
 
 		container = data.NewDataContainer()
-		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+			presentationsCIP7Map, presentationsCIP13Map)
 
 		fmt.Printf("Loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})

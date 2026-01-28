@@ -8,9 +8,6 @@ import (
 	"github.com/giygas/medicaments-api/logging"
 )
 
-// Minimum response size to consider compression (1KB)
-const compressionThreshold = 1024
-
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
@@ -28,6 +25,8 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 	}
 
 	// Error responses are typically small, so don't compress them
-	w.Write(jsonResponse)
+	if _, err := w.Write(jsonResponse); err != nil {
+		logging.Error("Failed to write error response", "error", err)
+	}
 	logging.Debug("Sent error response", "size", len(jsonResponse), "compressed", false)
 }

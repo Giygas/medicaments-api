@@ -1,6 +1,7 @@
 package health
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -9,11 +10,15 @@ import (
 
 // MockDataStore for testing
 type MockHealthDataStore struct {
-	medicaments []entities.Medicament
-	generiques  []entities.GeneriqueList
-	lastUpdated time.Time
-	isUpdating  bool
-	shouldFail  bool
+	medicaments           []entities.Medicament
+	generiques            []entities.GeneriqueList
+	medicamentsMap        map[int]entities.Medicament
+	generiquesMap         map[int]entities.Generique
+	presentationsCIP7Map  map[int]entities.Presentation
+	presentationsCIP13Map map[int]entities.Presentation
+	lastUpdated           time.Time
+	isUpdating            bool
+	shouldFail            bool
 }
 
 func (m *MockHealthDataStore) GetMedicaments() []entities.Medicament {
@@ -38,6 +43,14 @@ func (m *MockHealthDataStore) GetGeneriquesMap() map[int]entities.Generique {
 	return make(map[int]entities.Generique)
 }
 
+func (m *MockHealthDataStore) GetPresentationsCIP7Map() map[int]entities.Presentation {
+	return m.presentationsCIP7Map
+}
+
+func (m *MockHealthDataStore) GetPresentationsCIP13Map() map[int]entities.Presentation {
+	return m.presentationsCIP13Map
+}
+
 func (m *MockHealthDataStore) GetLastUpdated() time.Time {
 	return m.lastUpdated
 }
@@ -46,7 +59,7 @@ func (m *MockHealthDataStore) IsUpdating() bool {
 	return m.isUpdating
 }
 
-func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique) {
+func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique, presentionsCIP7Map map[int]entities.Presentation, presentionsCIP13Map map[int]entities.Presentation) {
 	// Not used in health tests
 }
 
@@ -124,7 +137,7 @@ func TestHealthCheck_Healthy(t *testing.T) {
 	}
 
 	// Check data section
-	data := details["data"].(map[string]interface{})
+	data := details["data"].(map[string]any)
 	if data["medicaments"] != 2 {
 		t.Errorf("Expected 2 medicaments, got %v", data["medicaments"])
 	}
@@ -138,7 +151,7 @@ func TestHealthCheck_Healthy(t *testing.T) {
 	}
 
 	// Check system section
-	system := details["system"].(map[string]interface{})
+	system := details["system"].(map[string]any)
 	if system["goroutines"] == nil {
 		t.Error("System should contain goroutines count")
 	}
@@ -233,7 +246,7 @@ func TestHealthCheck_Updating(t *testing.T) {
 	}
 
 	// Check is_updating flag
-	data := details["data"].(map[string]interface{})
+	data := details["data"].(map[string]any)
 	if data["is_updating"] != true {
 		t.Errorf("Expected is_updating true, got %v", data["is_updating"])
 	}
@@ -282,13 +295,7 @@ func TestCalculateNextUpdate_Between6AMAnd6PM(t *testing.T) {
 	// Next update should be one of these times depending on current time
 	validTimes := []time.Time{sixAM, sixPM, tomorrowSixAM}
 
-	valid := false
-	for _, validTime := range validTimes {
-		if nextUpdate.Equal(validTime) {
-			valid = true
-			break
-		}
-	}
+	valid := slices.ContainsFunc(validTimes, nextUpdate.Equal)
 
 	if !valid {
 		t.Errorf("Next update time %v is not valid (expected 6AM today, 6PM today, or 6AM tomorrow)", nextUpdate)
@@ -335,8 +342,8 @@ func TestHealthCheck_MemoryStats(t *testing.T) {
 	}
 
 	// Check memory stats
-	system := details["system"].(map[string]interface{})
-	memory := system["memory"].(map[string]interface{})
+	system := details["system"].(map[string]any)
+	memory := system["memory"].(map[string]any)
 
 	// Check required memory fields
 	requiredFields := []string{"alloc_mb", "total_alloc_mb", "sys_mb", "num_gc"}
@@ -353,8 +360,8 @@ func TestHealthCheck_MemoryStats(t *testing.T) {
 	}
 
 	numGC := memory["num_gc"].(uint32)
-	if numGC < 0 {
-		t.Error("NumGC should be non-negative")
+	if numGC > 100000 {
+		t.Logf("High GC count detected: %d (may indicate memory pressure)", numGC)
 	}
 }
 
@@ -378,7 +385,7 @@ func TestHealthCheck_GoroutineCount(t *testing.T) {
 	}
 
 	// Check goroutine count
-	system := details["system"].(map[string]interface{})
+	system := details["system"].(map[string]any)
 	goroutines := system["goroutines"].(int)
 
 	if goroutines <= 0 {
@@ -406,7 +413,7 @@ func TestHealthCheck_NextUpdateField(t *testing.T) {
 	}
 
 	// Check next_update field
-	data := details["data"].(map[string]interface{})
+	data := details["data"].(map[string]any)
 	nextUpdate := data["next_update"].(string)
 
 	if nextUpdate == "" {
@@ -473,7 +480,10 @@ func BenchmarkHealthCheck(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		healthChecker.HealthCheck()
+		_, _, err := healthChecker.HealthCheck()
+		if err != nil {
+			b.Logf("HealthCheck failed: %v", err)
+		}
 	}
 }
 

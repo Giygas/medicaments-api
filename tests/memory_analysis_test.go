@@ -19,7 +19,7 @@ func TestActualMemoryUsage(t *testing.T) {
 	runtime.ReadMemStats(&baselineMem)
 
 	// Load the full dataset
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -35,7 +35,8 @@ func TestActualMemoryUsage(t *testing.T) {
 	}
 
 	container := data.NewDataContainer()
-	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	// Get memory after loading data
 	var afterLoadMem runtime.MemStats

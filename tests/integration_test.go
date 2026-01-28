@@ -17,6 +17,7 @@ import (
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 )
 
 // TestIntegrationFullDataParsingPipeline tests the complete data parsing pipeline
@@ -36,9 +37,17 @@ func TestIntegrationFullDataParsingPipeline(t *testing.T) {
 	startTime := time.Now()
 
 	// Execute the full parsing pipeline
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
+	}
+
+	// Verify presentation maps are populated
+	if len(presentationsCIP7Map) == 0 {
+		t.Error("CIP7 presentation map should not be empty")
+	}
+	if len(presentationsCIP13Map) == 0 {
+		t.Error("CIP13 presentation map should not be empty")
 	}
 
 	// Verify parsing completed within reasonable time (should be under 5 minutes)
@@ -95,7 +104,7 @@ func TestIntegrationConcurrentUpdates(t *testing.T) {
 	defer cleanupTestEnvironment(t)
 
 	// First parse
-	medicaments1, err := medicamentsparser.ParseAllMedicaments()
+	medicaments1, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("First parse failed: %v", err)
 	}
@@ -104,7 +113,7 @@ func TestIntegrationConcurrentUpdates(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Second parse (simulating concurrent update)
-	medicaments2, err := medicamentsparser.ParseAllMedicaments()
+	medicaments2, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Second parse failed: %v", err)
 	}
@@ -154,24 +163,24 @@ func TestIntegrationErrorHandling(t *testing.T) {
 	// Restore files after test
 	defer func() {
 		for file, data := range backups {
-			os.WriteFile(file, data, 0644)
+			_ = os.WriteFile(file, data, 0644)
 		}
 	}()
 
 	// Test parsing with missing files - the parser auto-downloads missing files
 	for _, file := range testFiles {
 		// Remove file
-		os.Remove(file)
+		_ = os.Remove(file)
 
 		// Try to parse - should succeed by auto-downloading
-		_, err := medicamentsparser.ParseAllMedicaments()
+		_, _, _, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			t.Errorf("Expected success when %s is missing (should auto-download), but got error: %v", file, err)
 		}
 
 		// Restore file for next iteration
 		if data, exists := backups[file]; exists {
-			os.WriteFile(file, data, 0644)
+			_ = os.WriteFile(file, data, 0644)
 		}
 	}
 
@@ -194,7 +203,7 @@ func TestIntegrationMemoryUsage(t *testing.T) {
 	runtime.ReadMemStats(&initialMem)
 
 	// Parse data
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -322,13 +331,20 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	}
 
 	// Load data into the container (simulating real API behavior)
-	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+	// Note: In real tests, we'd get presentation maps from ParseAllMedicaments
+	// For now, using empty maps for this test
+	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+
+	// Create HTTP handler
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
 
 	// Add routes using new handlers
-	router.Get("/database", handlers.ServeAllMedicaments(dataContainer))
-	router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(dataContainer))
-	router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(dataContainer))
-	router.Get("/health", handlers.HealthCheck(dataContainer))
+	router.Get("/database", httpHandler.ServeAllMedicaments)
+	router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
+	router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
+	router.Get("/health", httpHandler.HealthCheck)
 
 	// Test database endpoint
 	req := httptest.NewRequest("GET", "/database", nil)
@@ -389,7 +405,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	}
 
 	// Verify health response contains expected fields
-	var healthResponse map[string]interface{}
+	var healthResponse map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &healthResponse); err != nil {
 		t.Errorf("Failed to unmarshal health response: %v", err)
 	}
@@ -403,7 +419,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	}
 
 	// Check data section fields
-	if dataSection, ok := healthResponse["data"].(map[string]interface{}); ok {
+	if dataSection, ok := healthResponse["data"].(map[string]any); ok {
 		dataFields := []string{"api_version", "medicaments", "generiques", "is_updating", "next_update"}
 		for _, field := range dataFields {
 			if _, exists := dataSection[field]; !exists {
@@ -415,7 +431,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	}
 
 	// Check system section fields
-	if systemSection, ok := healthResponse["system"].(map[string]interface{}); ok {
+	if systemSection, ok := healthResponse["system"].(map[string]any); ok {
 		systemFields := []string{"goroutines", "memory"}
 		for _, field := range systemFields {
 			if _, exists := systemSection[field]; !exists {

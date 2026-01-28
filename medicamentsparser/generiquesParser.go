@@ -21,14 +21,16 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generiques file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generiques TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
 	// Skip header line
-	if scanner.Scan() {
-		// Header line, skip it
-	}
+	scanner.Scan()
 
 	for scanner.Scan() {
 		line := scanner.Text()

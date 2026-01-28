@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -21,7 +22,11 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Presentations.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close presentations TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
@@ -62,7 +67,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 			}
 
 			// Replace the last comma with a period
-			p, err := strconv.ParseFloat(strings.Replace(fields[9], ",", ".", -1), 32)
+			p, err := strconv.ParseFloat(strings.ReplaceAll(fields[9], ",", "."), 32)
 
 			if err != nil {
 				return nil, fmt.Errorf("invalid price value '%s': %w", fields[9], err)
@@ -104,7 +109,11 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generiques file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generiques TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
@@ -175,7 +184,11 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open compositions file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close compositions TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
@@ -221,7 +234,11 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Specialites.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close specialites TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
@@ -265,7 +282,11 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Conditions.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close conditions TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 
@@ -306,7 +327,11 @@ func createMedicamentGeneriqueType() (map[int]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generique file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generique TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
 

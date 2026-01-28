@@ -21,7 +21,7 @@ func NewHealthChecker(dataStore interfaces.DataStore) interfaces.HealthChecker {
 }
 
 // HealthCheck returns current system health status
-func (h *HealthCheckerImpl) HealthCheck() (status string, details map[string]interface{}, err error) {
+func (h *HealthCheckerImpl) HealthCheck() (status string, details map[string]any, err error) {
 	// Get memory statistics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -44,19 +44,19 @@ func (h *HealthCheckerImpl) HealthCheck() (status string, details map[string]int
 	}
 
 	// Build details map
-	details = map[string]interface{}{
+	details = map[string]any{
 		"last_update":    lastUpdate.Format(time.RFC3339),
 		"data_age_hours": dataAge.Hours(),
-		"data": map[string]interface{}{
+		"data": map[string]any{
 			"api_version": "1.0",
 			"medicaments": len(medicaments),
 			"generiques":  len(generiques),
 			"is_updating": isUpdating,
 			"next_update": h.CalculateNextUpdate().Format(time.RFC3339),
 		},
-		"system": map[string]interface{}{
+		"system": map[string]any{
 			"goroutines": runtime.NumGoroutine(),
-			"memory": map[string]interface{}{
+			"memory": map[string]any{
 				"alloc_mb":       int(m.Alloc / 1024 / 1024),
 				"total_alloc_mb": int(m.TotalAlloc / 1024 / 1024),
 				"sys_mb":         int(m.Sys / 1024 / 1024),
@@ -87,6 +87,5 @@ func (h *HealthCheckerImpl) CalculateNextUpdate() time.Time {
 	}
 
 	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
-	tomorrow := now.AddDate(0, 0, 1)
-	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
+	return sixAM.AddDate(0, 0, 1)
 }

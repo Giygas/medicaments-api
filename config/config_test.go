@@ -7,10 +7,10 @@ import (
 
 func TestLoadValidConfig(t *testing.T) {
 	// Set valid environment variables
-	os.Setenv("PORT", "8002")
-	os.Setenv("ADDRESS", "127.0.0.1")
-	os.Setenv("ENV", "dev")
-	os.Setenv("LOG_LEVEL", "info")
+	_ = os.Setenv("PORT", "8002")
+	_ = os.Setenv("ADDRESS", "127.0.0.1")
+	_ = os.Setenv("ENV", "dev")
+	_ = os.Setenv("LOG_LEVEL", "info")
 	defer cleanupEnv()
 
 	cfg, err := Load()
@@ -34,10 +34,10 @@ func TestLoadValidConfig(t *testing.T) {
 
 func TestLoadWithDefaults(t *testing.T) {
 	// Clear environment variables to test defaults
-	os.Unsetenv("PORT")
-	os.Unsetenv("ADDRESS")
-	os.Unsetenv("ENV")
-	os.Unsetenv("LOG_LEVEL")
+	_ = os.Unsetenv("PORT")
+	_ = os.Unsetenv("ADDRESS")
+	_ = os.Unsetenv("ENV")
+	_ = os.Unsetenv("LOG_LEVEL")
 	defer cleanupEnv()
 
 	cfg, err := Load()
@@ -72,10 +72,10 @@ func TestInvalidPort(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", tc.port)
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", tc.port)
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -94,10 +94,10 @@ func TestInvalidAddress(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", tc.address)
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", tc.address)
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -116,10 +116,10 @@ func TestInvalidEnv(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", tc.env)
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", tc.env)
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -138,10 +138,10 @@ func TestInvalidLogLevel(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", tc.logLevel)
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", tc.logLevel)
 
 		_, err := Load()
 		if err == nil {
@@ -151,8 +151,8 @@ func TestInvalidLogLevel(t *testing.T) {
 }
 
 func cleanupEnv() {
-	os.Unsetenv("PORT")
-	os.Unsetenv("ADDRESS")
-	os.Unsetenv("ENV")
-	os.Unsetenv("LOG_LEVEL")
+	_ = os.Unsetenv("PORT")
+	_ = os.Unsetenv("ADDRESS")
+	_ = os.Unsetenv("ENV")
+	_ = os.Unsetenv("LOG_LEVEL")
 }

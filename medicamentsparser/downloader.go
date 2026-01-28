@@ -3,11 +3,14 @@ package medicamentsparser
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/giygas/medicaments-api/logging"
 	"golang.org/x/text/encoding/charmap"
@@ -20,15 +23,38 @@ func downloadAndParseFile(filepath string, url string) error {
 	if err != nil {
 		return fmt.Errorf("failed to download %s: %w", url, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err = response.Body.Close(); err != nil {
+			logging.Warn("Failed to close response body", "error", err)
+		}
+	}()
+
+	// As there are some files in iso-8859-1 and some in utf8, read the content first
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Check if it's valid UTF-8
+	var reader io.Reader
+	if utf8.Valid(bodyBytes) {
+		// Already UTF-8, use as-is
+		reader = bytes.NewReader(bodyBytes)
+	} else {
+		// Not UTF-8, decode from ISO-8859-1
+		reader = charmap.ISO8859_1.NewDecoder().Reader(bytes.NewReader(bodyBytes))
+	}
 
 	outFile, err := os.Create(filepath)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filepath, err)
 	}
+	defer func() {
+		if err = outFile.Close(); err != nil {
+			logging.Warn("Failed to close output file", "error", err)
+		}
+	}()
 
-	defer outFile.Close()
-	reader := charmap.ISO8859_1.NewDecoder().Reader(response.Body)
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {

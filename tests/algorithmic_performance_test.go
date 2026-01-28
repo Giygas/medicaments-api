@@ -26,7 +26,7 @@ func setupAlgorithmicTestData() *data.DataContainer {
 	algorithmicOnce.Do(func() {
 		fmt.Println("Loading full dataset for algorithmic performance tests...")
 
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}
@@ -42,7 +42,8 @@ func setupAlgorithmicTestData() *data.DataContainer {
 		}
 
 		algorithmicTestData = data.NewDataContainer()
-		algorithmicTestData.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+		algorithmicTestData.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+			presentationsCIP7Map, presentationsCIP13Map)
 
 		fmt.Printf("Algorithmic test data loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})

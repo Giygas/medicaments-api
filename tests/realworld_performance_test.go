@@ -22,9 +22,8 @@ import (
 )
 
 var (
-	realworldServer  *httptest.Server
-	realworldOnce    sync.Once
-	realworldCleanup sync.Once
+	realworldServer *httptest.Server
+	realworldOnce   sync.Once
 )
 
 // Setup real-world test server with full dataset
@@ -33,7 +32,7 @@ func setupRealworldServer() *httptest.Server {
 		fmt.Println("Setting up real-world performance test server...")
 
 		// Load full dataset
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}
@@ -49,35 +48,27 @@ func setupRealworldServer() *httptest.Server {
 		}
 
 		container := data.NewDataContainer()
-		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+			presentationsCIP7Map, presentationsCIP13Map)
 
 		// Create router with all routes
 		router := chi.NewRouter()
 		validator := validation.NewDataValidator()
+		httpHandler := handlers.NewHTTPHandler(container, validator)
 
-		router.Get("/database", handlers.ServeAllMedicaments(container))
-		router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(container))
-		router.Get("/medicament/{element}", handlers.FindMedicament(container, validator))
-		router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(container))
-		router.Get("/generiques/{libelle}", handlers.FindGeneriques(container, validator))
-		router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(container))
-		router.Get("/health", handlers.HealthCheck(container))
+		router.Get("/database", httpHandler.ServeAllMedicaments)
+		router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
+		router.Get("/medicament/{element}", httpHandler.FindMedicament)
+		router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
+		router.Get("/generiques/{libelle}", httpHandler.FindGeneriques)
+		router.Get("/generiques/group/{groupId}", httpHandler.FindGeneriquesByGroupID)
+		router.Get("/health", httpHandler.HealthCheck)
 
 		realworldServer = httptest.NewServer(router)
 		fmt.Printf("Real-world test server ready with %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})
 
 	return realworldServer
-}
-
-// Cleanup function to close the shared server (call from TestMain)
-func cleanupRealworldServer() {
-	realworldCleanup.Do(func() {
-		if realworldServer != nil {
-			realworldServer.Close()
-			realworldServer = nil
-		}
-	})
 }
 
 // Test realistic concurrent user load
@@ -123,7 +114,7 @@ func TestRealWorldConcurrentLoad(t *testing.T) {
 					t.Errorf("User %d got status %d for %s", userID, resp.StatusCode, endpoint)
 				}
 
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				responseTimes <- reqTime
 			}
 		}(i)
@@ -198,8 +189,8 @@ func TestRealWorldMemoryUnderLoad(t *testing.T) {
 			for range requestChan {
 				resp, err := http.Get(server.URL + "/database/1")
 				if err == nil {
-					io.Copy(io.Discard, resp.Body) // Read full response
-					resp.Body.Close()
+					_, _ = io.Copy(io.Discard, resp.Body) // Read full response
+					_ = resp.Body.Close()
 				}
 			}
 		}()
@@ -219,7 +210,7 @@ func TestRealWorldMemoryUnderLoad(t *testing.T) {
 	runtime.ReadMemStats(&finalMem)
 
 	// Calculate memory growth using Sys for more stable measurement
-	memGrowthMB := (finalMem.Sys - initialMem.Sys) / 1024 / 1024
+	memGrowthMB := int64(finalMem.Sys-initialMem.Sys) / 1024 / 1024
 	totalAllocsMB := (finalMem.TotalAlloc - initialMem.TotalAlloc) / 1024 / 1024
 
 	t.Logf("Memory usage under load:")
@@ -259,7 +250,7 @@ func TestRealWorldResponseSizes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
@@ -331,7 +322,7 @@ func TestRealWorldSustainedPerformance(t *testing.T) {
 				mutex.Unlock()
 
 				if resp != nil {
-					resp.Body.Close()
+					_ = resp.Body.Close()
 				}
 			}
 		}
@@ -401,7 +392,7 @@ func TestRealWorldSearchPatterns(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
 				t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -456,6 +447,6 @@ func BenchmarkRealWorldRequests(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 }

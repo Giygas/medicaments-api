@@ -3,8 +3,6 @@ package logging
 import (
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -77,7 +75,9 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 				// Context cancelled, exit gracefully
 				return
 			case <-ticker.C:
-				rotatingLogger.cleanupOldLogs()
+				if err := rotatingLogger.cleanupOldLogs(); err != nil {
+					slog.Warn("Failed to cleanup old logs", "error", err)
+				}
 			}
 		}
 	}()
@@ -104,28 +104,14 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 	}
 	slog.SetDefault(logger)
 
-	// Setup graceful shutdown to close log file
-	setupGracefulShutdown()
-}
-
-// setupGracefulShutdown ensures log files are properly closed on exit
-func setupGracefulShutdown() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-			DefaultLoggingService.RotatingLogger.Close()
-		}
-		os.Exit(0)
-	}()
 }
 
 // Close closes the logging service and cleans up resources
 func Close() {
 	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-		DefaultLoggingService.RotatingLogger.Close()
+		if err := DefaultLoggingService.RotatingLogger.Close(); err != nil {
+			slog.Warn("Failed to close rotating logger", "error", err)
+		}
 	}
 }
 
