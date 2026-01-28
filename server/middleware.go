@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -169,38 +171,119 @@ func init() {
 	globalRateLimiter.cleanup()
 }
 
+// getTokenCost calculates token cost for HTTP requests based on route and query parameters.
+//
+// Priority:
+// 1. V1 routes (checked first for performance): /v1/medicaments?export=all (200), etc.
+// 2. Legacy routes: /database (200), /medicament/{id} (10), etc.
+// 3. Default: 5 tokens for unknown endpoints
+//
+// Behavior:
+// - Only ONE query parameter is allowed per request
+// - Multiple parameters → return default cost (5 tokens)
+// - Invalid parameter values → fall through to next case
+//
+// Note: Parameter validation is defensive - handlers validate requirements independently.
+// This prevents cost bypass by adding cheap params to expensive operations.
+// Invalid requests cost 5 tokens to prevent free abuse while covering server resources.
 func getTokenCost(r *http.Request) int64 {
-	path := r.URL.Path
+	requestPath := r.URL.Path
 
-	// Check for exact matches first
-	switch path {
-	case "/":
-		return 0 // Free access to index page
-	case "/docs":
-		return 0 // Free access to docs page
-	case "/docs/openapi.yaml":
-		return 0 // Free access to OpenAPI spec
-	case "/favicon.ico":
-		return 0 // Free access to favicon
-	case "/database":
-		return 200 // Higher cost for full database
-	case "/health":
-		return 5 // Low cost for health check
-	}
+	q := r.URL.Query()
 
-	// Check for path patterns
-	if len(path) > 0 {
-		switch {
-		case path == "/database" || (len(path) > 10 && path[:10] == "/database/"):
-			return 20 // Paged database access
-		case path == "/medicament" || (len(path) > 12 && path[:12] == "/medicament/"):
-			return 100 // Medicament search or lookup
-		case path == "/generiques" || (len(path) > 11 && path[:11] == "/generiques/"):
-			return 20 // Generique search or lookup
+	// V1 routes - check first for performance
+	if strings.HasPrefix(requestPath, "/v1/") {
+		switch requestPath {
+		case "/v1/medicaments":
+			// Ensure only one parameter is present
+			if !HasSingleParam(q, []string{"export", "search", "page", "cis", "cip"}) {
+				return 5 // Default for invalid multi-param requests
+			}
+
+			if q.Get("export") == "all" {
+				return 200
+			}
+			if q.Get("search") != "" {
+				return 50
+			}
+			if q.Get("page") != "" {
+				return 20
+			}
+			if q.Get("cis") != "" || q.Get("cip") != "" {
+				return 10
+			}
+			return 5 // Default for /v1/medicaments without recognized params
+
+		case "/v1/generiques":
+			// Ensure only one parameter is present
+			if !HasSingleParam(q, []string{"libelle", "group"}) {
+				return 5 // Default for invalid multi-param requests
+			}
+
+			if q.Get("libelle") != "" {
+				return 30
+			}
+			if q.Get("group") != "" {
+				return 5
+			}
+			return 5 // Default for /v1/generiques without recognized params
+
+		case "/v1/presentations":
+			// Presentations only supports cip parameter
+			if !HasSingleParam(q, []string{"cip"}) {
+				return 5 // Default for invalid multi-param requests
+			}
+			return 5
+
+		case "/v1/health", "/health":
+			// Health endpoint has no parameters
+			if len(q) > 0 {
+				return 5 // Default if params present
+			}
+			return 5
 		}
 	}
 
-	return 20 // Default cost for other endpoints
+	// Legacy routes - existing logic preserved
+	endpoint, element := path.Split(r.URL.Path)
+
+	switch endpoint {
+	case "/":
+		switch element {
+		case "medicament": // This case is when the user forgot to add something to search
+			return 20
+		case "database":
+			return 200
+		case "openapi.yaml":
+			return 0
+		default:
+			return 5
+		}
+	case "/medicament/id/":
+		return 10
+	case "/medicament/cip/":
+		return 10
+	case "/medicament/":
+		return 80
+	case "/generiques/":
+		return 20
+	case "/database/":
+		return 20
+	}
+
+	return 5 // Default cost for other endpoints
+}
+
+// HasSingleParam ensures exactly one of the specified parameters is present in the query.
+// Returns false if zero or multiple parameters are present.
+func HasSingleParam(q url.Values, allowedParams []string) bool {
+	count := 0
+	for _, param := range allowedParams {
+		if q.Get(param) != "" {
+			count++
+		}
+	}
+	return count == 1
 }
 
 // RateLimitHandler implements rate limiting using token bucket
@@ -238,7 +321,7 @@ func RateLimitHandler(next http.Handler) http.Handler {
 }
 
 // respondWithJSON writes a JSON response
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+func respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 

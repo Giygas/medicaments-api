@@ -9,17 +9,22 @@ import (
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestETagFunctionality(t *testing.T) {
+	// NOTE: ETag functionality was removed from ServeAllMedicaments and FindMedicamentByID
+	// It is only implemented in FindMedicamentByCIP endpoint
+	// This test has been updated to test only endpoints that support ETag
+
 	// Initialize test data
 	dataContainer := data.NewDataContainer()
 
-	// Create test medicament
+	// Create test medicament with presentation (for CIP testing)
 	testMedicaments := []entities.Medicament{
 		{
-			Cis:                   123456,
+			Cis:                   10000001, // Fixed to valid 8-digit CIS
 			Denomination:          "Test Medicament",
 			FormePharmaceutique:   "comprimé",
 			VoiesAdministration:   []string{"orale"},
@@ -29,21 +34,80 @@ func TestETagFunctionality(t *testing.T) {
 			DateAMM:               "2023-01-01",
 			Titulaire:             "Test Lab",
 			SurveillanceRenforcee: "Non",
+			Presentation: []entities.Presentation{
+				{
+					Cis:                  10000001, // Presentation CIS must match medicament CIS
+					Cip7:                 1234567,
+					Cip13:                1234567890123,
+					Libelle:              "Test Presentation",
+					StatusAdministratif:  "Présentation active",
+					EtatComercialisation: "Commercialisée",
+					DateDeclaration:      "2023-01-01",
+				},
+			},
+		},
+		{
+			Cis:                   20000002, // Second medicament for CIP test
+			Denomination:          "Test Medicament 2",
+			FormePharmaceutique:   "comprimé",
+			VoiesAdministration:   []string{"orale"},
+			StatusAutorisation:    "Autorisation active",
+			TypeProcedure:         "Procédure nationale",
+			EtatComercialisation:  "Commercialisée",
+			DateAMM:               "2023-01-01",
+			Titulaire:             "Test Lab",
+			SurveillanceRenforcee: "Non",
+			Presentation: []entities.Presentation{
+				{
+					Cis:                  20000002, // Presentation CIS must match medicament CIS
+					Cip7:                 7654321,
+					Cip13:                7654321098765,
+					Libelle:              "Test Presentation 2",
+					StatusAdministratif:  "Présentation active",
+					EtatComercialisation: "Commercialisée",
+					DateDeclaration:      "2023-01-01",
+				},
+			},
 		},
 	}
 
-	// Update data container
-	dataContainer.UpdateData(testMedicaments, []entities.GeneriqueList{},
-		map[int]entities.Medicament{123456: testMedicaments[0]},
-		map[int]entities.Generique{})
+	// Update data container with all test data
+	medicamentsMap := make(map[int]entities.Medicament)
+	for _, med := range testMedicaments {
+		medicamentsMap[med.Cis] = med
+	}
 
-	// Test ServeAllMedicaments with ETag
-	handler := handlers.ServeAllMedicaments(dataContainer)
+	presentationsCIP7Map := make(map[int]entities.Presentation)
+	presentationsCIP13Map := make(map[int]entities.Presentation)
+	for _, med := range testMedicaments {
+		for _, pres := range med.Presentation {
+			presentationsCIP7Map[pres.Cip7] = pres
+			presentationsCIP13Map[pres.Cip13] = pres
+		}
+	}
+
+	dataContainer.UpdateData(testMedicaments, []entities.GeneriqueList{},
+		medicamentsMap,
+		map[int]entities.Generique{},
+		presentationsCIP7Map,
+		presentationsCIP13Map)
+
+	validator := validation.NewDataValidator()
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
+
+	// Test FindMedicamentByCIP with ETag (this endpoint supports ETag)
+	cipHandler := httpHandler.FindMedicamentByCIP
 
 	// First request - should return 200 with ETag
-	req1 := httptest.NewRequest("GET", "/database", nil)
+	req1 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+
+	// Set up chi context to simulate URL parameter
+	chiCtx1 := chi.NewRouteContext()
+	chiCtx1.URLParams.Add("cip", "1234567")
+	req1 = req1.WithContext(context.WithValue(req1.Context(), chi.RouteCtxKey, chiCtx1))
+
 	w1 := httptest.NewRecorder()
-	handler(w1, req1)
+	cipHandler(w1, req1)
 
 	resp1 := w1.Result()
 	etag1 := resp1.Header.Get("ETag")
@@ -57,15 +121,21 @@ func TestETagFunctionality(t *testing.T) {
 	}
 
 	// Second request with If-None-Match - should return 304
-	req2 := httptest.NewRequest("GET", "/database", nil)
+	req2 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
 	req2.Header.Set("If-None-Match", etag1)
+
+	// Set up chi context again
+	chiCtx2 := chi.NewRouteContext()
+	chiCtx2.URLParams.Add("cip", "1234567")
+	req2 = req2.WithContext(context.WithValue(req2.Context(), chi.RouteCtxKey, chiCtx2))
+
 	w2 := httptest.NewRecorder()
-	handler(w2, req2)
+	cipHandler(w2, req2)
 
 	resp2 := w2.Result()
 
 	if resp2.StatusCode != http.StatusNotModified {
-		t.Errorf("Expected status 304, got %d", resp2.StatusCode)
+		t.Errorf("Expected status 304 for CIP with matching ETag, got %d", resp2.StatusCode)
 	}
 
 	// Verify no body in 304 response
@@ -75,53 +145,20 @@ func TestETagFunctionality(t *testing.T) {
 	}
 
 	// Test with different ETag - should return 200
-	req3 := httptest.NewRequest("GET", "/database", nil)
+	req3 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
 	req3.Header.Set("If-None-Match", `"different-etag"`)
+
+	// Set up chi context again
+	chiCtx3 := chi.NewRouteContext()
+	chiCtx3.URLParams.Add("cip", "1234567")
+	req3 = req3.WithContext(context.WithValue(req3.Context(), chi.RouteCtxKey, chiCtx3))
+
 	w3 := httptest.NewRecorder()
-	handler(w3, req3)
+	cipHandler(w3, req3)
 
 	resp3 := w3.Result()
 
 	if resp3.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200 for different ETag, got %d", resp3.StatusCode)
-	}
-
-	// Test FindMedicamentByID with ETag
-	idHandler := handlers.FindMedicamentByID(dataContainer)
-
-	// First request - we need to set up chi context for URLParam to work
-	req4 := httptest.NewRequest("GET", "/medicament/id/123456", nil)
-
-	// Set up chi context to simulate URL parameter
-	chiCtx := chi.NewRouteContext()
-	chiCtx.URLParams.Add("cis", "123456")
-	req4 = req4.WithContext(context.WithValue(req4.Context(), chi.RouteCtxKey, chiCtx))
-
-	w4 := httptest.NewRecorder()
-	idHandler(w4, req4)
-
-	resp4 := w4.Result()
-	etag4 := resp4.Header.Get("ETag")
-
-	if etag4 == "" {
-		t.Error("Expected ETag header in medicament by ID response")
-	}
-
-	// Second request with matching ETag
-	req5 := httptest.NewRequest("GET", "/medicament/id/123456", nil)
-	req5.Header.Set("If-None-Match", etag4)
-
-	// Set up chi context again
-	chiCtx2 := chi.NewRouteContext()
-	chiCtx2.URLParams.Add("cis", "123456")
-	req5 = req5.WithContext(context.WithValue(req5.Context(), chi.RouteCtxKey, chiCtx2))
-
-	w5 := httptest.NewRecorder()
-	idHandler(w5, req5)
-
-	resp5 := w5.Result()
-
-	if resp5.StatusCode != http.StatusNotModified {
-		t.Errorf("Expected status 304 for medicament by ID with matching ETag, got %d", resp5.StatusCode)
 	}
 }

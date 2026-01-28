@@ -100,17 +100,24 @@ func (s *Server) setupMiddleware() {
 
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
-	// API routes using clean interface-based handlers
+	// Old API routes
 	s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
 	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
-	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament)
+	s.router.Get("/medicament/cip/{cip}", s.httpHandler.FindMedicamentByCIP)
 	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
-	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
+	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament) // General string search
 	s.router.Get("/generiques/group/{groupId}", s.httpHandler.FindGeneriquesByGroupID)
+	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
+	// This will stay between in all versions
 	s.router.Get("/health", s.httpHandler.HealthCheck)
 
 	// Documentation routes
 	s.setupDocumentationRoutes()
+
+	// V1 routes
+	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
+	s.router.Get("/v1/presentations", s.httpHandler.ServePresentationsV1)
+	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
 }
 
 // setupDocumentationRoutes configures documentation and static file routes
@@ -183,7 +190,6 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	logging.Info("Waiting for ongoing requests to complete...")
 	time.Sleep(2 * time.Second)
 
-	logging.Info("Server shutdown complete")
 	return nil
 }
 
@@ -226,10 +232,10 @@ func (s *Server) GetHealthData() HealthData {
 	}
 
 	// Extract data from details
-	data := details["data"].(map[string]interface{})
+	data := details["data"].(map[string]any)
 
 	// Helper function to convert interface{} to int, handling both int and float64
-	toInt := func(v interface{}) int {
+	toInt := func(v any) int {
 		switch val := v.(type) {
 		case int:
 			return val
