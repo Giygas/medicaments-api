@@ -678,7 +678,9 @@ func BenchmarkValidateMedicament(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		validator.ValidateMedicament(medicament)
+		if err := validator.ValidateMedicament(medicament); err != nil {
+			b.Logf("Validation failed: %v", err)
+		}
 	}
 }
 
@@ -689,7 +691,9 @@ func BenchmarkValidateInput(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		validator.ValidateInput(input)
+		if err := validator.ValidateInput(input); err != nil {
+			b.Logf("Validation failed: %v", err)
+		}
 	}
 }
 
@@ -904,6 +908,201 @@ func TestValidateInput_DoSProtection(t *testing.T) {
 	}
 }
 
+func TestValidateCIP_Valid(t *testing.T) {
+	validator := NewDataValidator()
+
+	validInputs := []string{
+		"1234567",       // 7 chars - valid
+		"1234567890123", // 13 chars - valid
+		"0000001",       // 7 chars with leading zeros
+		"1023456789012", // 13 chars realistic CIP format
+		"9876543210987", // Another 13 chars realistic format
+		"1230456789012", // 13 chars mixed with zero
+		"1012345678901", // 13 chars realistic format without excessive repetition
+	}
+
+	for _, input := range validInputs {
+		t.Run("valid_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIP(input)
+			if err != nil {
+				t.Errorf("Expected no error for valid CIP '%s', got: %v", input, err)
+			}
+		})
+	}
+}
+
+func TestValidateCIP_Empty(t *testing.T) {
+	validator := NewDataValidator()
+
+	invalidInputs := []string{
+		"",
+		"   ",
+		"\t",
+		"\n",
+		"  \t  \n  ",
+	}
+
+	for _, input := range invalidInputs {
+		t.Run("empty_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIP(input)
+			if err == nil {
+				t.Errorf("Expected error for empty input")
+			}
+
+			expectedError := "input cannot be empty"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIP_TooShort(t *testing.T) {
+	validator := NewDataValidator()
+
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"6_chars", "123456"},        // Below minimum
+		{"1_char", "1"},              // Single digit
+		{"empty", ""},                // Empty string
+		{"8_chars", "12345678"},      // Invalid length
+		{"9_chars", "123456789"},     // Invalid length
+		{"10_chars", "1234567890"},   // Invalid length
+		{"11_chars", "12345678901"},  // Invalid length
+		{"12_chars", "123456789012"}, // Invalid length
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validator.ValidateCIP(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for short CIP '%s'", tc.input)
+			}
+
+			expectedError := "input cannot be empty"
+			if tc.input == "" {
+				if err.Error() != expectedError {
+					t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+				}
+			} else {
+				expectedError := "CIP should have 7 or 13 characters"
+				if err.Error() != expectedError {
+					t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+				}
+			}
+		})
+	}
+}
+
+func TestValidateCIP_TooLong(t *testing.T) {
+	validator := NewDataValidator()
+
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"14_chars", "12345678901234"},       // Above maximum
+		{"15_chars", "123456789012345"},      // Above maximum
+		{"20_chars", "99999999999999999999"}, // Well above maximum
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validator.ValidateCIP(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for long CIP '%s'", tc.input)
+			}
+
+			expectedError := "CIP should have 7 or 13 characters"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIP_NonNumeric(t *testing.T) {
+	validator := NewDataValidator()
+
+	invalidInputs := []string{
+		"abcdefg",   // Letters only (7 chars)
+		"123456a",   // Mix of letters and numbers (7 chars)
+		"123-4567",  // Contains hyphens (8 chars) - fails length check
+		"123 4567",  // Contains spaces (8 chars) - fails length check
+		"123.4567",  // Contains periods (8 chars) - fails length check
+		"123/4567",  // Contains slashes (8 chars) - fails length check
+		"ABC1234",   // Mixed case (7 chars)
+		"1234568!",  // Contains special character (8 chars) - fails length check
+		"12#34567",  // Contains special character (8 chars) - fails length check
+		"12_34567",  // Contains underscore (8 chars) - fails length check
+		"12\t34567", // Contains tab (8 chars) - fails length check
+		"12\n34567", // Contains newline (8 chars) - fails length check
+	}
+
+	for _, input := range invalidInputs {
+		t.Run("non_numeric_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIP(input)
+			if err == nil {
+				t.Errorf("Expected error for non-numeric CIP '%s'", input)
+			}
+
+			// Some inputs fail length check first, others fail non-numeric check
+			expectedErrors := []string{
+				"input contains invalid characters. Only numeric characters are allowed",
+				"CIP should have 7 or 13 characters",
+			}
+
+			found := false
+			for _, expectedError := range expectedErrors {
+				if err.Error() == expectedError {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected one of errors '%v', got '%s'", expectedErrors, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIP_DangerousPatterns(t *testing.T) {
+	validator := NewDataValidator()
+
+	dangerousInputs := []struct {
+		input         string
+		expectedError string
+	}{
+		{"1234567<scr>", "CIP should have 7 or 13 characters"},                                      // Length check runs first
+		{"1234567js:x", "CIP should have 7 or 13 characters"},                                       // Length check runs first
+		{"1234567' OR '", "input contains invalid characters. Only numeric characters are allowed"}, // SQL injection - caught by non-numeric check
+		{"1234567; DROP", "input contains invalid characters. Only numeric characters are allowed"}, // Command injection - caught by non-numeric check
+		{"1234567../etc", "input contains invalid characters. Only numeric characters are allowed"}, // Path traversal - caught by non-numeric check
+		{"1234567{$ne:}", "input contains invalid characters. Only numeric characters are allowed"}, // NoSQL injection - caught by non-numeric check
+		{"1234567*)(&", "CIP should have 7 or 13 characters"},                                       // LDAP injection - length check runs first
+		{"1234567`whoam", "input contains invalid characters. Only numeric characters are allowed"}, // Command injection - caught by non-numeric check
+		{"1234567$(id)", "CIP should have 7 or 13 characters"},                                      // Command injection - length check runs first
+		{"1234567eval(x", "input contains invalid characters. Only numeric characters are allowed"}, // XSS with eval - caught by non-numeric check
+		{"<script>1234567</script>", "CIP should have 7 or 13 characters"},                          // Too long dangerous pattern
+	}
+
+	for _, tc := range dangerousInputs {
+		t.Run("dangerous_"+tc.input, func(t *testing.T) {
+			_, err := validator.ValidateCIP(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for dangerous CIP pattern in input '%s'", tc.input)
+			}
+
+			if err.Error() != tc.expectedError {
+				t.Errorf("Expected error '%s', got '%s'", tc.expectedError, err.Error())
+			}
+		})
+	}
+
+}
+
 func BenchmarkValidateDataIntegrity(b *testing.B) {
 	validator := NewDataValidator()
 
@@ -928,6 +1127,8 @@ func BenchmarkValidateDataIntegrity(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		validator.ValidateDataIntegrity(medicaments, generiques)
+		if err := validator.ValidateDataIntegrity(medicaments, generiques); err != nil {
+			b.Logf("Validation failed: %v", err)
+		}
 	}
 }

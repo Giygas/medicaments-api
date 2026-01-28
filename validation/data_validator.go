@@ -4,6 +4,7 @@ package validation
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/giygas/medicaments-api/interfaces"
@@ -85,12 +86,12 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 	}
 
 	// Check for duplicate group IDs
-	groupIdMap := make(map[int]bool)
+	groupIDMap := make(map[int]bool)
 	for _, gen := range generiques {
-		if groupIdMap[gen.GroupID] {
+		if groupIDMap[gen.GroupID] {
 			return fmt.Errorf("duplicate generique group ID found: %d", gen.GroupID)
 		}
-		groupIdMap[gen.GroupID] = true
+		groupIDMap[gen.GroupID] = true
 
 		// Validate generique libelle
 		if strings.TrimSpace(gen.Libelle) == "" {
@@ -164,6 +165,55 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 	}
 
 	return nil
+}
+
+// ValidateCIP validates CIP codes
+// CIP codes are numeric identifiers 7 or 13 digits long
+func (v *DataValidatorImpl) ValidateCIP(input string) (int, error) {
+	if strings.TrimSpace(input) == "" {
+		return -1, fmt.Errorf("input cannot be empty")
+	}
+	if len(input) != 7 && len(input) != 13 {
+		return -1, fmt.Errorf("CIP should have 7 or 13 characters")
+	}
+
+	// Allow only numeric characters (remove the possible leading + or -)
+	validPattern := regexp.MustCompile(`^[0-9]+$`)
+	if !validPattern.MatchString(input) {
+		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
+	}
+
+	cip, err := strconv.Atoi(input)
+	if err != nil {
+		return -1, fmt.Errorf("input is not a number")
+	}
+
+	return cip, nil
+}
+
+// ValidateCIS validates CIS codes
+// CIP codes are numeric identifiers 8 digits long
+
+func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
+	if strings.TrimSpace(input) == "" {
+		return -1, fmt.Errorf("input cannot be empty")
+	}
+	if len(input) != 8 {
+		return -1, fmt.Errorf("CIS should have 8 digits")
+	}
+
+	// Allow only numeric characters (remove the possible leading + or -)
+	validPattern := regexp.MustCompile(`^[0-9]+$`)
+	if !validPattern.MatchString(input) {
+		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
+	}
+
+	cis, err := strconv.Atoi(input)
+	if err != nil {
+		return -1, fmt.Errorf("input is not a number")
+	}
+
+	return cis, nil
 }
 
 // hasExcessiveRepetition checks for potential DoS patterns with excessive character repetition
