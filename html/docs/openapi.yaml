@@ -11,86 +11,528 @@ info:
     - Intégrité : Aucune altération des données originales
     - Source : Base de Données Publique des Médicaments (BDPM)
 
-    ## Coûts par endpoint
+    ## Coûts par endpoint (v1)
     - `/health` : 5 tokens
-    - `/database/{page}` : 20 tokens  
+    - `/v1/medicaments?export=all` : 200 tokens
+    - `/v1/medicaments?page={n}` : 20 tokens
+    - `/v1/medicaments?search={query}` : 50 tokens
+    - `/v1/medicaments?cis={code}` : 10 tokens
+    - `/v1/medicaments?cip={code}` : 10 tokens
+    - `/v1/generiques?libelle={nom}` : 30 tokens
+    - `/v1/generiques?group={id}` : 5 tokens
+    - `/v1/presentations?cip={code}` : 5 tokens
+
+    ## Endpoints legacy (dépréciés)
+    Les endpoints ci-dessous sont dépréciés et seront supprimés le **31 août 2025**.
+    Veuillez migrer vers les endpoints v1. Consultez la section "Migration" pour plus d'informations.
+
+    Coûts des endpoints legacy :
+    - `/database` : 200 tokens
+    - `/database/{page}` : 20 tokens
+    - `/medicament/{nom}` : 80 tokens
+    - `/medicament/id/{cis}` : 10 tokens
     - `/generiques/{libelle}` : 20 tokens
     - `/generiques/group/{id}` : 20 tokens
-    - `/medicament/{nom}` : 100 tokens
-    - `/medicament/id/{cis}` : 100 tokens
-    - `/database` : 200 tokens
 
     ## Rate Limiting
     Les informations relatives au rate limiting se trouvent dans les headers des réponses :
     - X-RateLimit-Limit : Capacité maximale de tokens
-    - X-RateLimit-Remaining : Tokens restants pour cette IP  
+    - X-RateLimit-Remaining : Tokens restants pour cette IP
     - X-RateLimit-Rate : Taux de recharge (tokens/sec)
-  version: 1.0.0
+
+    ## Migration vers v1
+    Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de chemin :
+    - `/medicament/paracetamol` → `/v1/medicaments?search=paracetamol`
+    - `/medicament/id/61504672` → `/v1/medicaments?cis=61504672`
+    - `/generiques/paracetamol` → `/v1/generiques?libelle=paracetamol`
+    - `/generiques/group/1234` → `/v1/generiques?group=1234`
+    - `/database/1` → `/v1/medicaments?page=1`
+    - `/database` → `/v1/medicaments?export=all`
+
+    Les endpoints legacy renvoient les headers de dépréciation suivants :
+    - Deprecation: true
+    - Sunset: 2025-08-31T23:59:59Z
+    - Link: URL de l'endpoint de remplacement
+    - X-Deprecated: Message de dépréciation
+    - Warning: Avertissement HTTP standard
+  version: 1.1.0
   contact:
     name: GitHub Repository
     url: https://github.com/giygas/medicaments-api
   license:
     name: AGPL-3.0
     url: https://www.gnu.org/licenses/agpl-3.0.html
-externalDocs:
-  description: Base de données publique des médicaments
-  url: https://base-donnees-publique.medicaments.gouv.fr
+  externalDocs:
+    description: Base de données publique des médicaments
+    url: https://base-donnees-publique.medicaments.gouv.fr
 
 paths:
-  /database:
+  /v1/medicaments:
     get:
-      summary: Obtenir tous les médicaments
-      description: Récupérer la liste complète de tous les médicaments dans la base de données
+      summary: Obtenir des médicaments (v1)
+      description: |
+        Recherche et récupération de médicaments avec différents paramètres de requête.
+        Seul un paramètre est autorisé à la fois.
+
+        **Paramètres disponibles :**
+        - `export=all` : Exporter toute la base de données (200 tokens)
+        - `page={n}` : Pagination, 10 médicaments par page (20 tokens)
+        - `search={query}` : Recherche par nom (50 tokens)
+        - `cis={code}` : Recherche par code CIS (10 tokens)
+        - `cip={code}` : Recherche par code CIP (10 tokens)
+
+        **Exemple :**
+        ```
+        /v1/medicaments?search=paracetamol
+        /v1/medicaments?cis=61504672
+        /v1/medicaments?page=1
+        /v1/medicaments?export=all
+        ```
       tags:
-        - Médicaments
+        - Médicaments (v1)
+      parameters:
+        - name: export
+          in: query
+          required: false
+          description: Exporter toute la base de données (doit être égal à "all")
+          schema:
+            type: string
+            enum: ["all"]
+        - name: page
+          in: query
+          required: false
+          description: Numéro de page (pagination à 10 éléments par page)
+          schema:
+            type: integer
+            minimum: 1
+        - name: search
+          in: query
+          required: false
+          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 50
+            pattern: "^[a-zA-Z0-9 ]+$"
+        - name: cis
+          in: query
+          required: false
+          description: Code CIS (entier positif)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 999999999
+        - name: cip
+          in: query
+          required: false
+          description: Code CIP (CIP7 ou CIP13, entier positif)
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Réponse réussie
+          content:
+            application/json:
+              examples:
+                export:
+                  summary: Export complet
+                  value:
+                    - cis: 61504672
+                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforce: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+                paginated:
+                  summary: Pagination
+                  value:
+                    data:
+                      - cis: 61504672
+                        elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                        formePharmaceutique: "comprimé"
+                        voiesAdministration: ["orale"]
+                        statusAutorisation: "Autorisation active"
+                        typeProcedure: "Procédure nationale"
+                        etatComercialisation: "Commercialisée"
+                        dateAMM: "2000-01-01"
+                        titulaire: "MYLAN SAS"
+                        surveillanceRenforce: "Non"
+                        composition: []
+                        generiques: []
+                        presentation: []
+                        conditions: []
+                    page: 1
+                    pageSize: 10
+                    totalItems: 15803
+                    maxPage: 1581
+                search:
+                  summary: Recherche par nom
+                  value:
+                    - cis: 61504672
+                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforce: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+                    - cis: 60001234
+                      elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "1998-05-15"
+                      titulaire: "SANOFI AVENTIS FRANCE"
+                      surveillanceRenforce: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+        "400":
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Bad Request"
+                message: "Only one parameter allowed at a time"
+                code: 400
+        "404":
+          description: Aucun résultat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Not Found"
+                message: "No medicaments found"
+                code: 404
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
+
+  /v1/generiques:
+    get:
+      summary: Rechercher des groupes génériques (v1)
+      description: |
+        Recherche et récupération de groupes génériques avec différents paramètres de requête.
+        Seul un paramètre est autorisé à la fois.
+
+        **Paramètres disponibles :**
+        - `libelle={nom}` : Recherche par libellé (30 tokens)
+        - `group={id}` : Recherche par ID de groupe (5 tokens)
+
+        **Exemple :**
+        ```
+        /v1/generiques?libelle=paracetamol
+        /v1/generiques?group=1234
+        ```
+      tags:
+        - Génériques (v1)
+      parameters:
+        - name: libelle
+          in: query
+          required: false
+          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 50
+            pattern: "^[a-zA-Z0-9 ]+$"
+        - name: group
+          in: query
+          required: false
+          description: ID de groupe (entier positif)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 99999
+      responses:
+        "200":
+          description: Réponse réussie
+          content:
+            application/json:
+              examples:
+                search:
+                  summary: Recherche par libellé
+                  value:
+                    - groupID: 1643
+                      libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
+                      medicaments:
+                        - cis: 66003374
+                          elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
+                          formePharmaceutique: "comprimé pelliculé"
+                          type: "Princeps"
+                          composition:
+                            - elementPharmaceutique: "comprimé pelliculé"
+                              substance: "PARACETAMOL"
+                              dosage: "500 mg"
+                            - elementPharmaceutique: "comprimé pelliculé"
+                              substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                              dosage: "30 mg"
+                        - cis: 69458587
+                          elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Générique"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACETAMOL"
+                              dosage: "500 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                              dosage: "30 mg"
+                group:
+                  summary: Recherche par ID de groupe
+                  value:
+                    groupID: 1643
+                    libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
+                    medicaments:
+                      - cis: 66003374
+                        elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
+                        formePharmaceutique: "comprimé pelliculé"
+                        type: "Princeps"
+                        composition:
+                          - elementPharmaceutique: "comprimé pelliculé"
+                            substance: "PARACETAMOL"
+                            dosage: "500 mg"
+                          - elementPharmaceutique: "comprimé pelliculé"
+                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                            dosage: "30 mg"
+                      - cis: 69458587
+                        elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
+                        formePharmaceutique: "comprimé"
+                        type: "Générique"
+                        composition:
+                          - elementPharmaceutique: "comprimé"
+                            substance: "PARACETAMOL"
+                            dosage: "500 mg"
+                          - elementPharmaceutique: "comprimé"
+                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                            dosage: "30 mg"
+        "400":
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Bad Request"
+                message: "Needs libelle or group param"
+                code: 400
+        "404":
+          description: Aucun générique trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Not Found"
+                message: "No generiques found"
+                code: 404
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
+
+  /v1/presentations:
+    get:
+      summary: Obtenir des présentations (v1)
+      description: |
+        Recherche de présentations par code CIP (CIP7 ou CIP13).
+
+        **Paramètre disponible :**
+        - `cip={code}` : Recherche par code CIP (5 tokens)
+
+        **Exemple :**
+        ```
+        /v1/presentations?cip=3400936403114
+        ```
+      tags:
+        - Présentations (v1)
+      parameters:
+        - name: cip
+          in: query
+          required: true
+          description: Code CIP (CIP7 ou CIP13, entier positif)
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: Réponse réussie
           content:
             application/json:
               schema:
+                $ref: "#/components/schemas/PresentationResponse"
+              example:
+                cis: 60904643
+                cip7: 3400936403114
+                libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
+                statusAdministratif: "Présentation active"
+                etatComercialisation: "Commercialisée"
+                dateDeclaration: "19/01/1965"
+                cip13: 3400936403114
+                agreement: "non"
+                tauxRemboursement: "65%"
+                prix: 3.85
+        "400":
+          description: Code CIP invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Bad Request"
+                message: "Invalid CIP"
+                code: 400
+        "404":
+          description: Présentation non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Not Found"
+                message: "Presentation not found"
+                code: 404
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Internal Server Error"
+                message: "Internal server error"
+                code: 500
+
+  /database:
+    get:
+      deprecated: true
+      summary: "[LEGACY] Obtenir tous les médicaments"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Récupérer la liste complète de tous les médicaments dans la base de données.
+
+        **Migration :** Utilisez `/v1/medicaments?export=all` à la place.
+      tags:
+        - Médicaments (Legacy)
+      responses:
+        "200":
+          description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?export=all>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/MedicamentResponse"
-              example:
-                - cis: 61504672
-                  elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                  formePharmaceutique: "comprimé"
-                  voiesAdministration: ["orale"]
-                  statusAutorisation: "Autorisation active"
-                  typeProcedure: "Procédure nationale"
-                  etatComercialisation: "Commercialisée"
-                  dateAMM: "2000-01-01"
-                  titulaire: "MYLAN SAS"
-                  surveillanceRenforce: "Non"
-                  composition:
-                    - cis: 61504672
-                      elementPharmaceutique: "paracétamol"
-                      codeSubstance: 12345
-                      denominationSubstance: "PARACETAMOL"
-                      dosage: "1,000 g"
-                      referenceDosage: "1,000 g"
-                      natureComposant: "substance active"
-                  generiques:
-                    - cis: 61504672
-                      group: 1234
-                      libelle: "PARACETAMOL 1 g, comprimé"
-                      type: "Princeps"
-                  presentation:
-                    - cis: 61504672
-                      cip7: 1234567
-                      libelle: "PARACETAMOL MYLAN 1 g, comprimé pelliculé, boîte de 8"
-                      statusAdministratif: "Présentation active"
-                      etatComercialisation: "Commercialisée"
-                      dateDeclaration: "2000-01-01"
-                      cip13: 3400912345678
-                      agreement: "Oui"
-                      tauxRemboursement: "65%"
-                      prix: 2.45
-                  conditions:
-                    - "Médicament soumis à prescription médicale"
-                    - "Non remboursable si prescrit hors AMM"
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
+  /database/{pageNumber}:
+    get:
+      deprecated: true
+      summary: "[LEGACY] Obtenir des médicaments par page"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Pagination de la base de données (10 éléments/page).
+
+        **Migration :** Utilisez `/v1/medicaments?page={n}` à la place.
+      tags:
+        - Médicaments (Legacy)
+      parameters:
+        - name: pageNumber
+          in: path
+          required: true
+          description: Numéro de page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MedicamentResponse"
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  maxPage:
+                    type: integer
         "400":
           description: Numéro de page invalide
           content:
@@ -102,7 +544,7 @@ paths:
                 message: "Invalid page number"
                 code: 400
         "404":
-          description: Page non trouvée (dépasse le nombre maximum de pages)
+          description: Page non trouvée
           content:
             application/json:
               schema:
@@ -117,17 +559,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "Page not found"
-                code: 404
 
   /medicament/{element}:
     get:
-      summary: Rechercher des médicaments par nom
-      description: Rechercher des médicaments par dénomination (insensible à la casse)
+      deprecated: true
+      summary: "[LEGACY] Rechercher des médicaments par nom"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Rechercher des médicaments par dénomination (insensible à la casse).
+
+        **Migration :** Utilisez `/v1/medicaments?search={query}` à la place.
       tags:
-        - Médicaments
+        - Médicaments (Legacy)
       parameters:
         - name: element
           in: path
@@ -138,46 +582,29 @@ paths:
             minLength: 3
             maxLength: 50
             pattern: "^[a-zA-Z0-9 ]+$"
-          example: "paracetamol"
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/MedicamentResponse"
-              example:
-                - cis: 61504672
-                  elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                  formePharmaceutique: "comprimé"
-                  voiesAdministration: ["orale"]
-                  statusAutorisation: "Autorisation active"
-                  typeProcedure: "Procédure nationale"
-                  etatComercialisation: "Commercialisée"
-                  dateAMM: "2000-01-01"
-                  titulaire: "MYLAN SAS"
-                  surveillanceRenforce: "Non"
-                  composition: []
-                  generiques: []
-                  presentation: []
-                  conditions: []
-                - cis: 60001234
-                  elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
-                  formePharmaceutique: "comprimé"
-                  voiesAdministration: ["orale"]
-                  statusAutorisation: "Autorisation active"
-                  typeProcedure: "Procédure nationale"
-                  etatComercialisation: "Commercialisée"
-                  dateAMM: "1998-05-15"
-                  titulaire: "SANOFI AVENTIS FRANCE"
-                  surveillanceRenforce: "Non"
-                  composition: []
-                  generiques: []
-                  presentation: []
-                  conditions: []
-
         "400":
           description: Terme de recherche invalide
           content:
@@ -204,17 +631,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
 
   /medicament/id/{cis}:
     get:
-      summary: Obtenir un médicament par code CIS
-      description: Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité)
+      deprecated: true
+      summary: "[LEGACY] Obtenir un médicament par code CIS"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité).
+
+        **Migration :** Utilisez `/v1/medicaments?cis={code}` à la place.
       tags:
-        - Médicaments
+        - Médicaments (Legacy)
       parameters:
         - name: cis
           in: path
@@ -224,15 +653,27 @@ paths:
             type: integer
             minimum: 1
             maximum: 999999999
-          example: 61504672
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?cis=61504672>; rel="successor-version"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MedicamentResponse"
-
         "400":
           description: Code CIS invalide
           content:
@@ -259,17 +700,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
 
   /generiques/{libelle}:
     get:
-      summary: Rechercher des groupes génériques par nom
-      description: Rechercher des groupes génériques par libellé (insensible à la casse)
+      deprecated: true
+      summary: "[LEGACY] Rechercher des groupes génériques par nom"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Rechercher des groupes génériques par libellé (insensible à la casse).
+
+        **Migration :** Utilisez `/v1/generiques?libelle={nom}` à la place.
       tags:
-        - Génériques
+        - Génériques (Legacy)
       parameters:
         - name: libelle
           in: path
@@ -280,17 +723,29 @@ paths:
             minLength: 3
             maxLength: 50
             pattern: "^[a-zA-Z0-9 ]+$"
-          example: "paracetamol"
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/GeneriqueListResponse"
-
         "400":
           description: Terme de recherche invalide
           content:
@@ -317,17 +772,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
 
   /generiques/group/{groupId}:
     get:
-      summary: Obtenir un groupe générique par ID
-      description: Récupérer un groupe générique spécifique par son ID de groupe
+      deprecated: true
+      summary: "[LEGACY] Obtenir un groupe générique par ID"
+      description: |
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+
+        Récupérer un groupe générique spécifique par son ID de groupe.
+
+        **Migration :** Utilisez `/v1/generiques?group={id}` à la place.
       tags:
-        - Génériques
+        - Génériques (Legacy)
       parameters:
         - name: groupId
           in: path
@@ -337,15 +794,27 @@ paths:
             type: integer
             minimum: 1
             maximum: 99999
-          example: 1234
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+                example: "2025-08-31T23:59:59Z"
+            Link:
+              schema:
+                type: string
+                example: '<https://medicamentsapi.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneriqueResponse"
-
         "400":
           description: ID de groupe invalide
           content:
@@ -372,10 +841,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
 
   /health:
     get:
@@ -473,10 +938,16 @@ paths:
                 code: 500
 
 tags:
-  - name: Médicaments
-    description: Points de terminaison liés aux médicaments
-  - name: Génériques
-    description: Points de terminaison des groupes de médicaments génériques
+  - name: Médicaments (v1)
+    description: Points de terminaison v1 liés aux médicaments
+  - name: Génériques (v1)
+    description: Points de terminaison v1 des groupes de médicaments génériques
+  - name: Présentations (v1)
+    description: Points de terminaison v1 des présentations de médicaments
+  - name: Médicaments (Legacy)
+    description: Points de terminaison legacy liés aux médicaments (dépréciés)
+  - name: Génériques (Legacy)
+    description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
   - name: Système
     description: Points de terminaison de santé et d'état du système
 

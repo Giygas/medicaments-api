@@ -87,12 +87,42 @@ _Performance attendue en production avec réseau et concurrence_
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
-mises à jour atomic zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting
+mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting
 par token bucket avec coûts variables par endpoint.
 
-## 🚀 Fonctionnalités
+## Fonctionnalités
 
-### 📊 Points de terminaison
+### Points de terminaison (API v1)
+
+**Nouveaux endpoints v1 (recommandés) :**
+
+| Endpoint                        | Description                           | Cache | Coût | Temps Réponse | Headers    | Validation            |
+| ---------------------------- | ----------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
+| `GET /v1/medicaments?export=all` | Export complet de la base          | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
+| `GET /v1/medicaments?page={n}` | Pagination (10/page)                | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
+| `GET /v1/medicaments?search={query}` | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ~0.2ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /v1/medicaments?cis={code}` | Recherche CIS (O(1) lookup)       | 12h   | 10   | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
+| `GET /v1/medicaments?cip={code}` | Recherche CIP (O(n) search)        | 12h   | 10   | ~0.1ms        | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
+| `GET /v1/generiques?libelle={nom}` | Génériques par libellé             | 1h    | 30   | ~0.1ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /v1/generiques?group={id}` | Groupe générique par ID              | 12h   | 5    | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
+| `GET /v1/presentations?cip={code}` | Présentations par CIP              | 12h   | 5    | ~0.002ms      | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
+| `GET /health` | Santé système + rate limit headers | -     | 5    | ~0.06ms       | RL         | -                     |
+
+**Endpoints legacy (dépréciés - suppression août 2026) :**
+
+Ces endpoints sont toujours disponibles mais seront supprimés le 31 août 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
+
+| Endpoint                     | Description                        | Cache | Coût | Temps Réponse | Headers    | Validation            |
+| ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
+| `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
+| `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 80   | ~0.2ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 10   | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
+| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
+| `GET /`                      | Accueil (SPA)                      | 1h    | 0    | ~0.02ms       | CC         | -                     |
+| `GET /docs`                  | Swagger UI interactive             | 1h    | 0    | ~0.03ms       | CC         | -                     |
+| `GET /docs/openapi.yaml`     | OpenAPI 3.1 spec                   | 1h    | 0    | ~0.01ms       | CC         | -                     |
 
 | Endpoint                     | Description                        | Cache | Coût | Temps Réponse | Headers    | Validation            |
 | ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
@@ -107,36 +137,89 @@ par token bucket avec coûts variables par endpoint.
 | `GET /docs`                  | Swagger UI interactive             | 1h    | 0    | ~8ms          | CC         | -                     |
 | `GET /docs/openapi.yaml`     | OpenAPI 3.1 spec                   | 1h    | 0    | ~0.01ms       | CC         | -                     |
 
-**Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
+**Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-*)
 
-### 📋 Format des Réponses
+### Guide de Migration vers v1
+
+Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de chemin :
+
+**Table de migration :**
+
+| Endpoint Legacy                      | Endpoint v1                                      |
+| ------------------------------------ | ------------------------------------------------- |
+| `GET /medicament/paracetamol`       | `GET /v1/medicaments?search=paracetamol`         |
+| `GET /medicament/id/61504672`        | `GET /v1/medicaments?cis=61504672`              |
+| `GET /database/1`                     | `GET /v1/medicaments?page=1`                    |
+| `GET /database`                        | `GET /v1/medicaments?export=all`                |
+| `GET /generiques/paracetamol`        | `GET /v1/generiques?libelle=paracetamol`        |
+| `GET /generiques/group/1234`         | `GET /v1/generiques?group=1234`               |
+
+**Règles v1 :**
+
+- **Un seul paramètre** par requête : export, page, search, cis, cip, libelle, ou group
+- **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
+- **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
+  - `Deprecation: true`
+  - `Sunset: 2026-08-31T23:59:59Z`
+  - `Link: <https://medicamentsapi.giygas.dev/v1/...>; rel="successor-version"`
+  - `X-Deprecated: Use /v1/... instead`
+  - `Warning: 299 - "Deprecated endpoint ..."`
+
+**Exemples de migration JavaScript :**
+
+```javascript
+// AVANT (legacy)
+const response = await fetch('https://medicamentsapi.giygas.dev/medicament/paracetamol');
+
+// APRÈS (v1)
+const response = await fetch('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol');
+
+const data = await response.json();
+```
+
+**Exemples de migration Python :**
+
+```python
+# AVANT (legacy)
+response = requests.get('https://medicamentsapi.giygas.dev/medicament/paracetamol')
+
+# APRÈS (v1)
+response = requests.get('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol')
+
+data = response.json()
+```
+
+### Format des Réponses
 
 #### Patterns de réponse par type d'endpoint
 
-**Recherche de médicaments - Réponse directe en tableau**
+**Recherche de médicaments - Réponse directe en tableau (v1)**
 
 ```bash
-GET /medicament/{name}
+GET /v1/medicaments?search={query}
 Response: [...]  // Tableau direct des objets medicament
 
-GET /medicament/id/{cis}
-Response: {...}  // Objet medicament unique ou erreur
+GET /v1/medicaments?cis={code}
+Response: {...}  // Objet médicament unique ou erreur
+
+GET /v1/medicaments?cip={code}
+Response: {...}  // Objet médicament unique ou erreur
 ```
 
-**Génériques - Tableau direct**
+**Génériques - Tableau direct ou objet (v1)**
 
 ```bash
-GET /generiques/{libelle}
+GET /v1/generiques?libelle={nom}
 Response: [{"groupID": ..., "libelle": ..., "medicaments": [...]}]
 
-GET /generiques/group/{id}
+GET /v1/generiques?group={id}
 Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}
 ```
 
-**Pagination - Objet avec métadonnées**
+**Pagination - Objet avec métadonnées (v1)**
 
 ```bash
-GET /database/{page}
+GET /v1/medicaments?page={n}
 Response: {
   "data": [...],
   "page": 1,
@@ -144,34 +227,47 @@ Response: {
   "totalItems": 15803,
   "maxPage": 1581
 }
+
+GET /v1/medicaments?export=all
+Response: [...]  // Export complet en tableau
 ```
 
-### 💡 Exemples d'utilisation
+### Exemples d'utilisation
 
-#### Recherche de base
+#### Recherche de base (API v1)
 
 ```bash
 # Base de données complète (~20MB)
-curl https://medicaments-api.giygas.dev/database
+curl https://medicamentsapi.giygas.dev/v1/medicaments?export=all
 
 # Pagination (10 médicaments par page)
-curl https://medicaments-api.giygas.dev/database/1
+curl https://medicamentsapi.giygas.dev/v1/medicaments?page=1
 
 # Recherche par nom (insensible à la casse, regex supporté)
-curl https://medicaments-api.giygas.dev/medicament/paracetamol
+curl https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol
 
 # Recherche par CIS (Code Identifiant de Spécialité)
-curl https://medicaments-api.giygas.dev/medicament/id/61504672
+curl https://medicamentsapi.giygas.dev/v1/medicaments?cis=61504672
+
+# Recherche par CIP (Code Identifiant de Présentation)
+curl https://medicamentsapi.giygas.dev/v1/medicaments?cip=3400936403114
 ```
 
-#### Génériques
+#### Génériques (API v1)
 
 ```bash
 # Génériques par libellé
-curl https://medicaments-api.giygas.dev/generiques/paracetamol
+curl https://medicamentsapi.giygas.dev/v1/generiques?libelle=paracetamol
 
 # Groupe générique par ID avec détails complets
-curl https://medicaments-api.giygas.dev/generiques/group/1234
+curl https://medicamentsapi.giygas.dev/v1/generiques?group=1234
+```
+
+#### Présentations (API v1 - nouveau)
+
+```bash
+# Présentations par CIP
+curl https://medicamentsapi.giygas.dev/v1/presentations?cip=3400936403114
 ```
 
 #### Monitoring et santé
@@ -186,7 +282,7 @@ curl -I https://medicaments-api.giygas.dev/health
 
 ### Exemples détaillés
 
-#### GET /medicament/codoliprane
+#### GET /v1/medicaments?search=codoliprane
 
 ```json
 [
@@ -245,7 +341,7 @@ curl -I https://medicaments-api.giygas.dev/health
 ]
 ```
 
-#### GET /generiques/paracetamol
+#### GET /v1/generiques?libelle=paracetamol
 
 ```json
 [
@@ -299,25 +395,34 @@ curl -I https://medicaments-api.giygas.dev/health
 #### JavaScript/TypeScript
 
 ```javascript
-// Client JavaScript/TypeScript pour l'API Médicaments
+// Client JavaScript/TypeScript pour l'API Médicaments v1
 class MedicamentsAPI {
   private readonly baseUrl = 'https://medicaments-api.giygas.dev';
 
-  async searchByName(name: string): Promise<any[]> {
-    const response = await fetch(`${this.baseUrl}/medicament/${name}`);
+  async searchByName(query: string): Promise<any[]> {
+    const response = await fetch(`${this.baseUrl}/v1/medicaments?search=${query}`);
     const data = await response.json();
     console.log(`Found ${data.length} medicaments`);
     return data; // Array of matching medicaments
   }
 
   async getByCis(cis: number): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/medicament/id/${cis}`);
+    const response = await fetch(`${this.baseUrl}/v1/medicaments?cis=${cis}`);
     return response.json();
   }
 
-  async getDatabase(page?: number): Promise<any> {
-    const url = page ? `${this.baseUrl}/database/${page}` : `${this.baseUrl}/database`;
-    const response = await fetch(url);
+  async getByCip(cip: number): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/v1/medicaments?cip=${cip}`);
+    return response.json();
+  }
+
+  async getPage(page: number): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/v1/medicaments?page=${page}`);
+    return response.json();
+  }
+
+  async getDatabase(): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/v1/medicaments?export=all`);
     return response.json();
   }
 
@@ -330,7 +435,7 @@ class MedicamentsAPI {
     const specificMed = await this.getByCis(61504672);
 
     // Pagination de la base de données
-    const firstPage = await this.getDatabase(1);
+    const firstPage = await this.getPage(1);
     console.log(`Page ${firstPage.page} of ${firstPage.maxPage}`);
 
     return { paracetamolMeds, specificMed, firstPage };
@@ -365,19 +470,31 @@ class MedicamentsAPI:
 
     def search_by_name(self, query: str) -> Dict[str, Any]:
         """Rechercher des médicaments par nom"""
-        response = self.session.get(f"{self.BASE_URL}/medicament/{query}")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?search={query}")
         response.raise_for_status()
         return response.json()
 
     def get_by_cis(self, cis: int) -> Dict[str, Any]:
         """Obtenir un médicament par CIS"""
-        response = self.session.get(f"{self.BASE_URL}/medicament/id/{cis}")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?cis={cis}")
         response.raise_for_status()
         return response.json()
 
-    def get_page(self, page: int = 1) -> Dict[str, Any]:
+    def get_by_cip(self, cip: int) -> Dict[str, Any]:
+        """Obtenir un médicament par CIP"""
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?cip={cip}")
+        response.raise_for_status()
+        return response.json()
+
+    def get_page(self, page: int) -> Dict[str, Any]:
         """Pagination des médicaments"""
-        response = self.session.get(f"{self.BASE_URL}/database/{page}")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?page={page}")
+        response.raise_for_status()
+        return response.json()
+
+    def get_database(self) -> Dict[str, Any]:
+        """Exporter toute la base de données"""
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?export=all")
         response.raise_for_status()
         return response.json()
 
