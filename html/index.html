@@ -761,8 +761,8 @@ BASE_URL="https://medicaments-api.giygas.dev"
                 <strong>Fix encodage des caractères</strong>:
                 <p>
                   &emsp;Changement de charset de <code>Windows1252</code> vers
-
-                  <code>ISO8859-1</code> dans le downloader
+                  détection automatique <code>UTF-8 ou ISO8859-1</code> dans le
+                  downloader
                 </p>
                 <p>
                   &emsp;Corrige les problèmes d'encodage pour les médicaments
@@ -851,7 +851,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔄</div>
             <h3>Mises à jour atomiques ultra-rapides</h3>
             <p>
-              Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes**
+              Parsing concurrent de 5 fichiers TSV BDPM en <b>~0.5 secondes</b>
               avec atomic.Value pour zero-downtime updates. Mises à jour
               automatiques 2x/jour (6h/18h) sans interruption de service.
               Architecture basée sur 6 interfaces avec dependency injection et
@@ -898,7 +898,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🚀</div>
             <h3>Performance exceptionnelle</h3>
             <p>
-              Architecture optimisée pour **391K requêtes/seconde** sur les
+              Architecture optimisée pour <b>391K requêtes/seconde</b> sur les
               endpoints critiques. Lookup O(1) en ~2.6µs via maps mémoire,
               compression gzip 80%, et cache HTTP intelligent avec 90%+ hit
               ratio. Tests complets avec 70%+ couverture.
@@ -1701,40 +1701,44 @@ Response: {
     "surveillanceRenforce": "Non",
     "composition": [
       {
-        "cis": 60904643,
-        "elementPharmaceutique": "comprimé",
-        "codeSubstance": 2202,
-        "denominationSubstance": "PARACÉTAMOL",
-        "dosage": "500 mg",
-        "referenceDosage": "un comprimé",
-        "natureComposant": "SA"
+      "cis": 60904643,
+      "elementPharmaceutique": "comprimé",
+      "codeSubstance": 2202,
+      "denominationSubstance": "PARACÉTAMOL",
+      "dosage": "500 mg",
+      "referenceDosage": "un comprimé",
+      "natureComposant": "SA"
       },
       {
         "cis": 60904643,
         "elementPharmaceutique": "comprimé",
-        "codeSubstance": 1240,
-        "denominationSubstance": "CAFÉINE",
+        "codeSubstance": 74765,
+        "denominationSubstance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
         "dosage": "30 mg",
         "referenceDosage": "un comprimé",
         "natureComposant": "SA"
       }
     ],
-    "generiques": [],
+    "generiques": null,
     "presentation": [
       {
         "cis": 60904643,
-        "cip7": 3400936403114,
-        "cip13": 3400936403114,
-        "libelle": "CODOLIPRANE 500 mg/30 mg, comprimé (16)",
+        "cip7": 2756239,
+        "libelle": "plaquette(s) thermoformée(s) PVC PVDC aluminium de 16 comprimé(s)",
         "statusAdministratif": "Présentation active",
-        "etatComercialisation": "Commercialisée",
-        "dateDeclaration": "19/01/1965",
-        "agreement": "non",
+        "etatComercialisation": "Déclaration de commercialisation",
+        "dateDeclaration": "14/01/2014",
+        "cip13": 3400927562396,
+        "agreement": "oui",
         "tauxRemboursement": "65%",
-        "prix": 3.85
+        "prix": 1.72
       }
     ],
-    "conditions": []
+    "conditions": [
+      "prescription limitée à 12 semaines",
+      "liste I",
+      "prescription en toutes lettres sur ordonnance sécurisée"
+    ]
   }
 ]</code></pre>
         </div>

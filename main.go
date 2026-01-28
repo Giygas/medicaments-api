@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -65,7 +66,7 @@ func main() {
 
 	// Start the server in a goroutine
 	go func() {
-		if err := srv.Start(); err != nil {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 			logging.Error("Server failed to start", "error", err)
 			os.Exit(1)
 		}
@@ -73,7 +74,6 @@ func main() {
 
 	// Block until a signal is received
 	<-quit
-	logging.Info("Shutting down server...")
 
 	// Create a context with timeout for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -86,6 +86,9 @@ func main() {
 	}
 
 	logging.Info("Server shutdown complete")
+
+	// Ensure all logs are flushed before exit
+	logging.Close()
 }
 
 // loadEnvironment loads environment variables from .env file

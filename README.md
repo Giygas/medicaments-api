@@ -47,8 +47,10 @@ _Performance attendue en production avec réseau et concurrence_
 
 ### Décembre 2025
 
-- **Fix encodage des caractères**: Changement de charset de `Windows1252` vers `ISO8859-1` dans le downloader
+- **Fix encodage des caractères**: Changement de charset de `Windows1252` vers détection automatique `UTF-8/ISO8859-1` dans le downloader
   - Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
+- **Fix logging shutdown**: Correction des logs pendant l'arrêt du serveur
+  - Les messages "Server shutdown complete" apparaissent maintenant correctement
 
 ---
 
@@ -201,40 +203,44 @@ curl -I https://medicaments-api.giygas.dev/health
     "surveillanceRenforce": "Non",
     "composition": [
       {
-        "cis": 60904643,
-        "elementPharmaceutique": "comprimé",
-        "codeSubstance": 2202,
-        "denominationSubstance": "PARACÉTAMOL",
-        "dosage": "500 mg",
-        "referenceDosage": "un comprimé",
-        "natureComposant": "SA"
+      "cis": 60904643,
+      "elementPharmaceutique": "comprimé",
+      "codeSubstance": 2202,
+      "denominationSubstance": "PARACÉTAMOL",
+      "dosage": "500 mg",
+      "referenceDosage": "un comprimé",
+      "natureComposant": "SA"
       },
       {
         "cis": 60904643,
         "elementPharmaceutique": "comprimé",
-        "codeSubstance": 1240,
-        "denominationSubstance": "CAFÉINE",
+        "codeSubstance": 74765,
+        "denominationSubstance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
         "dosage": "30 mg",
         "referenceDosage": "un comprimé",
         "natureComposant": "SA"
       }
     ],
-    "generiques": [],
+    "generiques": null,
     "presentation": [
       {
         "cis": 60904643,
-        "cip7": 3400936403114,
-        "cip13": 3400936403114,
-        "libelle": "CODOLIPRANE 500 mg/30 mg, comprimé (16)",
+        "cip7": 2756239,
+        "libelle": "plaquette(s) thermoformée(s) PVC PVDC aluminium de 16 comprimé(s)",
         "statusAdministratif": "Présentation active",
-        "etatComercialisation": "Commercialisée",
-        "dateDeclaration": "19/01/1965",
-        "agreement": "non",
+        "etatComercialisation": "Déclaration de commercialisation",
+        "dateDeclaration": "14/01/2014",
+        "cip13": 3400927562396,
+        "agreement": "oui",
         "tauxRemboursement": "65%",
-        "prix": 3.85
+        "prix": 1.72
       }
     ],
-    "conditions": []
+    "conditions": [
+      "prescription limitée à 12 semaines",
+      "liste I",
+      "prescription en toutes lettres sur ordonnance sécurisée"
+    ]
   }
 ]
 ```
