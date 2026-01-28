@@ -78,7 +78,7 @@ func (s *Scheduler) updateData() error {
 	start := time.Now()
 
 	// Parse data using injected parser
-	newMedicaments, err := s.parser.ParseAllMedicaments()
+	newMedicaments, newPresentationsCIP7Map, newPresentationsCIP13Map, err := s.parser.ParseAllMedicaments()
 	if err != nil {
 		logging.Error("Failed to parse medicaments", "error", err)
 		return fmt.Errorf("failed to parse medicaments: %w", err)
@@ -97,7 +97,7 @@ func (s *Scheduler) updateData() error {
 	}
 
 	// Atomic update using injected data store
-	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap)
+	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap, newPresentationsCIP7Map, newPresentationsCIP13Map)
 
 	elapsed := time.Since(start)
 	logging.Info("Database update completed", "duration", elapsed.String(), "medicament_count", len(newMedicaments))

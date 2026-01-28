@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,12 +13,14 @@ import (
 
 // MockDataStore implements DataStore interface for testing
 type MockDataStore struct {
-	medicaments    []entities.Medicament
-	generiques     []entities.GeneriqueList
-	medicamentsMap map[int]entities.Medicament
-	generiquesMap  map[int]entities.Generique
-	lastUpdated    time.Time
-	updating       bool
+	medicaments           []entities.Medicament
+	generiques            []entities.GeneriqueList
+	medicamentsMap        map[int]entities.Medicament
+	generiquesMap         map[int]entities.Generique
+	presentationsCIP7Map  map[int]entities.Presentation
+	presentationsCIP13Map map[int]entities.Presentation
+	lastUpdated           time.Time
+	updating              bool
 }
 
 func (m *MockDataStore) GetMedicaments() []entities.Medicament {
@@ -36,6 +39,14 @@ func (m *MockDataStore) GetGeneriquesMap() map[int]entities.Generique {
 	return m.generiquesMap
 }
 
+func (m *MockDataStore) GetPresentationsCIP7Map() map[int]entities.Presentation {
+	return m.presentationsCIP7Map
+}
+
+func (m *MockDataStore) GetPresentationsCIP13Map() map[int]entities.Presentation {
+	return m.presentationsCIP13Map
+}
+
 func (m *MockDataStore) GetLastUpdated() time.Time {
 	return m.lastUpdated
 }
@@ -44,11 +55,13 @@ func (m *MockDataStore) IsUpdating() bool {
 	return m.updating
 }
 
-func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique) {
+func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 	m.medicaments = medicaments
 	m.generiques = generiques
 	m.medicamentsMap = medicamentsMap
 	m.generiquesMap = generiquesMap
+	m.presentationsCIP7Map = presentationsCIP7Map
+	m.presentationsCIP13Map = presentationsCIP13Map
 	m.lastUpdated = time.Now()
 }
 
@@ -73,15 +86,19 @@ type MockParser struct {
 	shouldFail bool
 }
 
-func (m *MockParser) ParseAllMedicaments() ([]entities.Medicament, error) {
+func (m *MockParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 	if m.shouldFail {
-		return nil, &mockError{"parse failed"}
+		return nil, nil, nil, &mockError{"parse failed"}
 	}
 
 	return []entities.Medicament{
-		{Cis: 1, Denomination: "Test Medicament"},
-		{Cis: 2, Denomination: "Another Test"},
-	}, nil
+			{Cis: 1, Denomination: "Test Medicament"},
+			{Cis: 2, Denomination: "Another Test"},
+		}, map[int]entities.Presentation{
+			1234567: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+		}, map[int]entities.Presentation{
+			3400912345678: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+		}, nil
 }
 
 func (m *MockParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
@@ -125,52 +142,72 @@ type MockHTTPHandler struct {
 
 func (m *MockHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) ServeAllMedicaments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) FindMedicament(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) FindMedicamentByID(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) FindGeneriques(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 func (m *MockHTTPHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
-	w.Write([]byte(m.responseBody))
+	_, _ = w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	_, _ = w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	_, _ = w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	_, _ = w.Write([]byte(m.responseBody))
 }
 
 // MockHealthChecker implements HealthChecker interface for testing
 type MockHealthChecker struct {
 	status  string
-	details map[string]interface{}
+	details map[string]any
 	err     error
 }
 
-func (m *MockHealthChecker) HealthCheck() (string, map[string]interface{}, error) {
+func (m *MockHealthChecker) HealthCheck() (string, map[string]any, error) {
 	return m.status, m.details, m.err
 }
 
@@ -204,6 +241,30 @@ func (m *MockDataValidator) ValidateInput(input string) error {
 	return nil
 }
 
+func (m *MockDataValidator) ValidateCIP(input string) (int, error) {
+	if m.shouldFail {
+		return -1, fmt.Errorf("CIP validation failed")
+	}
+	// Try to parse as int for simple validation
+	val, err := strconv.Atoi(input)
+	if err != nil {
+		return -1, fmt.Errorf("input is not a number")
+	}
+	return val, nil
+}
+
+func (m *MockDataValidator) ValidateCIS(input string) (int, error) {
+	if m.shouldFail {
+		return -1, fmt.Errorf("CIS validation failed")
+	}
+	// Try to parse as int for simple validation
+	val, err := strconv.Atoi(input)
+	if err != nil {
+		return -1, fmt.Errorf("input is not a number")
+	}
+	return val, nil
+}
+
 // mockError is a simple error type for testing
 type mockError struct {
 	msg string
@@ -230,17 +291,23 @@ func TestDataStoreInterface(t *testing.T) {
 func TestParserInterface(t *testing.T) {
 	// Test successful parsing
 	parser := &MockParser{shouldFail: false}
-	medicaments, err := parser.ParseAllMedicaments()
+	medicaments, cip7Map, cip13Map, err := parser.ParseAllMedicaments()
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	if len(medicaments) != 2 {
 		t.Errorf("Expected 2 medicaments, got %d", len(medicaments))
 	}
+	if len(cip7Map) != 1 {
+		t.Errorf("Expected 1 CIP7 map entry, got %d", len(cip7Map))
+	}
+	if len(cip13Map) != 1 {
+		t.Errorf("Expected 1 CIP13 map entry, got %d", len(cip13Map))
+	}
 
 	// Test failed parsing
 	parser = &MockParser{shouldFail: true}
-	_, err = parser.ParseAllMedicaments()
+	_, _, _, err = parser.ParseAllMedicaments()
 	if err == nil {
 		t.Error("Expected error but got none")
 	}
@@ -287,7 +354,7 @@ func TestHTTPHandlerInterface(t *testing.T) {
 func TestHealthCheckerInterface(t *testing.T) {
 	checker := &MockHealthChecker{
 		status: "healthy",
-		details: map[string]interface{}{
+		details: map[string]any{
 			"uptime": "1h",
 			"memory": "50MB",
 		},
