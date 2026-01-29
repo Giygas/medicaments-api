@@ -278,7 +278,8 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 
 	}
 
-	logging.Info("All medicaments parsed successfully")
+	logging.Info("All medicaments parsed successfully",
+		"medicaments_parsed", len(medicamentsSlice))
 
 	return medicamentsSlice, presentationsCIP7Map, presentationsCIP13Map, nil
 }
