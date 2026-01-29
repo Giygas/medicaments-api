@@ -9,7 +9,7 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
-func validateMedicamenti(m *entities.Medicament) error {
+func validateMedicaments(m *entities.Medicament) error {
 	if m.Cis <= 0 {
 		return fmt.Errorf("invalid CIS: %d", m.Cis)
 	}
@@ -208,7 +208,6 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 	generiquesMap := make(map[int][]entities.Generique)
 	for _, gen := range generiques {
 		generiquesMap[gen.Cis] = append(generiquesMap[gen.Cis], gen)
-
 	}
 
 	// Check for duplicate CIP values before building maps
@@ -269,7 +268,7 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 		}
 
 		// Validate the medicament structure
-		if err := validateMedicamenti(medicament); err != nil {
+		if err := validateMedicaments(medicament); err != nil {
 			logging.Warn("Skipping invalid medicament: ", "error", err, "cis", med.Cis)
 			continue
 		}
