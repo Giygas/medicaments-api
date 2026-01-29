@@ -23,7 +23,7 @@ info:
     - `/v1/presentations?cip={code}` : 5 tokens
 
     ## Endpoints legacy (dépréciés)
-    Les endpoints ci-dessous sont dépréciés et seront supprimés le **31 août 2025**.
+    Les endpoints ci-dessous sont dépréciés et seront supprimés le **31 juillet 2026**.
     Veuillez migrer vers les endpoints v1. Consultez la section "Migration" pour plus d'informations.
 
     Coûts des endpoints legacy :
@@ -51,7 +51,7 @@ info:
 
     Les endpoints legacy renvoient les headers de dépréciation suivants :
     - Deprecation: true
-    - Sunset: 2025-08-31T23:59:59Z
+    - Sunset: 2026-07-31T23:59:59Z
     - Link: URL de l'endpoint de remplacement
     - X-Deprecated: Message de dépréciation
     - Warning: Avertissement HTTP standard
@@ -442,7 +442,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Obtenir tous les médicaments"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Récupérer la liste complète de tous les médicaments dans la base de données.
 
@@ -461,11 +461,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?export=all>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/medicaments?export=all>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -484,7 +484,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Obtenir des médicaments par page"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Pagination de la base de données (10 éléments/page).
 
@@ -511,11 +511,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -565,7 +565,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Rechercher des médicaments par nom"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Rechercher des médicaments par dénomination (insensible à la casse).
 
@@ -594,11 +594,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -637,7 +637,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Obtenir un médicament par code CIS"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité).
 
@@ -665,11 +665,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/medicaments?cis=61504672>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/medicaments?cis=61504672>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -706,7 +706,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Rechercher des groupes génériques par nom"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Rechercher des groupes génériques par libellé (insensible à la casse).
 
@@ -735,11 +735,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -778,7 +778,7 @@ paths:
       deprecated: true
       summary: "[LEGACY] Obtenir un groupe générique par ID"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 août 2025**
+        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
 
         Récupérer un groupe générique spécifique par son ID de groupe.
 
@@ -806,11 +806,11 @@ paths:
               schema:
                 type: string
                 format: date-time
-                example: "2025-08-31T23:59:59Z"
+                example: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicamentsapi.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
+                example: '<https://medicaments-api.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -872,7 +872,7 @@ paths:
                   last_updated:
                     type: string
                     format: date-time
-                    example: "2025-01-15T06:00:00Z"
+                    example: "2026-01-15T06:00:00Z"
                     description: Date et heure de la dernière mise à jour réussie
                   data:
                     type: object
@@ -893,7 +893,7 @@ paths:
                       next_update:
                         type: string
                         format: date-time
-                        example: "2025-01-15T18:00:00Z"
+                        example: "2026-01-15T18:00:00Z"
                         description: Prochaine mise à jour planifiée
                     description: Informations sur les données de l'API
                   system:
@@ -916,12 +916,12 @@ paths:
                   status: "healthy"
                   uptime_seconds: 86400
                   uptime_human: "1d 0h 0m 0s"
-                  last_updated: "2025-01-15T06:00:00Z"
+                  last_updated: "2026-01-15T06:00:00Z"
                   data:
                     medicament_count: 15420
                     generique_count: 5200
                     data_age_hours: 2.5
-                    next_update: "2025-01-15T18:00:00Z"
+                    next_update: "2026-01-15T18:00:00Z"
                   system:
                     updating: false
                     memory_usage_mb: 130

@@ -60,9 +60,9 @@ Voir la section **Optimisations techniques** pour les détails complets des benc
 
 **Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
-**Endpoints legacy (dépréciés - suppression août 2026) :**
+**Endpoints legacy (dépréciés - suppression juillet 2026) :**
 
-Ces endpoints sont toujours disponibles mais seront supprimés le 31 août 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
+Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
 
 | Endpoint                     | Description                       | Cache | Coût | Headers    | Validation            |
 | ---------------------------- | --------------------------------- | ----- | ---- | ---------- | --------------------- |
@@ -94,7 +94,7 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 - **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
 - **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
   - `Deprecation: true`
-  - `Sunset: 2026-08-31T23:59:59Z`
+  - `Sunset: 2026-07-31T23:59:59Z`
   - `Link: <https://medicaments-api.giygas.dev/v1/...>; rel="successor-version"`
   - `X-Deprecated: Use /v1/... instead`
   - `Warning: 299 - "Deprecated endpoint ..."`
