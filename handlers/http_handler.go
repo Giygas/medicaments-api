@@ -164,7 +164,7 @@ func (h *HTTPHandlerImpl) AddDeprecationHeaders(w http.ResponseWriter, r *http.R
 
 	// Sunset header indicates when the endpoint will be removed
 	// Format: RFC 1123 date format
-	w.Header().Set("Sunset", "2025-07-31T23:59:59Z")
+	w.Header().Set("Sunset", "2026-07-31T23:59:59Z")
 
 	// Non standard but good practice
 	w.Header().Set("X-Deprecated", fmt.Sprintf("Use %s instead", newPath))
