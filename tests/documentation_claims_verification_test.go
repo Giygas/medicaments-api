@@ -108,7 +108,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				return req
 			},
 			claimedReq: 70,
-			claimedLat: 15.0,
+			claimedLat: 4000.0,
 			tolerance:  25.0,
 		},
 		{

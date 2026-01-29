@@ -184,7 +184,7 @@ func TestRealWorldMemoryUnderLoad(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range requestChan {
-				resp, err := http.Get(server.URL + "/database/1")
+				resp, err := http.Get(server.URL + "/v1/medicaments?page=1")
 				if err == nil {
 					_, _ = io.Copy(io.Discard, resp.Body) // Read full response
 					_ = resp.Body.Close()
@@ -235,9 +235,9 @@ func TestRealWorldResponseSizes(t *testing.T) {
 		expectedMaxSize int // bytes
 		description     string
 	}{
-		{"/database", 25 * 1024 * 1024, "Full database (should be large)"},
-		{"/database/1", 100 * 1024, "First page (should be small)"},
-		{"/medicament/id/1000", 10 * 1024, "Single medicament"},
+		{"/v1/medicaments?export=all", 25 * 1024 * 1024, "Full database (should be large)"},
+		{"/v1/medicaments?page=1", 100 * 1024, "First page (should be small)"},
+		{"/v1/medicaments?cis=1000", 10 * 1024, "Single medicament"},
 		{"/health", 5 * 1024, "Health check"},
 	}
 
@@ -304,7 +304,7 @@ func TestRealWorldSustainedPerformance(t *testing.T) {
 				return
 			case <-ticker.C:
 				start := time.Now()
-				resp, err := http.Get(server.URL + "/database/1")
+				resp, err := http.Get(server.URL + "/v1/medicaments?page=1")
 				reqTime := time.Since(start)
 
 				mutex.Lock()
@@ -383,7 +383,7 @@ func TestRealWorldSearchPatterns(t *testing.T) {
 	for _, sp := range searchPatterns {
 		t.Run(sp.description, func(t *testing.T) {
 			start := time.Now()
-			resp, err := http.Get(server.URL + "/medicament/" + sp.pattern)
+			resp, err := http.Get(server.URL + "/v1/medicaments?search=" + sp.pattern)
 			reqTime := time.Since(start)
 
 			if err != nil {
@@ -430,8 +430,8 @@ func BenchmarkRealWorldRequests(b *testing.B) {
 	// Note: Don't close the server here as it's shared across tests
 
 	endpoints := []string{
-		"/database/1",
-		"/medicament/id/1000",
+		"/v1/medicaments?page=1",
+		"/v1/medicaments?cis=1000",
 		"/health",
 	}
 

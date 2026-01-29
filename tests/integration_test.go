@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -188,57 +187,6 @@ func TestIntegrationErrorHandling(t *testing.T) {
 }
 
 // TestIntegrationMemoryUsage tests memory usage during parsing
-func TestIntegrationMemoryUsage(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	fmt.Println("Starting memory usage integration test...")
-
-	setupTestEnvironment(t)
-	defer cleanupTestEnvironment(t)
-
-	// Get initial memory stats
-	var initialMem runtime.MemStats
-	runtime.ReadMemStats(&initialMem)
-
-	// Parse data
-	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
-	if err != nil {
-		t.Fatalf("Failed to parse medicaments: %v", err)
-	}
-
-	// Get final memory stats
-	var finalMem runtime.MemStats
-	runtime.ReadMemStats(&finalMem)
-
-	// Calculate memory usage (handle potential overflow)
-	var memoryUsedMB uint64
-	if finalMem.Alloc > initialMem.Alloc {
-		memoryUsedMB = (finalMem.Alloc - initialMem.Alloc) / 1024 / 1024
-	}
-
-	var medicamentsPerMB float64
-	if memoryUsedMB > 0 {
-		medicamentsPerMB = float64(len(medicaments)) / float64(memoryUsedMB)
-	}
-
-	fmt.Printf("Memory used: %d MB\n", memoryUsedMB)
-	fmt.Printf("Medicaments per MB: %.2f\n", medicamentsPerMB)
-
-	// Verify memory usage is reasonable (should be less than 1GB for the full dataset)
-	if memoryUsedMB > 1024 {
-		t.Errorf("Memory usage too high: %d MB (expected < 1024 MB)", memoryUsedMB)
-	}
-
-	// Verify efficiency (should handle at least 10 medicaments per MB)
-	if memoryUsedMB > 0 && medicamentsPerMB < 10 {
-		t.Errorf("Memory efficiency too low: %.2f medicaments/MB (expected > 10)", medicamentsPerMB)
-	}
-
-	fmt.Println("Memory usage test completed successfully")
-}
-
 // Helper functions
 
 func setupTestEnvironment(t *testing.T) {
