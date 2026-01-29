@@ -524,34 +524,39 @@
 
     <main class="container">
       <!-- Deprecation Notice Banner -->
-      <div style="
-        background: var(--color-accent);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        text-align: center;
-      ">
-        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem;">
+      <div
+        style="
+          background: var(--color-accent);
+          color: white;
+          padding: 1rem 1.5rem;
+          border-radius: 8px;
+          margin-bottom: 2rem;
+          text-align: center;
+        "
+      >
+        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
           Nouvelle API v1 disponible !
         </div>
-        <div style="font-size: 0.95rem;">
-          Les endpoints anciens sont dépréciés et seront supprimés le <strong>31 août 2026</strong>.
+        <div style="font-size: 0.95rem">
+          Les endpoints anciens sont dépréciés et seront supprimés le
+          <strong>31 août 2026</strong>.
           <br />
-          <a href="#endpoints" style="color: white; text-decoration: underline;">Voir les nouveaux endpoints v1 →</a>
+          <a href="#endpoints" style="color: white; text-decoration: underline"
+            >Voir les nouveaux endpoints v1 →</a
+          >
         </div>
       </div>
 
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          Une API rapide et fiable pour accéder aux 15K+ médicaments français.
+          Une API rapide et fiable pour accéder aux 15,000+ médicaments français.
           Mises à jour automatiques deux fois par jour, cache intelligent, et
           protection contre les abus pour garantir une expérience stable.
         </p>
         <div class="hero-stats">
           <div class="stat">
-            <span class="stat-number">15.8K</span>
+            <span class="stat-number">15,000+</span>
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
@@ -598,9 +603,9 @@
               margin-top: 1rem;
             "
           >
-             <h4 style="color: var(--color-text); margin-bottom: 1rem">
-               Démarrage Rapide (API v1)
-             </h4>
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Démarrage Rapide (API v1)
+            </h4>
 
             <div style="margin-bottom: 1.5rem">
               <strong style="color: var(--color-text)"
@@ -615,13 +620,13 @@
                   margin-top: 0.5rem;
                   font-size: 0.9rem;
                 "
-              ><code># Base URL
-BASE_URL="https://medicamentsapi.giygas.dev"
+              ><code># URL de base
+BASE_URL="https://medicaments-api.giygas.dev"
 
-# Authentication: None required
-# Rate limits: 1000 tokens/IP, 3 tokens/sec recharge
-# Costs v1: /health (5), /v1/medicaments?export=all (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments?cis={code} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations?cip={code} (5)
-# Costs legacy (deprecated): /medicament/{nom} (80), /medicament/id/{cis} (10), /database (200), others (20)</code></pre>
+# Authentification : Aucune requise
+# Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
+# Coûts v1 : /health (5), /v1/medicaments?export=all (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments?cis={code} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations?cip={code} (5)
+# Coûts legacy (dépréciés) : /medicament/{nom} (80), /medicament/id/{cis} (10), /database (200), autres (20)</code></pre>
             </div>
 
             <div style="margin-bottom: 1.5rem">
@@ -637,42 +642,11 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                     display: block;
                     padding-right: 3rem;
                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol
-                 </code>
-                <button
-                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                  style="
-                    position: absolute;
-                    right: 0.5rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: var(--color-primary);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
                 >
-                  📋
-                </button>
-              </div>
-              <div style="position: relative; margin: 0.5rem 0">
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    display: block;
-                    padding-right: 3rem;
-                  "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl https://medicamentsapi.giygas.dev/v1/medicaments?page=1
-                 </code>
+                  curl
+                  https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
+                </code>
                 <button
                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
                   style="
@@ -703,7 +677,39 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                   "
                   onclick="copyToClipboard(this.textContent.trim())"
                 >
-                  curl https://medicamentsapi.giygas.dev/health
+                  curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicaments-api.giygas.dev/health
                 </code>
                 <button
                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
@@ -829,8 +835,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
             <div class="function-icon">📊</div>
             <h3>Données BDPM complètes</h3>
             <p>
-              15K+ médicaments, 1.6K groupes génériques. Toutes les entités BDPM
-              : compositions, présentations, génériques, conditions, voies
+              15,000+ médicaments, 1.6K groupes génériques. Toutes les entités
+              BDPM : compositions, présentations, génériques, conditions, voies
               d'administration. Mémoire optimisée : 30-50MB stable (150MB peak
               au démarrage).
             </p>
@@ -884,8 +890,16 @@ BASE_URL="https://medicamentsapi.giygas.dev"
           "
         >
           <!-- v1 Endpoints -->
-          <h3 style="color: var(--color-primary); margin-bottom: 1rem; font-size: 1.4rem;">Endpoints v1 (Nouveaux)</h3>
-          <div style="overflow-x: auto; margin-bottom: 2rem;">
+          <h3
+            style="
+              color: var(--color-primary);
+              margin-bottom: 1rem;
+              font-size: 1.4rem;
+            "
+          >
+            Endpoints v1 (Nouveaux)
+          </h3>
+          <div style="overflow-x: auto; margin-bottom: 2rem">
             <table style="width: 100%; border-collapse: collapse">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-border)">
@@ -937,7 +951,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?export=all</code>
+                      >GET /v1/medicaments?export=all</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -974,7 +989,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?page={n}</code>
+                      >GET /v1/medicaments?page={n}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1011,7 +1027,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?search={query}</code>
+                      >GET /v1/medicaments?search={query}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1048,7 +1065,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?cis={code}</code>
+                      >GET /v1/medicaments?cis={code}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1085,7 +1103,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?cip={code}</code>
+                      >GET /v1/medicaments?cip={code}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1122,7 +1141,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/generiques?libelle={nom}</code>
+                      >GET /v1/generiques?libelle={nom}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1159,7 +1179,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/generiques?group={id}</code>
+                      >GET /v1/generiques?group={id}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1196,7 +1217,8 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/presentations?cip={code}</code>
+                      >GET /v1/presentations?cip={code}</code
+                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1229,13 +1251,24 @@ BASE_URL="https://medicamentsapi.giygas.dev"
           </div>
 
           <!-- Legacy Endpoints -->
-          <h3 style="color: var(--color-text-muted); margin-bottom: 1rem; margin-top: 3rem; font-size: 1.2rem; font-weight: 500;">Endpoints Legacy (Dépréciés - Suppression août 2026)</h3>
-          <p style="color: var(--color-text-muted); margin-bottom: 1rem;">
-            Ces endpoints sont toujours disponibles mais seront supprimés le <strong>31 août 2026</strong>.
-            Veuillez migrer vers les endpoints v1 ci-dessus.
+          <h3
+            style="
+              color: var(--color-text-muted);
+              margin-bottom: 1rem;
+              margin-top: 3rem;
+              font-size: 1.2rem;
+              font-weight: 500;
+            "
+          >
+            Endpoints Legacy (Dépréciés - Suppression août 2026)
+          </h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            Ces endpoints sont toujours disponibles mais seront supprimés le
+            <strong>31 août 2026</strong>. Veuillez migrer vers les endpoints v1
+            ci-dessus.
           </p>
           <div style="overflow-x: auto">
-            <table style="width: 100%; border-collapse: collapse; opacity: 0.7;">
+            <table style="width: 100%; border-collapse: collapse; opacity: 0.7">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-border)">
                   <th
@@ -1574,7 +1607,7 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                   overflow-x: auto;
                   margin-top: 0.5rem;
                 "
-              ><code>curl "https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol"</code></pre>
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol"</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)">JavaScript</strong>
@@ -1586,7 +1619,7 @@ BASE_URL="https://medicamentsapi.giygas.dev"
                   overflow-x: auto;
                   margin-top: 0.5rem;
                 "
-              ><code>const response = await fetch('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol');
+              ><code>const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol');
 const data = await response.json();
 console.log(`Found ${data.length} medicaments`);</code></pre>
             </div>
@@ -1601,7 +1634,7 @@ console.log(`Found ${data.length} medicaments`);</code></pre>
                   margin-top: 0.5rem;
                 "
               ><code>import requests
-response = requests.get('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol')
+response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol')
 data = response.json()
 print(f"Found {len(data)} results")</code></pre>
             </div>
@@ -1619,12 +1652,13 @@ print(f"Found {len(data)} results")</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🔄 Guide de Migration v1
+            Guide de Migration v1
           </h4>
-          <p style="color: var(--color-text-muted); margin-bottom: 1rem;">
-            Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de chemin :
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            Les endpoints v1 utilisent des paramètres de requête au lieu de
+            paramètres de chemin :
           </p>
-          <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+          <div style="display: grid; gap: 1rem; margin-top: 1rem">
             <div>
               <code
                 style="
@@ -1634,8 +1668,9 @@ print(f"Found {len(data)} results")</code></pre>
                   font-size: 0.85rem;
                   color: var(--color-accent);
                 "
-              >OLD: GET /medicament/paracetamol</code>
-              <div style="margin-top: 0.5rem;">
+                >ANCIEN : GET /medicament/paracetamol</code
+              >
+              <div style="margin-top: 0.5rem">
                 <code
                   style="
                     background: var(--color-bg);
@@ -1644,7 +1679,8 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                >NEW: GET /v1/medicaments?search=paracetamol</code>
+                  >NOUVEAU : GET /v1/medicaments?search=paracetamol</code
+                >
               </div>
             </div>
             <div>
@@ -1656,8 +1692,9 @@ print(f"Found {len(data)} results")</code></pre>
                   font-size: 0.85rem;
                   color: var(--color-accent);
                 "
-              >OLD: GET /medicament/id/61504672</code>
-              <div style="margin-top: 0.5rem;">
+                >ANCIEN : GET /medicament/id/61504672</code
+              >
+              <div style="margin-top: 0.5rem">
                 <code
                   style="
                     background: var(--color-bg);
@@ -1666,7 +1703,8 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                >NEW: GET /v1/medicaments?cis=61504672</code>
+                  >NOUVEAU : GET /v1/medicaments?cis=61504672</code
+                >
               </div>
             </div>
             <div>
@@ -1678,8 +1716,9 @@ print(f"Found {len(data)} results")</code></pre>
                   font-size: 0.85rem;
                   color: var(--color-accent);
                 "
-              >OLD: GET /generiques/paracetamol</code>
-              <div style="margin-top: 0.5rem;">
+                >ANCIEN : GET /generiques/paracetamol</code
+              >
+              <div style="margin-top: 0.5rem">
                 <code
                   style="
                     background: var(--color-bg);
@@ -1688,7 +1727,8 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                >NEW: GET /v1/generiques?libelle=paracetamol</code>
+                  >NOUVEAU : GET /v1/generiques?libelle=paracetamol</code
+                >
               </div>
             </div>
             <div>
@@ -1700,8 +1740,9 @@ print(f"Found {len(data)} results")</code></pre>
                   font-size: 0.85rem;
                   color: var(--color-accent);
                 "
-              >OLD: GET /database/1</code>
-              <div style="margin-top: 0.5rem;">
+                >ANCIEN : GET /database/1</code
+              >
+              <div style="margin-top: 0.5rem">
                 <code
                   style="
                     background: var(--color-bg);
@@ -1710,7 +1751,8 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                >NEW: GET /v1/medicaments?page=1</code>
+                  >NOUVEAU : GET /v1/medicaments?page=1</code
+                >
               </div>
             </div>
             <div>
@@ -1722,8 +1764,9 @@ print(f"Found {len(data)} results")</code></pre>
                   font-size: 0.85rem;
                   color: var(--color-accent);
                 "
-              >OLD: GET /database</code>
-              <div style="margin-top: 0.5rem;">
+                >ANCIEN : GET /database</code
+              >
+              <div style="margin-top: 0.5rem">
                 <code
                   style="
                     background: var(--color-bg);
@@ -1732,15 +1775,23 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                >NEW: GET /v1/medicaments?export=all</code>
+                  >NOUVEAU : GET /v1/medicaments?export=all</code
+                >
               </div>
             </div>
           </div>
-          <p style="color: var(--color-text-muted); margin-top: 1rem; font-size: 0.9rem;">
-            <strong>Note :</strong> Les endpoints legacy renvoient des headers de dépréciation (Deprecation, Sunset, Link) pour vous aider à migrer.
+          <p
+            style="
+              color: var(--color-text-muted);
+              margin-top: 1rem;
+              font-size: 0.9rem;
+            "
+          >
+            <strong>Note :</strong> Les endpoints legacy renvoient des headers
+            de dépréciation (Deprecation, Sunset, Link) pour vous aider à
+            migrer.
           </p>
         </div>
-
 
         <div
           style="
@@ -2003,7 +2054,7 @@ Content-Type: application/json
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            📋 Formats de Réponse (API v1)
+            Formats de Réponse (API v1)
           </h4>
           <div style="display: grid; gap: 1rem">
             <div>
@@ -2085,7 +2136,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            💊 Exemple de réponse - Recherche par nom (API v1)
+            Exemple de réponse - Recherche par nom (API v1)
           </h4>
           <div style="margin-bottom: 1rem">
             <strong style="color: var(--color-text)">Commande cURL :</strong>
@@ -2097,7 +2148,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
                 overflow-x: auto;
                 margin-top: 0.5rem;
               "
-            ><code>curl "https://medicamentsapi.giygas.dev/v1/medicaments?search=codoliprane"</code></pre>
+            ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=codoliprane"</code></pre>
           </div>
           <strong style="color: var(--color-text)">Réponse JSON :</strong>
           <pre
@@ -2171,7 +2222,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🔄 Exemple de réponse - Génériques
+            Exemple de réponse - Génériques
           </h4>
           <div style="margin-bottom: 1rem">
             <strong style="color: var(--color-text)">Commande cURL :</strong>
@@ -2183,7 +2234,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
                 overflow-x: auto;
                 margin-top: 0.5rem;
               "
-            ><code>curl "https://medicamentsapi.giygas.dev/generiques/paracetamol"</code></pre>
+            ><code>curl "https://medicaments-api.giygas.dev/generiques/paracetamol"</code></pre>
           </div>
           <strong style="color: var(--color-text)">Réponse JSON :</strong>
           <pre
@@ -2251,7 +2302,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🏥 Exemple de réponse - Health Check
+            Exemple de réponse - Health Check
           </h4>
           <pre
             style="
@@ -2421,8 +2472,8 @@ Response: [...]  // Direct array of all medicaments</code></pre>
       <div class="container">
         <div class="footer-content">
           <div>
-            Développé avec ❤️ pour la communauté médicale et les développeurs
-            français
+            Développé avec passion pour la communauté médicale et les
+            développeurs français
           </div>
           <div class="footer-links">
             <a href="https://github.com/giygas/medicaments-api" target="_blank"
