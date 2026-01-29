@@ -340,14 +340,13 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
 
-	// Add routes using new handlers
-	router.Get("/database", httpHandler.ServeAllMedicaments)
-	router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
-	router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
+	// Add routes using v1 handlers
+	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 	router.Get("/health", httpHandler.HealthCheck)
 
-	// Test database endpoint
-	req := httptest.NewRequest("GET", "/database", nil)
+	// Test database endpoint (export all)
+	req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -366,7 +365,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	}
 
 	// Test paged database endpoint
-	req = httptest.NewRequest("GET", "/database/1", nil)
+	req = httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -374,10 +373,16 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 		t.Errorf("Paged database endpoint returned status %d, expected %d", w.Code, http.StatusOK)
 	}
 
-	// Test medicament by ID endpoint (use first medicament)
+	// Verify pagination response
+	var pagedResponse map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &pagedResponse); err != nil {
+		t.Errorf("Failed to unmarshal paged response: %v", err)
+	}
+
+	// Test medicament by CIS endpoint (use first medicament)
 	if len(medicaments) > 0 {
 		firstCIS := medicaments[0].Cis
-		req = httptest.NewRequest("GET", fmt.Sprintf("/medicament/id/%d", firstCIS), nil)
+		req = httptest.NewRequest("GET", fmt.Sprintf("/v1/medicaments?cis=%d", firstCIS), nil)
 		w = httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 

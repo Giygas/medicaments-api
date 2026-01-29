@@ -76,24 +76,20 @@ func TestEndpoints(t *testing.T) {
 		expected int
 	}{
 
-		{"Test database", "/database", http.StatusOK},
-		{"Test database with trailing slash", "/database/", http.StatusNotFound}, // Chi doesn't handle trailing slash
-		{"Test generiques/Test Group", "/generiques/Test Group", http.StatusOK},
-		{"Test generiques/group/100", "/generiques/group/100", http.StatusOK},
-		{"Test medicament/Test Medicament", "/medicament/Test Medicament", http.StatusOK},
-		{"Test database with a", "/database/a", http.StatusBadRequest},
-		{"Test database with 1", "/database/1", http.StatusOK},
-		{"Test database with 0", "/database/0", http.StatusBadRequest},
-		{"Test database with -1", "/database/-1", http.StatusBadRequest},
-		{"Test database with large number", "/database/10000", http.StatusNotFound}, // Only 1 page available
-		{"Test generiques", "/generiques", http.StatusNotFound},
-		{"Test generiques/aaaaaaaaaaa", "/generiques/aaaaaaaaaaa", http.StatusBadRequest},
-		{"Test medicament", "/medicament", http.StatusNotFound},
-		{"Test medicament/1000000000000000", "/medicament/100000000000000", http.StatusBadRequest},
-		{"Test medicament/id/12345678", "/medicament/id/12345678", http.StatusOK},
-		{"Test medicament/id/99999999", "/medicament/id/99999999", http.StatusNotFound},
-		{"Test generiques/group/a", "/generiques/group/a", http.StatusBadRequest},
-		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusNotFound},
+		{"Test medicaments export", "/v1/medicaments?export=all", http.StatusOK},
+		{"Test medicaments pagination", "/v1/medicaments?page=1", http.StatusOK},
+		{"Test medicaments search", "/v1/medicaments?search=Test", http.StatusOK},
+		{"Test medicaments by CIS", "/v1/medicaments?cis=12345678", http.StatusOK},
+		{"Test medicaments by invalid CIS", "/v1/medicaments?cis=99999999", http.StatusNotFound},
+		{"Test generiques by libelle", "/v1/generiques?libelle=Test Group", http.StatusOK},
+		{"Test generiques by group", "/v1/generiques?group=100", http.StatusOK},
+		{"Test generiques with no params", "/v1/generiques", http.StatusBadRequest},
+		{"Test generiques with invalid group", "/v1/generiques?group=999999", http.StatusNotFound},
+		{"Test medicaments no params", "/v1/medicaments", http.StatusBadRequest},
+		{"Test medicaments multiple params", "/v1/medicaments?page=1&export=all", http.StatusBadRequest},
+		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},
+		{"Test medicaments negative page", "/v1/medicaments?page=-1", http.StatusBadRequest},
+		{"Test medicaments invalid CIS", "/v1/medicaments?cis=abc", http.StatusBadRequest},
 		{"Test health", "/health", http.StatusOK},
 	}
 
@@ -101,13 +97,9 @@ func TestEndpoints(t *testing.T) {
 	// Note: rateLimitHandler is now part of the server middleware
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
-	router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
-	router.Get("/database", httpHandler.ServeAllMedicaments)
-	router.Get("/medicament/{element}", httpHandler.FindMedicament)
-	router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
-	router.Get("/medicament/cip/{cip}", httpHandler.FindMedicamentByCIP)
-	router.Get("/generiques/{libelle}", httpHandler.FindGeneriques)
-	router.Get("/generiques/group/{groupId}", httpHandler.FindGeneriquesByGroupID)
+	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
+	router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)
 
 	for _, tt := range testCases {
@@ -216,16 +208,16 @@ func TestRateLimiter(t *testing.T) {
 	router.Use(server.RateLimitHandler)
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
-	router.Get("/database", httpHandler.ServeAllMedicaments)
+	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 
-	// Simulate requests from the same IP
+	// Simulate requests from same IP
 	clientIP := "192.168.1.1:12345"
 
-	// Make requests to /database until we get rate limited
+	// Make requests to /v1/medicaments?export=all until we get rate limited
 	// Each costs 200 tokens, so we should be able to make 5 requests (1000 tokens)
 	requestCount := 0
 	for requestCount = 0; requestCount < 10; requestCount++ {
-		req, _ := http.NewRequest("GET", "/database", nil)
+		req, _ := http.NewRequest("GET", "/v1/medicaments?export=all", nil)
 		req.RemoteAddr = clientIP
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -242,7 +234,7 @@ func TestRateLimiter(t *testing.T) {
 
 	// Should have been rate limited by now (after 5 requests)
 	if requestCount >= 10 {
-		t.Error("Expected to be rate limited after 5 requests, but wasn't")
+		t.Errorf("Expected to be rate limited after 5 requests, but wasn't")
 	} else {
 		fmt.Printf("Rate limited after %d requests (expected around 5)\n", requestCount)
 	}
@@ -388,10 +380,10 @@ func TestCompressionOptimization(t *testing.T) {
 		// Create handler and test actual endpoint compression
 		validator := validation.NewDataValidator()
 		httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
-		req := httptest.NewRequest("GET", "/database", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 
-		httpHandler.ServeAllMedicaments(w, req)
+		httpHandler.ServeMedicamentsV1(w, req)
 
 		// Check that response was written correctly
 		if w.Code != http.StatusOK {

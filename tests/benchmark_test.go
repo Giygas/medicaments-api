@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http/httptest"
 	"runtime"
@@ -66,9 +65,9 @@ func BenchmarkDatabase(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/database", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
 		w := httptest.NewRecorder()
-		httpHandler.ServeAllMedicaments(w, req)
+		httpHandler.ServeMedicamentsV1(w, req)
 	}
 }
 
@@ -82,16 +81,10 @@ func BenchmarkDatabasePage(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/database/1", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("pageNumber", "1")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		httpHandler.ServePagedMedicaments(w, req)
+		httpHandler.ServeMedicamentsV1(w, req)
 
 		// Simulate response processing time
 		_ = w.Body.Len()
@@ -108,15 +101,9 @@ func BenchmarkMedicamentSearch(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/medicament/Medicament", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("element", "Medicament")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		handler.FindMedicament(w, req)
+		handler.ServeMedicamentsV1(w, req)
 	}
 }
 
@@ -129,15 +116,9 @@ func BenchmarkMedicamentByID(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/medicament/id/500", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?cis=500", nil)
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("cis", "500")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		handler.FindMedicamentByID(w, req)
+		handler.ServeMedicamentsV1(w, req)
 	}
 }
 
@@ -151,15 +132,9 @@ func BenchmarkGeneriquesSearch(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/generiques/Groupe", nil)
+		req := httptest.NewRequest("GET", "/v1/generiques?libelle=Groupe", nil)
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("libelle", "Groupe")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		handler.FindGeneriques(w, req)
+		handler.ServeGeneriquesV1(w, req)
 	}
 }
 
@@ -172,15 +147,9 @@ func BenchmarkGeneriquesByID(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/generiques/group/50", nil)
+		req := httptest.NewRequest("GET", "/v1/generiques?group=50", nil)
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("groupId", "50")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		handler.FindGeneriquesByGroupID(w, req)
+		handler.ServeGeneriquesV1(w, req)
 	}
 }
 
@@ -206,20 +175,16 @@ func BenchmarkFullRouter(b *testing.B) {
 	httpHandler := handlers.NewHTTPHandler(container, validator)
 
 	router := chi.NewRouter()
-	router.Get("/database", httpHandler.ServeAllMedicaments)
-	router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
-	router.Get("/medicament/{element}", httpHandler.FindMedicament)
-	router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
-	router.Get("/medicament/cip/{cip}", httpHandler.FindMedicamentByCIP)
-	router.Get("/generiques/{libelle}", httpHandler.FindGeneriques)
-	router.Get("/generiques/group/{groupId}", httpHandler.FindGeneriquesByGroupID)
+	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
+	router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/medicament/id/500", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?cis=500", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 	}
@@ -236,9 +201,9 @@ func BenchmarkConcurrentRequests(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			req := httptest.NewRequest("GET", "/medicament/id/500", nil)
+			req := httptest.NewRequest("GET", "/v1/medicaments?cis=500", nil)
 			w := httptest.NewRecorder()
-			httpHandler.FindMedicamentByID(w, req)
+			httpHandler.ServeMedicamentsV1(w, req)
 		}
 	})
 }
@@ -254,9 +219,9 @@ func BenchmarkMemoryUsage(b *testing.B) {
 
 	var responses [][]byte
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/database", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
 		w := httptest.NewRecorder()
-		httpHandler.ServeAllMedicaments(w, req)
+		httpHandler.ServeMedicamentsV1(w, req)
 		responses = append(responses, w.Body.Bytes())
 	}
 
@@ -273,16 +238,10 @@ func BenchmarkRealisticResponse(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/database/1", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 		w := httptest.NewRecorder()
-
-		// Create chi router context to properly extract URL parameters
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("pageNumber", "1")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-		handler.ServePagedMedicaments(w, req)
+		handler.ServeMedicamentsV1(w, req)
 
 		// Simulate response processing time
 		_ = w.Body.Len()
@@ -320,14 +279,9 @@ func BenchmarkSummary(b *testing.B) {
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest("GET", "/medicament/id/500", nil)
+			req := httptest.NewRequest("GET", "/v1/medicaments?cis=500", nil)
 			w := httptest.NewRecorder()
-
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("cis", "500")
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-			handler.FindMedicamentByID(w, req)
+			handler.ServeMedicamentsV1(w, req)
 		}
 	})
 
@@ -338,14 +292,9 @@ func BenchmarkSummary(b *testing.B) {
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest("GET", "/generiques/group/50", nil)
+			req := httptest.NewRequest("GET", "/v1/generiques?group=50", nil)
 			w := httptest.NewRecorder()
-
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("groupId", "50")
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-			handler.FindGeneriquesByGroupID(w, req)
+			handler.ServeGeneriquesV1(w, req)
 		}
 	})
 
@@ -356,14 +305,9 @@ func BenchmarkSummary(b *testing.B) {
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest("GET", "/database/1", nil)
+			req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
 			w := httptest.NewRecorder()
-
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("pageNumber", "1")
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-			handler.ServePagedMedicaments(w, req)
+			handler.ServeMedicamentsV1(w, req)
 		}
 	})
 

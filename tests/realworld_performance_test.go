@@ -51,17 +51,14 @@ func setupRealworldServer() *httptest.Server {
 		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
 			presentationsCIP7Map, presentationsCIP13Map)
 
-		// Create router with all routes
+		// Create router with v1 routes
 		router := chi.NewRouter()
 		validator := validation.NewDataValidator()
 		httpHandler := handlers.NewHTTPHandler(container, validator)
 
-		router.Get("/database", httpHandler.ServeAllMedicaments)
-		router.Get("/database/{pageNumber}", httpHandler.ServePagedMedicaments)
-		router.Get("/medicament/{element}", httpHandler.FindMedicament)
-		router.Get("/medicament/id/{cis}", httpHandler.FindMedicamentByID)
-		router.Get("/generiques/{libelle}", httpHandler.FindGeneriques)
-		router.Get("/generiques/group/{groupId}", httpHandler.FindGeneriquesByGroupID)
+		router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+		router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
+		router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
 		router.Get("/health", httpHandler.HealthCheck)
 
 		realworldServer = httptest.NewServer(router)
@@ -78,8 +75,8 @@ func TestRealWorldConcurrentLoad(t *testing.T) {
 
 	// Simulate realistic user patterns (excluding full dataset endpoint)
 	endpoints := []string{
-		"/database/1",
-		"/database/2",
+		"/v1/medicaments?page=1",
+		"/v1/medicaments?page=2",
 		"/health",
 	}
 

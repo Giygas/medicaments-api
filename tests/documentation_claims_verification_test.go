@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +16,6 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
-	"github.com/go-chi/chi/v5"
 )
 
 // Comprehensive test to verify all documentation performance claims
@@ -70,43 +68,48 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 		tolerance  float64
 	}{
 		{
-			name:    "/medicament/id/{cis}",
-			handler: httpHandler.FindMedicamentByID,
+			name:    "/v1/medicaments?cis={id}",
+			handler: httpHandler.ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/id/500", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("cis", "500")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?cis=500", nil)
+				return req
 			},
 			claimedReq: 45000,
 			claimedLat: 25.0,
 			tolerance:  15.0,
 		},
 		{
-			name:    "/generiques/group/{id}",
-			handler: httpHandler.FindGeneriquesByGroupID,
+			name:    "/v1/generiques?group={id}",
+			handler: httpHandler.ServeGeneriquesV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/generiques/group/50", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("groupId", "50")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/generiques?group=50", nil)
+				return req
 			},
 			claimedReq: 110000,
 			claimedLat: 9.0,
 			tolerance:  10.0,
 		},
 		{
-			name:    "/database/{page}",
-			handler: httpHandler.ServePagedMedicaments,
+			name:    "/v1/medicaments?page={n}",
+			handler: httpHandler.ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/database/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("pageNumber", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
+				return req
 			},
 			claimedReq: 7000,
 			claimedLat: 140.0,
 			tolerance:  15.0,
+		},
+		{
+			name:    "/v1/medicaments?search={query}",
+			handler: httpHandler.ServeMedicamentsV1,
+			setupReq: func() *http.Request {
+				req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
+				return req
+			},
+			claimedReq: 70,
+			claimedLat: 15.0,
+			tolerance:  25.0,
 		},
 		{
 			name:    "/health",
@@ -178,39 +181,33 @@ func testHTTPPerformance(t *testing.T, container *data.DataContainer, validator 
 		tolerance  float64
 	}{
 		{
-			name:    "/medicament/id/{cis}",
-			handler: handlers.NewHTTPHandler(container, validator).FindMedicamentByID,
+			name:    "/v1/medicaments?cis={id}",
+			handler: handlers.NewHTTPHandler(container, validator).ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/id/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("cis", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?cis=1", nil)
+				return req
 			},
 			claimedReq: 40000,
 			claimedLat: 0.5,
 			tolerance:  20.0,
 		},
 		{
-			name:    "/database/{page}",
-			handler: handlers.NewHTTPHandler(container, validator).ServePagedMedicaments,
+			name:    "/v1/medicaments?page={n}",
+			handler: handlers.NewHTTPHandler(container, validator).ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/database/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("pageNumber", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
+				return req
 			},
 			claimedReq: 7000,
 			claimedLat: 0.5,
 			tolerance:  20.0,
 		},
 		{
-			name:    "/medicament/{nom}",
-			handler: handlers.NewHTTPHandler(container, validator).FindMedicament,
+			name:    "/v1/medicaments?search={query}",
+			handler: handlers.NewHTTPHandler(container, validator).ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/Medicament", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("element", "Medicament")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
+				return req
 			},
 			claimedReq: 70,
 			claimedLat: 15.0,
