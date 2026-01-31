@@ -20,7 +20,7 @@ type DataContainer struct {
 	medicaments           atomic.Value // []entities.Medicament
 	generiques            atomic.Value // []entities.GeneriqueList
 	medicamentsMap        atomic.Value // map[int]entities.Medicament
-	generiquesMap         atomic.Value // map[int][]entities.Generique
+	generiquesMap         atomic.Value // map[int]entities.GeneriqueList
 	presentationsCIP7Map  atomic.Value //map[int]entities.Presentation
 	presentationsCIP13Map atomic.Value //map[int]entities.Presentation
 	lastUpdated           atomic.Value // time.Time
@@ -34,7 +34,7 @@ func NewDataContainer() *DataContainer {
 	dc.medicaments.Store(make([]entities.Medicament, 0))
 	dc.generiques.Store(make([]entities.GeneriqueList, 0))
 	dc.medicamentsMap.Store(make(map[int]entities.Medicament))
-	dc.generiquesMap.Store(make(map[int][]entities.Generique))
+	dc.generiquesMap.Store(make(map[int]entities.GeneriqueList))
 	dc.presentationsCIP7Map.Store(make(map[int]entities.Presentation))
 	dc.presentationsCIP13Map.Store(make(map[int]entities.Presentation))
 	dc.lastUpdated.Store(time.Time{})
@@ -81,15 +81,15 @@ func (dc *DataContainer) GetMedicamentsMap() map[int]entities.Medicament {
 }
 
 // GetGeneriquesMap returns the generiques map for O(1) lookups
-func (dc *DataContainer) GetGeneriquesMap() map[int][]entities.Generique {
+func (dc *DataContainer) GetGeneriquesMap() map[int]entities.GeneriqueList {
 	if v := dc.generiquesMap.Load(); v != nil {
-		if generiquesMap, ok := v.(map[int][]entities.Generique); ok {
+		if generiquesMap, ok := v.(map[int]entities.GeneriqueList); ok {
 			return generiquesMap
 		}
 	}
 
 	logging.Warn("GeneriquesMap is empty or invalid")
-	return make(map[int][]entities.Generique)
+	return make(map[int]entities.GeneriqueList)
 }
 
 // GetPresentationsCIP7Map returns the generiques map for O(1) lookups
@@ -152,7 +152,7 @@ func (dc *DataContainer) GetServerStartTime() time.Time {
 
 // UpdateData atomically updates all data in the container
 func (dc *DataContainer) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-	medicamentsMap map[int]entities.Medicament, generiquesMap map[int][]entities.Generique,
+	medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
 	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 
 	// Atomic swap (zero downtime replacement)

@@ -58,9 +58,7 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 	return generiquesMap, nil
 }
 
-func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int][]entities.Generique, error) {
-
-	var err error
+func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
 
 	// allGeneriques: []Generique
 	allGeneriques, err := makeGeneriques(nil)
@@ -68,23 +66,12 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		return nil, nil, fmt.Errorf("failed to parse generiques: %w", err)
 	}
 
-	// Create a map of all the generiques to reduce algorithm complexity
-	// We need to preserve the libelle for each group, not overwrite it
-	generiquesMap := make(map[int][]entities.Generique, 0)
-	// for i := range allGeneriques {
-	// 	group := allGeneriques[i].Group
-	// 	// Only set if not already present to preserve the first (correct) libelle
-	// 	if _, exists := generiquesMap[group]; !exists {
-	// 		generiquesMap[group] = allGeneriques[i]
-	// 	}
-	// }
-
+	// Create a map of libelles
+	libelle := make(map[int]string)
 	for el := range allGeneriques {
-		group := allGeneriques[el].Group
-		generiquesMap[group] = append(generiquesMap[group], allGeneriques[el])
+		groupID := allGeneriques[el].Group
+		libelle[groupID] = allGeneriques[el].Libelle
 	}
-
-	fmt.Printf("generiquesMap[852]: %v\n", generiquesMap[852])
 
 	// generiques file: [groupid]:[]cis of medicaments in the same group
 	generiquesFile, err := readGeneriquesFromTSV()
@@ -101,6 +88,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 	}
 
 	var generiques []entities.GeneriqueList
+	generiquesMap := make(map[int]entities.GeneriqueList)
 
 	for i, v := range generiquesFile {
 
@@ -111,16 +99,14 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 			continue
 		}
 
-		// TODO: Should check if all generiques in the group have the same libelle
-		// It should, but check anyways and put a message
-
-		current := entities.GeneriqueList{
+		currentGenerique := entities.GeneriqueList{
 			GroupID:     groupInt,
-			Libelle:     generiquesMap[groupInt][0].Libelle,
+			Libelle:     libelle[groupInt],
 			Medicaments: getMedicamentsInArray(v, mMap),
 		}
 
-		generiques = append(generiques, current)
+		generiques = append(generiques, currentGenerique)
+		generiquesMap[groupInt] = currentGenerique
 	}
 
 	// Write debug

@@ -17,7 +17,7 @@ type DataStore interface {
 	GetMedicaments() []entities.Medicament
 	GetGeneriques() []entities.GeneriqueList
 	GetMedicamentsMap() map[int]entities.Medicament
-	GetGeneriquesMap() map[int][]entities.Generique
+	GetGeneriquesMap() map[int]entities.GeneriqueList
 	GetPresentationsCIP7Map() map[int]entities.Presentation
 	GetPresentationsCIP13Map() map[int]entities.Presentation
 	GetLastUpdated() time.Time
@@ -26,7 +26,7 @@ type DataStore interface {
 
 	// Data update methods
 	UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-		medicamentsMap map[int]entities.Medicament, generiquesMap map[int][]entities.Generique,
+		medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
 		presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation)
 	BeginUpdate() bool
 	EndUpdate()
@@ -40,7 +40,7 @@ type Parser interface {
 		map[int]entities.Presentation, error)
 
 	// GeneriquesParser processes medicaments data to create generique groups
-	GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int][]entities.Generique, error)
+	GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error)
 }
 
 // Scheduler defines the contract for job scheduling and health monitoring.
