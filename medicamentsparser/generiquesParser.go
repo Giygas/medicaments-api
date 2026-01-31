@@ -11,8 +11,6 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
-var medsType map[int]string
-
 // readGeneriquesFromTSV reads generiques data directly from TSV file
 //
 // Returns: map where the key is the groupID (string) and the value is an array
@@ -82,7 +80,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 
 	// The medsType is a map where the key are the medicament cis and the value is the
 	// type of generique
-	medsType, err = createMedicamentGeneriqueType()
+	medsType, err := createMedicamentGeneriqueType()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create medicament generique type mapping: %w", err)
 	}
@@ -99,7 +97,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 			continue
 		}
 
-		medicaments, orphaned := getMedicamentsInArray(v, mMap)
+		medicaments, orphaned := getMedicamentsInArray(v, mMap, medsType)
 
 		currentGenerique := entities.GeneriqueList{
 			GroupID:     groupInt,
@@ -137,11 +135,12 @@ func createGeneriqueComposition(medicamentComposition *[]entities.Composition) [
 // Parameters:
 //   - medicamentsIds: Array of CIS values to process
 //   - medicamentMap: Map of CIS to full Medicament entities for O(1) lookup
+//   - medsType: Map of CIS to medicament type
 //
 // Returns:
 //   - generiquesMedicaments: CIS that exist in medicamentMap with full data populated
 //   - orphanCIS: CIS values that don't have corresponding medicament entries
-func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament) (generiquesMedicaments []entities.GeneriqueMedicament, orphanCIS []int) {
+func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament, medsType map[int]string) (generiquesMedicaments []entities.GeneriqueMedicament, orphanCIS []int) {
 	for _, v := range medicamentsIds {
 		if medicament, ok := (*medicamentMap)[v]; ok {
 			generiqueComposition := createGeneriqueComposition(&medicament.Composition)

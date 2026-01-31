@@ -348,6 +348,7 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 func TestServeGeneriquesV1_Errors(t *testing.T) {
 	genericList := []entities.GeneriqueList{
 		{GroupID: 1, Libelle: "Test", Medicaments: []entities.GeneriqueMedicament{}},
+		{GroupID: 9999, Libelle: "Boundary Test", Medicaments: []entities.GeneriqueMedicament{}},
 	}
 
 	tests := []struct {
@@ -360,6 +361,10 @@ func TestServeGeneriquesV1_Errors(t *testing.T) {
 		{"no parameters", "", false, http.StatusBadRequest, "Needs libelle or group param"},
 		{"empty group", "?group=", false, http.StatusBadRequest, "Needs libelle or group param"},
 		{"invalid group", "?group=abc", false, http.StatusBadRequest, "Invalid group ID"},
+		{"negative group ID", "?group=-1", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
+		{"zero group ID", "?group=0", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
+		{"group ID too high", "?group=10000", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
+		{"valid boundary group ID", "?group=9999", false, http.StatusNotFound, "Generique group not found"},
 		{"not found", "?group=999", false, http.StatusNotFound, "Generique group not found"},
 		{"empty libelle", "?libelle=", false, http.StatusBadRequest, "Needs libelle or group param"},
 		{"invalid libelle", "?libelle=test@123", true, http.StatusBadRequest, "input must be between"},

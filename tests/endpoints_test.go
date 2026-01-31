@@ -75,7 +75,6 @@ func TestEndpoints(t *testing.T) {
 		endpoint string
 		expected int
 	}{
-
 		{"Test medicaments export", "/v1/medicaments?export=all", http.StatusOK},
 		{"Test medicaments pagination", "/v1/medicaments?page=1", http.StatusOK},
 		{"Test medicaments search", "/v1/medicaments?search=Test", http.StatusOK},
@@ -84,7 +83,10 @@ func TestEndpoints(t *testing.T) {
 		{"Test generiques by libelle", "/v1/generiques?libelle=Test Group", http.StatusOK},
 		{"Test generiques by group", "/v1/generiques?group=100", http.StatusOK},
 		{"Test generiques with no params", "/v1/generiques", http.StatusBadRequest},
-		{"Test generiques with invalid group", "/v1/generiques?group=999999", http.StatusNotFound},
+		{"Test generiques with invalid group (negative)", "/v1/generiques?group=-1", http.StatusBadRequest},
+		{"Test generiques with invalid group (zero)", "/v1/generiques?group=0", http.StatusBadRequest},
+		{"Test generiques with invalid group (too high)", "/v1/generiques?group=999999", http.StatusBadRequest},
+		{"Test generiques with valid boundary (not in map)", "/v1/generiques?group=9999", http.StatusNotFound},
 		{"Test medicaments no params", "/v1/medicaments", http.StatusBadRequest},
 		{"Test medicaments multiple params", "/v1/medicaments?page=1&export=all", http.StatusBadRequest},
 		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},

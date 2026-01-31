@@ -494,6 +494,7 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 
 	if groupStr == "" && libelle == "" {
 		h.RespondWithError(w, http.StatusBadRequest, "Needs libelle or group param")
+		return
 	}
 
 	// GroupID block
@@ -504,12 +505,13 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		//TODO: better validation of the groupID user input
+		if groupID <= 0 || groupID > 9999 {
+			h.RespondWithError(w, http.StatusBadRequest, "Group ID should be between 1 and 9999")
+			return
+		}
 
 		// Get the generiques group map for the group ID param
 		generiquesGroupMap, exists := h.dataStore.GetGeneriquesMap()[groupID]
-		//TODO: change this handler to return a GeneriqueList
-		// Do the calculation here, and make the endpoint a bit more expensive
 		if exists {
 			h.RespondWithJSONAndETag(w, r, http.StatusOK, generiquesGroupMap)
 			return
@@ -539,8 +541,7 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 		}
 
 		if len(results) != 0 {
-			h.RespondWithJSON(w, http.StatusOK, results)
-
+			h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
 			return
 		}
 		h.RespondWithError(w, http.StatusNotFound, "No generiques found")

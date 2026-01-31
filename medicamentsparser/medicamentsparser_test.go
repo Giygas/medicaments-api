@@ -356,8 +356,13 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 		2: {Cis: 2, Denomination: "Med2"},
 		3: {Cis: 3, Denomination: "Med3"},
 	}
+	medsType := map[int]string{
+		1: "Princeps",
+		2: "Generique",
+		3: "Princeps",
+	}
 
-	medicamentsResult, orphanCIS := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
+	medicamentsResult, orphanCIS := getMedicamentsInArray([]int{1, 3}, &medicamentsMap, medsType)
 	if len(medicamentsResult) != 2 {
 		t.Errorf("Expected 2 medicaments, got %d", len(medicamentsResult))
 	}
