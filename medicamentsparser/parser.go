@@ -22,6 +22,6 @@ func (p *MedicamentsParser) ParseAllMedicaments() ([]entities.Medicament, map[in
 }
 
 // GeneriquesParser implements the Parser interface
-func (p *MedicamentsParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
+func (p *MedicamentsParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int][]entities.Generique, error) {
 	return GeneriquesParser(medicaments, medicamentsMap)
 }

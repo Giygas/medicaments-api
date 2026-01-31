@@ -504,9 +504,14 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		generiquesMap := h.dataStore.GetGeneriquesMap()
-		if gen, exists := generiquesMap[groupID]; exists {
-			h.RespondWithJSONAndETag(w, r, http.StatusOK, gen)
+		//TODO: better validation of the groupID user input
+
+		// Get the generiques group map for the group ID param
+		generiquesGroupMap, exists := h.dataStore.GetGeneriquesMap()[groupID]
+		//TODO: change this handler to return a GeneriqueList
+		// Do the calculation here, and make the endpoint a bit more expensive
+		if exists {
+			h.RespondWithJSONAndETag(w, r, http.StatusOK, generiquesGroupMap)
 			return
 		}
 
