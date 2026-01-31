@@ -16,7 +16,7 @@ type MockDataStore struct {
 	medicaments           []entities.Medicament
 	generiques            []entities.GeneriqueList
 	medicamentsMap        map[int]entities.Medicament
-	generiquesMap         map[int]entities.Generique
+	generiquesMap         map[int]entities.GeneriqueList
 	presentationsCIP7Map  map[int]entities.Presentation
 	presentationsCIP13Map map[int]entities.Presentation
 	lastUpdated           time.Time
@@ -35,7 +35,7 @@ func (m *MockDataStore) GetMedicamentsMap() map[int]entities.Medicament {
 	return m.medicamentsMap
 }
 
-func (m *MockDataStore) GetGeneriquesMap() map[int]entities.Generique {
+func (m *MockDataStore) GetGeneriquesMap() map[int]entities.GeneriqueList {
 	return m.generiquesMap
 }
 
@@ -55,7 +55,7 @@ func (m *MockDataStore) IsUpdating() bool {
 	return m.updating
 }
 
-func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
+func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 	m.medicaments = medicaments
 	m.generiques = generiques
 	m.medicamentsMap = medicamentsMap
@@ -101,7 +101,7 @@ func (m *MockParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entit
 		}, nil
 }
 
-func (m *MockParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
+func (m *MockParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
 	if m.shouldFail {
 		return nil, nil, &mockError{"generiques parse failed"}
 	}
@@ -109,8 +109,8 @@ func (m *MockParser) GeneriquesParser(medicaments *[]entities.Medicament, medica
 	generiques := []entities.GeneriqueList{
 		{GroupID: 1, Libelle: "Test Generique"},
 	}
-	generiquesMap := map[int]entities.Generique{
-		1: {Group: 1, Libelle: "Test Generique"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "Test Generique"},
 	}
 
 	return generiques, generiquesMap, nil

@@ -248,9 +248,9 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 		},
 	}
 
-	generiquesMap := map[int]entities.Generique{
-		1: {Group: 1, Libelle: "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"},
-		2: {Group: 2, Libelle: "Ibuprofene 400 mg"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"},
+		2: {GroupID: 2, Libelle: "Ibuprofene 400 mg"},
 	}
 
 	tests := []struct {
@@ -302,14 +302,14 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 					t.Error("Expected Last-Modified header")
 				}
 
-				var response entities.Generique
+				var response entities.GeneriqueList
 				err := json.Unmarshal(rr.Body.Bytes(), &response)
 				if err != nil {
 					t.Fatalf("Failed to unmarshal JSON: %v", err)
 				}
 
-				if response.Group != tt.checkGroupID {
-					t.Errorf("Expected group ID %d, got %d", tt.checkGroupID, response.Group)
+				if response.GroupID != tt.checkGroupID {
+					t.Errorf("Expected group ID %d, got %d", tt.checkGroupID, response.GroupID)
 				}
 
 				if response.Libelle == "" {
@@ -422,8 +422,8 @@ func TestServeGeneriquesV1_ETagCaching(t *testing.T) {
 	handler := NewHTTPHandler(
 		NewMockDataStoreBuilder().
 			WithGeneriques(genericList).
-			WithGeneriquesMap(map[int]entities.Generique{
-				1: {Group: 1, Libelle: "Paracetamol 500 mg"},
+			WithGeneriquesMap(map[int]entities.GeneriqueList{
+				1: {GroupID: 1, Libelle: "Paracetamol 500 mg"},
 			}).
 			Build(),
 		NewMockDataValidatorBuilder().Build(),

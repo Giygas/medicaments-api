@@ -88,7 +88,7 @@ func TestETagFunctionality(t *testing.T) {
 
 	dataContainer.UpdateData(testMedicaments, []entities.GeneriqueList{},
 		medicamentsMap,
-		map[int]entities.Generique{},
+		map[int]entities.GeneriqueList{},
 		presentationsCIP7Map,
 		presentationsCIP13Map)
 

@@ -349,7 +349,7 @@ func TestGetHealthData(t *testing.T) {
 	}
 	dc.UpdateData(testMedicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{1: testMedicaments[0], 2: testMedicaments[1]},
-		map[int]entities.Generique{},
+		map[int]entities.GeneriqueList{},
 		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	server := NewServer(cfg, dc)

@@ -47,8 +47,8 @@ var testMedicamentsMap = map[int]entities.Medicament{
 	12345678: testMedicaments[0],
 }
 
-var testGeneriquesMap = map[int]entities.Generique{
-	100: {Cis: 1, Group: 100, Libelle: "Test Group", Type: "Princeps"},
+var testGeneriquesMap = map[int]entities.GeneriqueList{
+	100: {GroupID: 100, Libelle: "Test Group"},
 }
 
 // Global test data container

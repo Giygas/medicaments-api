@@ -576,7 +576,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 		name          string
 		groupID       string
 		generiques    []entities.GeneriqueList
-		generiquesMap map[int]entities.Generique
+		generiquesMap map[int]entities.GeneriqueList
 		expectedCode  int
 		expectError   string
 	}{
@@ -586,8 +586,8 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			generiques: []entities.GeneriqueList{
 				factory.CreateGeneriqueList(1, "Test Group", []int{1}),
 			},
-			generiquesMap: map[int]entities.Generique{
-				1: {Group: 1, Libelle: "Test Group"},
+			generiquesMap: map[int]entities.GeneriqueList{
+				1: {GroupID: 1, Libelle: "Test Group"},
 			},
 			expectedCode: http.StatusOK,
 		},
@@ -595,7 +595,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			name:          "invalid group ID (non-numeric)",
 			groupID:       "invalid",
 			generiques:    []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
-			generiquesMap: map[int]entities.Generique{},
+			generiquesMap: map[int]entities.GeneriqueList{},
 			expectedCode:  http.StatusBadRequest,
 			expectError:   "Invalid group ID",
 		},
@@ -603,7 +603,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			name:          "non-existent group ID",
 			groupID:       "999",
 			generiques:    []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
-			generiquesMap: map[int]entities.Generique{},
+			generiquesMap: map[int]entities.GeneriqueList{},
 			expectedCode:  http.StatusNotFound,
 			expectError:   "Generique group not found",
 		},

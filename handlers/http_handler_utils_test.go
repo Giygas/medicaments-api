@@ -115,8 +115,8 @@ func (f *TestDataFactory) CreateDataContainer(medicamentsCount int, generiquesCo
 		))
 	}
 
-	generiquesMap := make(map[int]entities.Generique)
-	// Note: In real implementation, you'd populate this with actual Generique entities
+	generiquesMap := make(map[int]entities.GeneriqueList)
+	// Note: In real implementation, you'd populate this with actual GeneriqueList entities
 
 	dataContainer := &data.DataContainer{}
 	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
@@ -139,7 +139,7 @@ func NewMockDataStoreBuilder() *MockDataStoreBuilder {
 			medicaments:    []entities.Medicament{},
 			generiques:     []entities.GeneriqueList{},
 			medicamentsMap: make(map[int]entities.Medicament),
-			generiquesMap:  make(map[int]entities.Generique),
+			generiquesMap:  make(map[int]entities.GeneriqueList),
 			lastUpdated:    time.Now(),
 			updating:       false,
 		},
@@ -180,7 +180,7 @@ func (b *MockDataStoreBuilder) WithPresentationsCIP13Map(presentationsCIP13Map m
 	return b
 }
 
-func (b *MockDataStoreBuilder) WithGeneriquesMap(generiquesMap map[int]entities.Generique) *MockDataStoreBuilder {
+func (b *MockDataStoreBuilder) WithGeneriquesMap(generiquesMap map[int]entities.GeneriqueList) *MockDataStoreBuilder {
 	b.mock.generiquesMap = generiquesMap
 	return b
 }
@@ -331,7 +331,7 @@ type MockDataStore struct {
 	medicaments           []entities.Medicament
 	generiques            []entities.GeneriqueList
 	medicamentsMap        map[int]entities.Medicament
-	generiquesMap         map[int]entities.Generique
+	generiquesMap         map[int]entities.GeneriqueList
 	presentationsCIP7Map  map[int]entities.Presentation
 	presentationsCIP13Map map[int]entities.Presentation
 	lastUpdated           time.Time
@@ -362,7 +362,7 @@ func (m *MockDataStore) GetMedicamentsMap() map[int]entities.Medicament {
 	return m.medicamentsMap
 }
 
-func (m *MockDataStore) GetGeneriquesMap() map[int]entities.Generique {
+func (m *MockDataStore) GetGeneriquesMap() map[int]entities.GeneriqueList {
 	m.getGeneriquesMapCalled = true
 	return m.generiquesMap
 }
@@ -384,7 +384,7 @@ func (m *MockDataStore) IsUpdating() bool {
 }
 
 func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-	medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique,
+	medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
 	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 	m.updateDataCalled = true
 	m.medicaments = medicaments

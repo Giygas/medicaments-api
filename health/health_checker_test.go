@@ -13,7 +13,7 @@ type MockHealthDataStore struct {
 	medicaments           []entities.Medicament
 	generiques            []entities.GeneriqueList
 	medicamentsMap        map[int]entities.Medicament
-	generiquesMap         map[int]entities.Generique
+	generiquesMap         map[int]entities.GeneriqueList
 	presentationsCIP7Map  map[int]entities.Presentation
 	presentationsCIP13Map map[int]entities.Presentation
 	lastUpdated           time.Time
@@ -39,8 +39,8 @@ func (m *MockHealthDataStore) GetMedicamentsMap() map[int]entities.Medicament {
 	return make(map[int]entities.Medicament)
 }
 
-func (m *MockHealthDataStore) GetGeneriquesMap() map[int]entities.Generique {
-	return make(map[int]entities.Generique)
+func (m *MockHealthDataStore) GetGeneriquesMap() map[int]entities.GeneriqueList {
+	return make(map[int]entities.GeneriqueList)
 }
 
 func (m *MockHealthDataStore) GetPresentationsCIP7Map() map[int]entities.Presentation {
@@ -59,7 +59,7 @@ func (m *MockHealthDataStore) IsUpdating() bool {
 	return m.isUpdating
 }
 
-func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique, presentionsCIP7Map map[int]entities.Presentation, presentionsCIP13Map map[int]entities.Presentation) {
+func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentionsCIP7Map map[int]entities.Presentation, presentionsCIP13Map map[int]entities.Presentation) {
 	// Not used in health tests
 }
 

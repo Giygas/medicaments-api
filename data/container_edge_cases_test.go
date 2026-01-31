@@ -116,7 +116,7 @@ func TestDataContainer_ConcurrentReads(t *testing.T) {
 		1: {Cis: 1, Denomination: "Test 1"},
 		2: {Cis: 2, Denomination: "Test 2"},
 	}
-	generiquesMap := map[int]entities.Generique{}
+	generiquesMap := map[int]entities.GeneriqueList{}
 	presentationsCIP7Map := map[int]entities.Presentation{}
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
@@ -156,7 +156,7 @@ func TestDataContainer_ConcurrentReadsDuringUpdate(t *testing.T) {
 	medicaments := []entities.Medicament{{Cis: 1, Denomination: "Test 1"}}
 	generiques := []entities.GeneriqueList{}
 	medicamentsMap := map[int]entities.Medicament{1: {Cis: 1, Denomination: "Test 1"}}
-	generiquesMap := map[int]entities.Generique{}
+	generiquesMap := map[int]entities.GeneriqueList{}
 	presentationsCIP7Map := map[int]entities.Presentation{}
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
@@ -225,7 +225,7 @@ func TestDataContainer_UpdateDataWithEmptySlices(t *testing.T) {
 	container := NewDataContainer()
 
 	// Update with empty slices
-	container.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{}, map[int]entities.Medicament{}, map[int]entities.Generique{}, map[int]entities.Presentation{}, map[int]entities.Presentation{})
+	container.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{}, map[int]entities.Medicament{}, map[int]entities.GeneriqueList{}, map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	// Verify data was stored
 	if len(container.GetMedicaments()) != 0 {
@@ -254,7 +254,7 @@ func TestDataContainer_ThreadSafety(t *testing.T) {
 		1: {Cis: 1, Denomination: "Test 1"},
 		2: {Cis: 2, Denomination: "Test 2"},
 	}
-	generiquesMap := map[int]entities.Generique{}
+	generiquesMap := map[int]entities.GeneriqueList{}
 	presentationsCIP7Map := map[int]entities.Presentation{}
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
@@ -304,7 +304,7 @@ func TestDataContainer_GetLastUpdated(t *testing.T) {
 	medicaments := []entities.Medicament{{Cis: 1, Denomination: "Test"}}
 	generiques := []entities.GeneriqueList{}
 	medicamentsMap := map[int]entities.Medicament{1: {Cis: 1, Denomination: "Test"}}
-	generiquesMap := map[int]entities.Generique{}
+	generiquesMap := map[int]entities.GeneriqueList{}
 	presentationsCIP7Map := map[int]entities.Presentation{}
 	presentationsCIP13Map := map[int]entities.Presentation{}
 

@@ -66,9 +66,9 @@ func TestUpdateData(t *testing.T) {
 		2: {Cis: 2, Denomination: "Test2"},
 	}
 
-	generiquesMap := map[int]entities.Generique{
-		1: {Cis: 1, Libelle: "Gen1"},
-		2: {Cis: 2, Libelle: "Gen2"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "Gen1"},
+		2: {GroupID: 2, Libelle: "Gen2"},
 	}
 
 	// Update data
@@ -167,8 +167,8 @@ func TestConcurrentAccess(t *testing.T) {
 		2: {Cis: 2, Denomination: "Test2"},
 	}
 
-	generiquesMap := map[int]entities.Generique{
-		1: {Cis: 1, Libelle: "Gen1"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "Gen1"},
 	}
 
 	// Set initial data
@@ -240,8 +240,8 @@ func TestConcurrentAccess(t *testing.T) {
 						id*10 + 2: {Cis: id*10 + 2, Denomination: "Test2"},
 					}
 
-					newGeneriquesMap := map[int]entities.Generique{
-						id*10 + 1: {Cis: id*10 + 1, Libelle: "Gen1"},
+					newGeneriquesMap := map[int]entities.GeneriqueList{
+						id*10 + 1: {GroupID: id*10 + 1, Libelle: "Gen1"},
 					}
 
 					dc.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap,
@@ -274,7 +274,7 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 	}
 	dc.UpdateData(initialMedicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{1: {Cis: 1, Denomination: "Initial"}},
-		map[int]entities.Generique{},
+		map[int]entities.GeneriqueList{},
 		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	// Start a reader that continuously reads data
@@ -309,7 +309,7 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 		}
 		dc.UpdateData(newMedicaments, []entities.GeneriqueList{},
 			map[int]entities.Medicament{i + 2: {Cis: i + 2, Denomination: "Update"}},
-			map[int]entities.Generique{},
+			map[int]entities.GeneriqueList{},
 			map[int]entities.Presentation{}, map[int]entities.Presentation{})
 	}
 
@@ -497,7 +497,7 @@ func BenchmarkGetMedicaments(b *testing.B) {
 		medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData(medicaments, []entities.GeneriqueList{},
-		map[int]entities.Medicament{}, map[int]entities.Generique{},
+		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
 		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	b.ResetTimer()
@@ -517,7 +517,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
-		medicamentsMap, map[int]entities.Generique{},
+		medicamentsMap, map[int]entities.GeneriqueList{},
 		map[int]entities.Presentation{}, map[int]entities.Presentation{})
 
 	b.ResetTimer()
@@ -546,9 +546,9 @@ func BenchmarkUpdateData(b *testing.B) {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
-	generiquesMap := make(map[int]entities.Generique)
+	generiquesMap := make(map[int]entities.GeneriqueList)
 	for i := 0; i < 100; i++ {
-		generiquesMap[i] = entities.Generique{Cis: i, Libelle: "Test"}
+		generiquesMap[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 
 	b.ResetTimer()
@@ -576,7 +576,7 @@ func TestGetPresentationsCIP7Map(t *testing.T) {
 	}
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
-		map[int]entities.Medicament{}, map[int]entities.Generique{},
+		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
 		testPresentations, map[int]entities.Presentation{})
 
 	// Verify data was stored
@@ -613,7 +613,7 @@ func TestGetPresentationsCIP13Map(t *testing.T) {
 	}
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
-		map[int]entities.Medicament{}, map[int]entities.Generique{},
+		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
 		map[int]entities.Presentation{}, testPresentations)
 
 	// Verify data was stored
@@ -646,7 +646,7 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	}
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
-		map[int]entities.Medicament{}, map[int]entities.Generique{},
+		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
 		cip7Map, cip13Map)
 
 	var wg sync.WaitGroup
@@ -689,7 +689,7 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 					int(3400900000000 + int64(id)*100000000): {Cis: id, Cip7: 1000 + id*10 + j, Cip13: int(3400900000000 + int64(id)*100000000)},
 				}
 				dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
-					map[int]entities.Medicament{}, map[int]entities.Generique{},
+					map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
 					newCIP7, newCIP13)
 			}
 		}(i)

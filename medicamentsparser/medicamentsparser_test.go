@@ -233,7 +233,7 @@ func TestParserValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateMedicamenti(&tc.medicament)
+			err := validateMedicaments(&tc.medicament)
 			hasError := err != nil
 			if hasError != tc.expectError {
 				t.Errorf("Expected error: %v, got error: %v", tc.expectError, err)
@@ -357,9 +357,12 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 		3: {Cis: 3, Denomination: "Med3"},
 	}
 
-	medicamentsResult := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
+	medicamentsResult, orphanCIS := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
 	if len(medicamentsResult) != 2 {
 		t.Errorf("Expected 2 medicaments, got %d", len(medicamentsResult))
+	}
+	if len(orphanCIS) != 0 {
+		t.Errorf("Expected 0 orphan CIS, got %d", len(orphanCIS))
 	}
 }
 

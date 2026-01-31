@@ -130,8 +130,8 @@ func BenchmarkGeneriquesSearch(b *testing.B) {
 		},
 	}
 
-	generiquesMap := map[int]entities.Generique{
-		1: {Group: 1, Libelle: "PARACETAMOL 500 mg"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "PARACETAMOL 500 mg"},
 	}
 
 	mockStore := NewMockDataStoreBuilder().
@@ -162,8 +162,8 @@ func BenchmarkGeneriqueByGroup(b *testing.B) {
 		},
 	}
 
-	generiquesMap := map[int]entities.Generique{
-		1: {Group: 1, Libelle: "PARACETAMOL 500 mg"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "PARACETAMOL 500 mg"},
 	}
 
 	mockStore := NewMockDataStoreBuilder().

@@ -209,7 +209,7 @@ func cleanupTestEnvironment(t *testing.T) {
 	// os.RemoveAll("src")
 }
 
-func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique) {
+func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList) {
 	// Test 1: Verify all medicaments have valid CIS
 	for _, med := range medicaments {
 		if med.Cis <= 0 {
