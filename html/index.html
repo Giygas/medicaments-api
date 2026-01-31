@@ -2093,10 +2093,10 @@ Response: {...}  // Single medicament object or error</code></pre>
                   font-size: 0.8rem;
                 "
               ><code>GET /v1/generiques?libelle={nom}
-Response: [{"groupID": ..., "libelle": ..., "medicaments": [...]}]
+Response: [{"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}, ...]  // Array de groupes
 
 GET /v1/generiques?group={id}
-Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}</code></pre>
+Response: {"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}  // Objet unique</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)"
@@ -2248,6 +2248,35 @@ Response: [...]  // Direct array of all medicaments</code></pre>
             "
           ><code>[
   {
+    "groupID": 1368,
+    "libelle": "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé",
+    "medicaments": [
+      {
+        "cis": 61644230,
+        "elementPharmaceutique": "PRONTALGINE, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Princeps",
+        "composition": [
+          {"elementPharmaceutique": "comprimé", "substance": "CAFÉINE ANHYDRE", "dosage": "50,0 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "400,0 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "20,0 mg"}
+        ]
+      },
+      {
+        "cis": 63399979,
+        "elementPharmaceutique": "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {"elementPharmaceutique": "comprimé", "substance": "CAFÉINE ANHYDRE", "dosage": "50 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "400 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "20 mg"}
+        ]
+      }
+    ],
+    "orphanCIS": [61586325]
+  },
+  {
     "groupID": 1643,
     "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
     "medicaments": [
@@ -2257,16 +2286,8 @@ Response: [...]  // Direct array of all medicaments</code></pre>
         "formePharmaceutique": "comprimé pelliculé",
         "type": "Princeps",
         "composition": [
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
-          },
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
-          }
+          {"elementPharmaceutique": "comprimé pelliculé", "substance": "PARACÉTAMOL", "dosage": "500 mg"},
+          {"elementPharmaceutique": "comprimé pelliculé", "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ", "dosage": "30 mg"}
         ]
       },
       {
@@ -2275,21 +2296,42 @@ Response: [...]  // Direct array of all medicaments</code></pre>
         "formePharmaceutique": "comprimé",
         "type": "Générique",
         "composition": [
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
-          },
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
-          }
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "500,00 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "30,00 mg"}
         ]
       }
-    ]
+    ],
+    "orphanCIS": null
   }
 ]</code></pre>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            ℹ️ À propos du champ orphanCIS
+          </h4>
+          <p style="color: var(--color-text-muted); line-height: 1.6; margin-bottom: 1rem">
+            Le champ <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">orphanCIS</code> contient les codes CIS référencés dans un groupe générique mais pour lesquels aucune entrée médicament correspondante n'existe dans la base de données.
+          </p>
+          <ul style="color: var(--color-text-muted); padding-left: 1.5rem">
+            <li>Les médicaments avec des données complètes apparaissent dans le tableau <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">medicaments</code></li>
+            <li>Les CIS orphelins apparaissent dans le tableau <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">orphanCIS</code> sans détails supplémentaires</li>
+            <li>Ce champ peut prendre trois valeurs :
+              <ul style="margin-top: 0.5rem; padding-left: 1.5rem">
+                <li>Un tableau d'entiers : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">[61586325, 60473805]</code></li>
+                <li>Un tableau vide : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">[]</code></li>
+                <li>Null : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">null</code> (si le groupe ne contient aucun CIS orphelin)</li>
+              </ul>
+            </li>
+          </ul>
         </div>
 
         <div

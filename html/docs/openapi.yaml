@@ -281,6 +281,38 @@ paths:
                 search:
                   summary: Recherche par libellé
                   value:
+                    - groupID: 1368
+                      libelle: "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé"
+                      medicaments:
+                        - cis: 61644230
+                          elementPharmaceutique: "PRONTALGINE, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Princeps"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "CAFÉINE ANHYDRE"
+                              dosage: "50,0 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "400,0 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "20,0 mg"
+                        - cis: 63399979
+                          elementPharmaceutique: "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Générique"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "CAFÉINE ANHYDRE"
+                              dosage: "50 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "400 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "20 mg"
+                      orphanCIS: [61586325]
                     - groupID: 1643
                       libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
                       medicaments:
@@ -290,7 +322,7 @@ paths:
                           type: "Princeps"
                           composition:
                             - elementPharmaceutique: "comprimé pelliculé"
-                              substance: "PARACETAMOL"
+                              substance: "PARACÉTAMOL"
                               dosage: "500 mg"
                             - elementPharmaceutique: "comprimé pelliculé"
                               substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
@@ -301,11 +333,12 @@ paths:
                           type: "Générique"
                           composition:
                             - elementPharmaceutique: "comprimé"
-                              substance: "PARACETAMOL"
-                              dosage: "500 mg"
+                              substance: "PARACÉTAMOL"
+                              dosage: "500,00 mg"
                             - elementPharmaceutique: "comprimé"
-                              substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                              dosage: "30 mg"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "30,00 mg"
+                      orphanCIS: null
                 group:
                   summary: Recherche par ID de groupe
                   value:
@@ -328,12 +361,13 @@ paths:
                         formePharmaceutique: "comprimé"
                         type: "Générique"
                         composition:
-                          - elementPharmaceutique: "comprimé"
-                            substance: "PARACETAMOL"
-                            dosage: "500 mg"
-                          - elementPharmaceutique: "comprimé"
-                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                            dosage: "30 mg"
+                           - elementPharmaceutique: "comprimé"
+                             substance: "PARACÉTAMOL"
+                             dosage: "500 mg"
+                           - elementPharmaceutique: "comprimé"
+                             substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                             dosage: "30 mg"
+                    orphanCIS: null
         "400":
           description: Paramètres invalides
           content:
@@ -1104,6 +1138,21 @@ components:
           items:
             $ref: "#/components/schemas/GeneriqueMedicamentResponse"
           title: Médicaments du groupe
+        orphanCIS:
+          type:
+            - array
+            - 'null'
+          items:
+            type: integer
+          title: CIS orphelins
+          nullable: true
+          description: |
+            Liste des codes CIS référencés dans le groupe générique mais sans entrée médicament correspondante dans la base de données.
+            Ces CIS n'ont pas de données détaillées disponibles (composition, forme pharmaceutique, type, etc.).
+            Peut être :
+            - Un tableau d'entiers : [61586325, 60473805]
+            - Un tableau vide : []
+            - Null : null (si le groupe ne contient aucun CIS orphelin)
 
     GeneriqueMedicamentResponse:
       type: object

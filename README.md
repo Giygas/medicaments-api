@@ -255,6 +255,59 @@ curl https://medicaments-api.giygas.dev/v1/presentations?cip=3400936403114
 ```json
 [
   {
+    "groupID": 1368,
+    "libelle": "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé",
+    "medicaments": [
+      {
+        "cis": 61644230,
+        "elementPharmaceutique": "PRONTALGINE, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Princeps",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CAFÉINE ANHYDRE",
+            "dosage": "50,0 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "400,0 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "20,0 mg"
+          }
+        ]
+      },
+      {
+        "cis": 63399979,
+        "elementPharmaceutique": "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CAFÉINE ANHYDRE",
+            "dosage": "50 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "400 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "20 mg"
+          }
+        ]
+      }
+    ],
+    "orphanCIS": [61586325]
+  },
+  {
     "groupID": 1643,
     "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
     "medicaments": [
@@ -265,12 +318,12 @@ curl https://medicaments-api.giygas.dev/v1/presentations?cip=3400936403114
         "type": "Princeps",
         "composition": [
           {
-            "elementPharmaceutique": "comprimé",
+            "elementPharmaceutique": "comprimé pelliculé",
             "substance": "PARACÉTAMOL",
             "dosage": "500 mg"
           },
           {
-            "elementPharmaceutique": "comprimé",
+            "elementPharmaceutique": "comprimé pelliculé",
             "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
             "dosage": "30 mg"
           }
@@ -285,19 +338,30 @@ curl https://medicaments-api.giygas.dev/v1/presentations?cip=3400936403114
           {
             "elementPharmaceutique": "comprimé",
             "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
+            "dosage": "500,00 mg"
           },
           {
             "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "30,00 mg"
           }
         ]
       }
-    ]
+    ],
+    "orphanCIS": null
   }
 ]
 ```
+
+**À propos du champ `orphanCIS`**
+
+Le champ `orphanCIS` contient les codes CIS référencés dans un groupe générique mais pour lesquels aucune entrée médicament correspondante n'existe dans la base de données.
+- Les médicaments avec des données complètes (composition, forme pharmaceutique, type) apparaissent dans le tableau `medicaments`
+- Les CIS orphelins apparaissent dans le tableau `orphanCIS` sans détails supplémentaires
+- Ce champ peut être :
+  - Un tableau d'entiers : `[61586325, 60473805]`
+  - Un tableau vide : `[]`
+  - Null : `null` (si le groupe ne contient aucun CIS orphelin)
 
 ### Programmatique
 
@@ -957,6 +1021,7 @@ Janvier 2026
 - Modernisation de la syntaxe, division des fichiers de tests et simplification des calculs
 - Correction du logging lors de l'arrêt du serveur
 - Mise à jour de la suite de tests pour utiliser les endpoints v1 avec paramètres de requête
+- Ajout du champ orphanCIS dans les réponses génériques : contient les codes CIS sans entrée médicament correspondante
 
 ---
 
