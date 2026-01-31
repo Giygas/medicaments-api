@@ -1,9 +1,12 @@
 package entities
 
+// GeneriqueList represents a group of generique medicaments with the same libelle.
+// It includes medicaments with full data and a list of orphan CIS without medicament entries.
 type GeneriqueList struct {
 	GroupID     int                   `json:"groupID"`
 	Libelle     string                `json:"libelle"`
 	Medicaments []GeneriqueMedicament `json:"medicaments"`
+	OrphanCIS   []int                 `json:"orphanCIS"`
 }
 
 type GeneriqueMedicament struct {

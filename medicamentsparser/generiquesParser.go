@@ -99,10 +99,13 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 			continue
 		}
 
+		medicaments, orphaned := getMedicamentsInArray(v, mMap)
+
 		currentGenerique := entities.GeneriqueList{
 			GroupID:     groupInt,
 			Libelle:     libelle[groupInt],
-			Medicaments: getMedicamentsInArray(v, mMap),
+			Medicaments: medicaments,
+			OrphanCIS:   orphaned,
 		}
 
 		generiques = append(generiques, currentGenerique)
@@ -127,9 +130,18 @@ func createGeneriqueComposition(medicamentComposition *[]entities.Composition) [
 	return compositions
 }
 
-func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament) []entities.GeneriqueMedicament {
-	var medicamentsArray []entities.GeneriqueMedicament
-
+// getMedicamentsInArray splits CIS into two categories based on medicament availability:
+// - Generiques with full medicament data (returns as GeneriqueMedicament with composition, type, etc.)
+// - Orphan CIS without medicament data (returns as raw CIS integers)
+//
+// Parameters:
+//   - medicamentsIds: Array of CIS values to process
+//   - medicamentMap: Map of CIS to full Medicament entities for O(1) lookup
+//
+// Returns:
+//   - generiquesMedicaments: CIS that exist in medicamentMap with full data populated
+//   - orphanCIS: CIS values that don't have corresponding medicament entries
+func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament) (generiquesMedicaments []entities.GeneriqueMedicament, orphanCIS []int) {
 	for _, v := range medicamentsIds {
 		if medicament, ok := (*medicamentMap)[v]; ok {
 			generiqueComposition := createGeneriqueComposition(&medicament.Composition)
@@ -140,9 +152,10 @@ func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities
 				Type:                medsType[medicament.Cis],
 				Composition:         generiqueComposition,
 			}
-			medicamentsArray = append(medicamentsArray, generiqueMed)
+			generiquesMedicaments = append(generiquesMedicaments, generiqueMed)
+		} else {
+			orphanCIS = append(orphanCIS, v)
 		}
 	}
-
-	return medicamentsArray
+	return
 }
