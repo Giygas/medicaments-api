@@ -243,8 +243,9 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Sanitize input
+	// Sanitize input (replace + with space for flexible matching)
 	sanitizedElement := regexp.QuoteMeta(strings.ToLower(element))
+	sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
 
 	// Add deprecation headers
 	newPath := fmt.Sprintf("/v1/medicament?search=%v", element)
@@ -254,7 +255,11 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 	var results []entities.Medicament
 
 	for _, med := range medicaments {
-		if strings.Contains(strings.ToLower(med.Denomination), sanitizedElement) {
+		// Normalize medication name for comparison
+		medName := strings.ToLower(med.Denomination)
+		medName = strings.ReplaceAll(medName, "+", " ")
+
+		if strings.Contains(medName, sanitizedElement) {
 			results = append(results, med)
 		}
 	}
@@ -342,6 +347,8 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 
 	// Sanitize input and convert to lowercase for case-insensitive search
 	sanitizedLibelle := strings.ToLower(libelle)
+	// Normalize: replace + with space for flexible matching
+	sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
 
 	// Add deprecation headers
 	newPath := fmt.Sprintf("/v1/generiques?libelle=%v", libelle)
@@ -351,7 +358,11 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 	var results []entities.GeneriqueList
 
 	for _, gen := range generiques {
-		if strings.Contains(strings.ToLower(gen.Libelle), sanitizedLibelle) {
+		// Normalize generique libelle for comparison
+		genLibelle := strings.ToLower(gen.Libelle)
+		genLibelle = strings.ReplaceAll(genLibelle, "+", " ")
+
+		if strings.Contains(genLibelle, sanitizedLibelle) {
 			results = append(results, gen)
 		}
 	}
@@ -530,12 +541,18 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 
 		// Sanitize input and convert to lowercase for case-insensitive search
 		sanitizedLibelle := strings.ToLower(libelle)
+		// Normalize: replace + with space for flexible matching
+		sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
 
 		generiques := h.dataStore.GetGeneriques()
 		var results []entities.GeneriqueList
 
 		for _, gen := range generiques {
-			if strings.Contains(strings.ToLower(gen.Libelle), sanitizedLibelle) {
+			// Normalize generique libelle for comparison
+			genLibelle := strings.ToLower(gen.Libelle)
+			genLibelle = strings.ReplaceAll(genLibelle, "+", " ")
+
+			if strings.Contains(genLibelle, sanitizedLibelle) {
 				results = append(results, gen)
 			}
 		}
@@ -623,14 +640,19 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		// Sanitize input
+		// Sanitize and normalize input (replace + with space for flexible matching)
 		sanitizedElement := regexp.QuoteMeta(strings.ToLower(searchQuery))
+		sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
 
 		medicaments := h.dataStore.GetMedicaments()
 		var results []entities.Medicament
 
 		for _, med := range medicaments {
-			if strings.Contains(strings.ToLower(med.Denomination), sanitizedElement) {
+			// Normalize medication name for comparison
+			medName := strings.ToLower(med.Denomination)
+			medName = strings.ReplaceAll(medName, "+", " ")
+
+			if strings.Contains(medName, sanitizedElement) {
 				results = append(results, med)
 			}
 		}

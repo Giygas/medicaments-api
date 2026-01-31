@@ -432,6 +432,9 @@ func TestValidateInput_Valid(t *testing.T) {
 		"test'medicament",
 		"dr. smith",
 		"àâäéèêëïîôöùûüÿç",
+		"paracetamol+cafeine",
+		"actonelcombi 35 mg + 1000 mg",
+		"alunbrig 90 mg + 180 mg",
 	}
 
 	for _, input := range validInputs {
@@ -563,7 +566,6 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 		"test%medicament",
 		"test&medicament",
 		"test*medicament",
-		"test+medicament",
 		"test=medicament",
 		"test|medicament",
 		"test\\medicament",
@@ -589,7 +591,7 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 				t.Errorf("Expected error for invalid characters in input '%s'", input)
 			}
 
-			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and common French accented characters are allowed"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, plus sign, and common French accented characters are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}

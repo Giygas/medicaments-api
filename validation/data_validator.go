@@ -153,10 +153,10 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 	}
 
 	// Allow only alphanumeric characters, spaces, and safe punctuation
-	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, and periods
-	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s\-\.'àâäéèêëïîôöùûüÿç]+$`)
+	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`)
 	if !validPattern.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and common French accented characters are allowed")
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, plus sign, and common French accented characters are allowed")
 	}
 
 	// Additional checks for repeated characters (potential DoS)
