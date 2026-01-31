@@ -10,7 +10,7 @@ type Medicament struct {
 	EtatComercialisation  string         `json:"etatComercialisation"`
 	DateAMM               string         `json:"dateAMM"`
 	Titulaire             string         `json:"titulaire"`
-	SurveillanceRenforcee string         `json:"surveillanceRenforce"`
+	SurveillanceRenforcee string         `json:"surveillanceRenforcee"`
 	Composition           []Composition  `json:"composition"`
 	Generiques            []Generique    `json:"generiques"`
 	Presentation          []Presentation `json:"presentation"`
