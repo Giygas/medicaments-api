@@ -7,9 +7,10 @@ import (
 
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 )
 
-func validateMedicaments(m *entities.Medicament) error {
+func validateMedicamentsIntegrity(m *entities.Medicament) error {
 	if m.Cis <= 0 {
 		return fmt.Errorf("invalid CIS: %d", m.Cis)
 	}
@@ -20,56 +21,6 @@ func validateMedicaments(m *entities.Medicament) error {
 		return fmt.Errorf("missing forme pharmaceutique")
 	}
 	// Add more checks as needed
-	return nil
-}
-
-func checkDuplicateCIP(presentations []entities.Presentation) error {
-	// Check for duplicate CIP7 and CIP13 values before creating the maps
-	cip7Count := make(map[int]int)
-	cip13Count := make(map[int]int)
-
-	for _, pres := range presentations {
-		cip7Count[pres.Cip7]++
-		cip13Count[pres.Cip13]++
-	}
-
-	// Find duplicate CIP7 values
-	var cip7Duplicates []int
-	for cip, count := range cip7Count {
-		if count > 1 {
-			cip7Duplicates = append(cip7Duplicates, cip)
-		}
-	}
-
-	// Find duplicate CIP13 values
-	var cip13Duplicates []int
-	for cip, count := range cip13Count {
-		if count > 1 {
-			cip13Duplicates = append(cip13Duplicates, cip)
-		}
-	}
-
-	// Log duplicates as errors
-	if len(cip7Duplicates) > 0 {
-		logging.Error("Duplicate CIP7 values detected",
-			"count", len(cip7Duplicates),
-			"duplicates", cip7Duplicates,
-		)
-	}
-
-	if len(cip13Duplicates) > 0 {
-		logging.Error("Duplicate CIP13 values detected",
-			"count", len(cip13Duplicates),
-			"duplicates", cip13Duplicates,
-		)
-	}
-
-	// Return error if any duplicates found
-	if len(cip7Duplicates) > 0 || len(cip13Duplicates) > 0 {
-		return fmt.Errorf("found %d duplicate CIP7 and %d duplicate CIP13 values",
-			len(cip7Duplicates), len(cip13Duplicates))
-	}
-
 	return nil
 }
 
@@ -211,7 +162,8 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 	}
 
 	// Check for duplicate CIP values before building maps
-	if err := checkDuplicateCIP(presentations); err != nil {
+	validator := validation.NewDataValidator()
+	if err := validator.CheckDuplicateCIP(presentations); err != nil {
 		logging.Warn("Duplicate CIP values detected, last occurrence will be used", "error", err)
 	}
 
@@ -268,7 +220,7 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 		}
 
 		// Validate the medicament structure
-		if err := validateMedicaments(medicament); err != nil {
+		if err := validateMedicamentsIntegrity(medicament); err != nil {
 			logging.Warn("Skipping invalid medicament: ", "error", err, "cis", med.Cis)
 			continue
 		}

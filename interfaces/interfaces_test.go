@@ -227,6 +227,13 @@ func (m *MockDataValidator) ValidateMedicament(med *entities.Medicament) error {
 	return nil
 }
 
+func (m *MockDataValidator) CheckDuplicateCIP(presentations []entities.Presentation) error {
+	if m.shouldFail {
+		return fmt.Errorf("validation failed")
+	}
+	return nil
+}
+
 func (m *MockDataValidator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	if m.shouldFail {
 		return fmt.Errorf("validation failed")

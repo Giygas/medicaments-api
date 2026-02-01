@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/giygas/medicaments-api/interfaces"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -54,6 +55,55 @@ func (v *DataValidatorImpl) ValidateMedicament(m *entities.Medicament) error {
 	// Validate statut
 	if len(m.StatusAutorisation) > 50 {
 		return fmt.Errorf("status autorisation too long for CIS %d: %d characters", m.Cis, len(m.StatusAutorisation))
+	}
+
+	return nil
+}
+
+func (v *DataValidatorImpl) CheckDuplicateCIP(presentations []entities.Presentation) error {
+	cip7Count := make(map[int]int)
+	cip13Count := make(map[int]int)
+
+	for _, pres := range presentations {
+		cip7Count[pres.Cip7]++
+		cip13Count[pres.Cip13]++
+	}
+
+	// Find duplicate CIP7 values
+	var cip7Duplicates []int
+	for cip, count := range cip7Count {
+		if count > 1 {
+			cip7Duplicates = append(cip7Duplicates, cip)
+		}
+	}
+
+	// Find duplicate CIP13 values
+	var cip13Duplicates []int
+	for cip, count := range cip13Count {
+		if count > 1 {
+			cip13Duplicates = append(cip13Duplicates, cip)
+		}
+	}
+
+	// Log duplicates as errors
+	if len(cip7Duplicates) > 0 {
+		logging.Error("Duplicate CIP7 values detected",
+			"count", len(cip7Duplicates),
+			"duplicates", cip7Duplicates,
+		)
+	}
+
+	if len(cip13Duplicates) > 0 {
+		logging.Error("Duplicate CIP13 values detected",
+			"count", len(cip13Duplicates),
+			"duplicates", cip13Duplicates,
+		)
+	}
+
+	// Return error if any duplicates found
+	if len(cip7Duplicates) > 0 || len(cip13Duplicates) > 0 {
+		return fmt.Errorf("found %d duplicate CIP7 and %d duplicate CIP13 values",
+			len(cip7Duplicates), len(cip13Duplicates))
 	}
 
 	return nil

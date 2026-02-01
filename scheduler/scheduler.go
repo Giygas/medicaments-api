@@ -10,6 +10,7 @@ import (
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-co-op/gocron"
 )
 
@@ -95,6 +96,9 @@ func (s *Scheduler) updateData() error {
 		logging.Error("Failed to parse generiques", "error", err)
 		return fmt.Errorf("failed to parse generiques: %w", err)
 	}
+
+	validator := validation.NewDataValidator()
+	validator.ValidateDataIntegrity(newMedicaments, newGeneriques)
 
 	// Atomic update using injected data store
 	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap, newPresentationsCIP7Map, newPresentationsCIP13Map)

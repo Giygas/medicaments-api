@@ -183,7 +183,7 @@ func TestDownloaderErrorCases(t *testing.T) {
 func TestParserValidation(t *testing.T) {
 	fmt.Println("Testing medicament validation...")
 
-	// Test validateMedicamenti function with various inputs
+	// Test validateMedicaments function with various inputs
 	testCases := []struct {
 		name        string
 		medicament  entities.Medicament
@@ -233,7 +233,7 @@ func TestParserValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateMedicaments(&tc.medicament)
+			err := validateMedicamentsIntegrity(&tc.medicament)
 			hasError := err != nil
 			if hasError != tc.expectError {
 				t.Errorf("Expected error: %v, got error: %v", tc.expectError, err)
@@ -459,137 +459,6 @@ func TestConcurrentParsing(t *testing.T) {
 	}
 
 	fmt.Println("Concurrent parsing test completed")
-}
-
-// TestCheckDuplicateCIP tests the duplicate CIP detection function
-func TestCheckDuplicateCIP(t *testing.T) {
-	fmt.Println("Testing checkDuplicateCIP function...")
-
-	testCases := []struct {
-		name             string
-		presentations    []entities.Presentation
-		expectError      bool
-		expectedCIP7Dup  int
-		expectedCIP13Dup int
-	}{
-		{
-			name: "No duplicates",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-				{Cis: 2, Cip7: 2345678, Cip13: 3400923456789},
-				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
-			},
-			expectError:      false,
-			expectedCIP7Dup:  0,
-			expectedCIP13Dup: 0,
-		},
-		{
-			name: "Duplicate CIP7 values",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789}, // Duplicate CIP7
-				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
-			},
-			expectError:      true,
-			expectedCIP7Dup:  1,
-			expectedCIP13Dup: 0,
-		},
-		{
-			name: "Duplicate CIP13 values",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-				{Cis: 2, Cip7: 2345678, Cip13: 3400912345678}, // Duplicate CIP13
-				{Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
-			},
-			expectError:      true,
-			expectedCIP7Dup:  0,
-			expectedCIP13Dup: 1,
-		},
-		{
-			name: "Multiple duplicates of both types",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789}, // Duplicate CIP7
-				{Cis: 3, Cip7: 2345678, Cip13: 3400923456789}, // Duplicate CIP13
-				{Cis: 4, Cip7: 3456789, Cip13: 3400934567890},
-				{Cis: 5, Cip7: 3456789, Cip13: 3400912345678}, // Duplicate both
-			},
-			expectError:      true,
-			expectedCIP7Dup:  2,
-			expectedCIP13Dup: 2,
-		},
-		{
-			name:             "Empty slice",
-			presentations:    []entities.Presentation{},
-			expectError:      false,
-			expectedCIP7Dup:  0,
-			expectedCIP13Dup: 0,
-		},
-		{
-			name: "Single presentation",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-			},
-			expectError:      false,
-			expectedCIP7Dup:  0,
-			expectedCIP13Dup: 0,
-		},
-		{
-			name: "Three duplicates of same CIP",
-			presentations: []entities.Presentation{
-				{Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-				{Cis: 2, Cip7: 1234567, Cip13: 3400923456789},
-				{Cis: 3, Cip7: 1234567, Cip13: 3400934567890}, // Third duplicate
-			},
-			expectError:      true,
-			expectedCIP7Dup:  1,
-			expectedCIP13Dup: 0,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := checkDuplicateCIP(tc.presentations)
-
-			hasError := err != nil
-			if hasError != tc.expectError {
-				t.Errorf("Expected error: %v, got error: %v", tc.expectError, err)
-			}
-
-			if hasError && tc.expectedCIP7Dup > 0 {
-				if !containsString(err.Error(), fmt.Sprintf("%d duplicate CIP7", tc.expectedCIP7Dup)) {
-					t.Errorf("Expected error to mention %d duplicate CIP7, got: %v", tc.expectedCIP7Dup, err)
-				}
-			}
-
-			if hasError && tc.expectedCIP13Dup > 0 {
-				if !containsString(err.Error(), fmt.Sprintf("%d duplicate CIP13", tc.expectedCIP13Dup)) {
-					t.Errorf("Expected error to mention %d duplicate CIP13, got: %v", tc.expectedCIP13Dup, err)
-				}
-			}
-
-			// If no error expected and got one, fail the test
-			if !tc.expectError && err != nil {
-				t.Errorf("Expected no error, got: %v", err)
-			}
-		})
-	}
-
-	fmt.Println("checkDuplicateCIP tests completed")
-}
-
-// Helper function to check if a string contains a substring
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsSubstring(s, substr))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // ============================================================

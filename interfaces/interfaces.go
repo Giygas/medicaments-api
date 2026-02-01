@@ -90,6 +90,9 @@ type DataValidator interface {
 	// ValidateMedicament checks if a medicament entity is valid
 	ValidateMedicament(m *entities.Medicament) error
 
+	// CheckDuplicateCIP validates that CIP7 and CIP13 values are unique
+	CheckDuplicateCIP(presentations []entities.Presentation) error
+
 	// ValidateDataIntegrity performs comprehensive data validation
 	ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
 
