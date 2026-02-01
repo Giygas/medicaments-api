@@ -558,10 +558,9 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 	tests := []struct {
 		name          string
 		queryParams   string
-		checkType     string // "export", "page", "search", "cis", "cip"
+		checkType     string // "page", "search", "cis", "cip"
 		expectedValue any
 	}{
-		{"export all medicaments", "?export=all", "export", 15},
 		{"first page", "?page=1", "page", 10},
 		{"second page", "?page=2", "page", 5},
 		{"search with results", "?search=paracetamol", "search", "PARACETAMOL 500 mg"},
@@ -828,51 +827,6 @@ func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
 	).(*HTTPHandlerImpl)
-
-	// Test Export ETag caching
-	t.Run("export ETag caching", func(t *testing.T) {
-		// First request - generate ETag
-		req1 := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
-		rr1 := httptest.NewRecorder()
-		handler.ServeMedicamentsV1(rr1, req1)
-
-		if rr1.Code != http.StatusOK {
-			t.Errorf("Expected 200, got %d", rr1.Code)
-		}
-
-		etag := rr1.Header().Get("ETag")
-		if etag == "" {
-			t.Error("ETag header should be present")
-		}
-
-		if !hasQuotedETag(etag) {
-			t.Errorf("ETag should be quoted, got: %s", etag)
-		}
-
-		// Second request with matching ETag - return 304
-		req2 := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
-		req2.Header.Set("If-None-Match", etag)
-		rr2 := httptest.NewRecorder()
-		handler.ServeMedicamentsV1(rr2, req2)
-
-		if rr2.Code != http.StatusNotModified {
-			t.Errorf("Expected 304 Not Modified, got %d", rr2.Code)
-		}
-
-		// Third request with different ETag - return 200
-		req3 := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
-		req3.Header.Set("If-None-Match", `"different-etag"`)
-		rr3 := httptest.NewRecorder()
-		handler.ServeMedicamentsV1(rr3, req3)
-
-		if rr3.Code != http.StatusOK {
-			t.Errorf("Expected 200 OK, got %d", rr3.Code)
-		}
-
-		if rr3.Body.Len() == 0 {
-			t.Error("Response body should be present")
-		}
-	})
 
 	// Test Search ETag caching
 	t.Run("search ETag caching", func(t *testing.T) {

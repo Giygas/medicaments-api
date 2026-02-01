@@ -75,7 +75,7 @@ func TestEndpoints(t *testing.T) {
 		endpoint string
 		expected int
 	}{
-		{"Test medicaments export", "/v1/medicaments?export=all", http.StatusOK},
+		{"Test medicaments export", "/v1/medicaments/export", http.StatusOK},
 		{"Test medicaments pagination", "/v1/medicaments?page=1", http.StatusOK},
 		{"Test medicaments search", "/v1/medicaments?search=Test", http.StatusOK},
 		{"Test medicaments by CIS", "/v1/medicaments?cis=12345678", http.StatusOK},
@@ -88,7 +88,7 @@ func TestEndpoints(t *testing.T) {
 		{"Test generiques with invalid group (too high)", "/v1/generiques?group=999999", http.StatusBadRequest},
 		{"Test generiques with valid boundary (not in map)", "/v1/generiques?group=9999", http.StatusNotFound},
 		{"Test medicaments no params", "/v1/medicaments", http.StatusBadRequest},
-		{"Test medicaments multiple params", "/v1/medicaments?page=1&export=all", http.StatusBadRequest},
+		{"Test medicaments multiple params", "/v1/medicaments?page=1&search=test", http.StatusBadRequest},
 		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},
 		{"Test medicaments negative page", "/v1/medicaments?page=-1", http.StatusBadRequest},
 		{"Test medicaments invalid CIS", "/v1/medicaments?cis=abc", http.StatusBadRequest},
@@ -96,9 +96,10 @@ func TestEndpoints(t *testing.T) {
 	}
 
 	router := chi.NewRouter()
-	// Note: rateLimitHandler is now part of the server middleware
+	// Note: rateLimitHandler is now part of server middleware
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
+	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 	router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
@@ -210,16 +211,16 @@ func TestRateLimiter(t *testing.T) {
 	router.Use(server.RateLimitHandler)
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
-	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 
 	// Simulate requests from same IP
 	clientIP := "192.168.1.1:12345"
 
-	// Make requests to /v1/medicaments?export=all until we get rate limited
+	// Make requests to /v1/medicaments/export until we get rate limited
 	// Each costs 200 tokens, so we should be able to make 5 requests (1000 tokens)
 	requestCount := 0
 	for requestCount = 0; requestCount < 10; requestCount++ {
-		req, _ := http.NewRequest("GET", "/v1/medicaments?export=all", nil)
+		req, _ := http.NewRequest("GET", "/v1/medicaments/export", nil)
 		req.RemoteAddr = clientIP
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -382,10 +383,10 @@ func TestCompressionOptimization(t *testing.T) {
 		// Create handler and test actual endpoint compression
 		validator := validation.NewDataValidator()
 		httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
-		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 
-		httpHandler.ServeMedicamentsV1(w, req)
+		httpHandler.ExportMedicaments(w, req)
 
 		// Check that response was written correctly
 		if w.Code != http.StatusOK {

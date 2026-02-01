@@ -58,7 +58,6 @@ type HTTPHandler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	// Specific endpoint handlers
-	ServeAllMedicaments(w http.ResponseWriter, r *http.Request)
 	ServePagedMedicaments(w http.ResponseWriter, r *http.Request)
 	FindMedicament(w http.ResponseWriter, r *http.Request)
 	FindMedicamentByID(w http.ResponseWriter, r *http.Request)
@@ -67,6 +66,7 @@ type HTTPHandler interface {
 	FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request)
 	// This will stay in all versions
 	HealthCheck(w http.ResponseWriter, r *http.Request)
+	ExportMedicaments(w http.ResponseWriter, r *http.Request)
 
 	// V1 handlers
 	ServeMedicamentsV1(w http.ResponseWriter, r *http.Request)

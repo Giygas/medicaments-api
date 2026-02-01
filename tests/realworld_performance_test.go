@@ -56,6 +56,7 @@ func setupRealworldServer() *httptest.Server {
 		validator := validation.NewDataValidator()
 		httpHandler := handlers.NewHTTPHandler(container, validator)
 
+		router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 		router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 		router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 		router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
@@ -235,7 +236,7 @@ func TestRealWorldResponseSizes(t *testing.T) {
 		expectedMaxSize int // bytes
 		description     string
 	}{
-		{"/v1/medicaments?export=all", 25 * 1024 * 1024, "Full database (should be large)"},
+		{"/v1/medicaments/export", 25 * 1024 * 1024, "Full database (should be large)"},
 		{"/v1/medicaments?page=1", 100 * 1024, "First page (should be small)"},
 		{"/v1/medicaments?cis=1000", 10 * 1024, "Single medicament"},
 		{"/health", 5 * 1024, "Health check"},

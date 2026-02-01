@@ -65,9 +65,9 @@ func BenchmarkDatabase(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
 		w := httptest.NewRecorder()
-		httpHandler.ServeMedicamentsV1(w, req)
+		httpHandler.ExportMedicaments(w, req)
 	}
 }
 
@@ -219,9 +219,9 @@ func BenchmarkMemoryUsage(b *testing.B) {
 
 	var responses [][]byte
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
+		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
 		w := httptest.NewRecorder()
-		httpHandler.ServeMedicamentsV1(w, req)
+		httpHandler.ExportMedicaments(w, req)
 		responses = append(responses, w.Body.Bytes())
 	}
 

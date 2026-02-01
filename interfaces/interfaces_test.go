@@ -145,7 +145,7 @@ func (m *MockHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(m.responseBody))
 }
 
-func (m *MockHTTPHandler) ServeAllMedicaments(w http.ResponseWriter, r *http.Request) {
+func (m *MockHTTPHandler) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
 	_, _ = w.Write([]byte(m.responseBody))
 }

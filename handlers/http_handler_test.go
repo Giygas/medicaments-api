@@ -163,8 +163,8 @@ func TestRespondWithError(t *testing.T) {
 	}
 }
 
-// TestServeAllMedicaments tests medicaments endpoint
-func TestServeAllMedicaments(t *testing.T) {
+// TestExportMedicaments tests medicaments export endpoint
+func TestExportMedicaments(t *testing.T) {
 	factory := NewTestDataFactory()
 
 	tests := []struct {
@@ -199,7 +199,7 @@ func TestServeAllMedicaments(t *testing.T) {
 			req := httptest.NewRequest("GET", "/database", nil)
 			rr := httptest.NewRecorder()
 
-			handler.ServeAllMedicaments(rr, req)
+			handler.ExportMedicaments(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
@@ -217,6 +217,24 @@ func TestServeAllMedicaments(t *testing.T) {
 
 			if len(response) != len(tt.medicaments) {
 				t.Errorf("Expected %d medicaments, got %d", len(tt.medicaments), len(response))
+			}
+
+			// Verify ETag headers are present
+			etag := rr.Header().Get("ETag")
+			if etag == "" {
+				t.Error("ETag header should be present")
+			}
+
+			if !strings.HasPrefix(etag, "\"") || !strings.HasSuffix(etag, "\"") {
+				t.Errorf("ETag should be quoted, got: %s", etag)
+			}
+
+			if rr.Header().Get("Cache-Control") != "public, max-age=3600" {
+				t.Error("Expected Cache-Control 'public, max-age=3600'")
+			}
+
+			if rr.Header().Get("Last-Modified") == "" {
+				t.Error("Expected Last-Modified header")
 			}
 
 			if !mockStore.getMedicamentsCalled {

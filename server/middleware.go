@@ -194,15 +194,16 @@ func getTokenCost(r *http.Request) int64 {
 	// V1 routes - check first for performance
 	if strings.HasPrefix(requestPath, "/v1/") {
 		switch requestPath {
+		case "/v1/medicaments/export":
+			// Full medicament export - expensive operation
+			return 200
+
 		case "/v1/medicaments":
 			// Ensure only one parameter is present
 			if !HasSingleParam(q, []string{"export", "search", "page", "cis", "cip"}) {
 				return 5 // Default for invalid multi-param requests
 			}
 
-			if q.Get("export") == "all" {
-				return 200
-			}
 			if q.Get("search") != "" {
 				return 50
 			}
@@ -212,6 +213,7 @@ func getTokenCost(r *http.Request) int64 {
 			if q.Get("cis") != "" || q.Get("cip") != "" {
 				return 10
 			}
+
 			return 5 // Default for /v1/medicaments without recognized params
 
 		case "/v1/generiques":

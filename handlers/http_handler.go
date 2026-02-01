@@ -177,12 +177,18 @@ func (h *HTTPHandlerImpl) AddDeprecationHeaders(w http.ResponseWriter, r *http.R
 
 }
 
-// ServeAllMedicaments returns all medicaments
-func (h *HTTPHandlerImpl) ServeAllMedicaments(w http.ResponseWriter, r *http.Request) {
-	h.AddDeprecationHeaders(w, r, "/v1/medicaments?export=all")
+// ExportMedicaments returns all medicaments
+func (h *HTTPHandlerImpl) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	if path == "/database" {
+		h.AddDeprecationHeaders(w, r, "/v1/medicaments/export")
+
+	}
+	fmt.Printf("path: %v\n", path)
 
 	medicaments := h.dataStore.GetMedicaments()
-	h.RespondWithJSON(w, http.StatusOK, medicaments)
+	h.RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)
 }
 
 // ServePagedMedicaments returns paginated medicaments
@@ -570,7 +576,7 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 	q := r.URL.Query()
 
 	totalParams := 0
-	for _, v := range []string{q.Get("export"), q.Get("cip"), q.Get("cis"), q.Get("search"), q.Get("page")} {
+	for _, v := range []string{q.Get("cip"), q.Get("cis"), q.Get("search"), q.Get("page")} {
 		if v != "" {
 			totalParams++
 		}
@@ -582,14 +588,7 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 	}
 
 	if totalParams > 1 {
-		h.RespondWithError(w, http.StatusBadRequest, "Only one parameter allowed at a time. Choose: export, page, cis, cip, search")
-		return
-	}
-
-	// Whole database export
-	if q.Get("export") == "all" {
-		medicaments := h.dataStore.GetMedicaments()
-		h.RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)
+		h.RespondWithError(w, http.StatusBadRequest, "Only one parameter allowed at a time. Choose: page, cis, cip, search")
 		return
 	}
 
@@ -628,7 +627,7 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 			"maxPage":    maxPage,
 		}
 
-		h.RespondWithJSON(w, http.StatusOK, response)
+		h.RespondWithJSONAndETag(w, r, http.StatusOK, response)
 		return
 	}
 

@@ -14,9 +14,13 @@ import (
 )
 
 func TestETagFunctionality(t *testing.T) {
-	// NOTE: ETag functionality was removed from ServeAllMedicaments and FindMedicamentByID
-	// It is only implemented in FindMedicamentByCIP endpoint
-	// This test has been updated to test only endpoints that support ETag
+	// NOTE: ETag functionality is implemented in most v1 endpoints and ExportMedicaments:
+	// - ExportMedicaments (old /database endpoint)
+	// - FindMedicamentByCIP (both old and v1)
+	// - ServePresentationsV1
+	// - ServeGeneriquesV1 (group and libelle)
+	// - ServeMedicamentsV1 (page and search)
+	// This test demonstrates ETag functionality using FindMedicamentByCIP as an example
 
 	// Initialize test data
 	dataContainer := data.NewDataContainer()

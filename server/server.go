@@ -101,7 +101,7 @@ func (s *Server) setupMiddleware() {
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
 	// Old API routes
-	s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
+	s.router.Get("/database", s.httpHandler.ExportMedicaments)
 	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
 	s.router.Get("/medicament/cip/{cip}", s.httpHandler.FindMedicamentByCIP)
 	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
@@ -115,6 +115,7 @@ func (s *Server) setupRoutes() {
 	s.setupDocumentationRoutes()
 
 	// V1 routes
+	s.router.Get("/v1/medicaments/export", s.httpHandler.ExportMedicaments)
 	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
 	s.router.Get("/v1/presentations", s.httpHandler.ServePresentationsV1)
 	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
