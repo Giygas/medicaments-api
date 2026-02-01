@@ -108,12 +108,12 @@ paths:
         - name: search
           in: query
           required: false
-          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
           schema:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9 ]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
         - name: cis
           in: query
           required: false
@@ -147,7 +147,7 @@ paths:
                       etatComercialisation: "Commercialisée"
                       dateAMM: "2000-01-01"
                       titulaire: "MYLAN SAS"
-                      surveillanceRenforce: "Non"
+                      surveillanceRenforcee: "Non"
                       composition: []
                       generiques: []
                       presentation: []
@@ -165,15 +165,15 @@ paths:
                         etatComercialisation: "Commercialisée"
                         dateAMM: "2000-01-01"
                         titulaire: "MYLAN SAS"
-                        surveillanceRenforce: "Non"
+                        surveillanceRenforcee: "Non"
                         composition: []
                         generiques: []
                         presentation: []
                         conditions: []
                     page: 1
                     pageSize: 10
-                    totalItems: 15803
-                    maxPage: 1581
+                    totalItems: 15000
+                    maxPage: 1500
                 search:
                   summary: Recherche par nom
                   value:
@@ -186,7 +186,7 @@ paths:
                       etatComercialisation: "Commercialisée"
                       dateAMM: "2000-01-01"
                       titulaire: "MYLAN SAS"
-                      surveillanceRenforce: "Non"
+                      surveillanceRenforcee: "Non"
                       composition: []
                       generiques: []
                       presentation: []
@@ -200,7 +200,7 @@ paths:
                       etatComercialisation: "Commercialisée"
                       dateAMM: "1998-05-15"
                       titulaire: "SANOFI AVENTIS FRANCE"
-                      surveillanceRenforce: "Non"
+                      surveillanceRenforcee: "Non"
                       composition: []
                       generiques: []
                       presentation: []
@@ -258,12 +258,12 @@ paths:
         - name: libelle
           in: query
           required: false
-          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
           schema:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9 ]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
         - name: group
           in: query
           required: false
@@ -610,12 +610,12 @@ paths:
         - name: element
           in: path
           required: true
-          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
           schema:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9 ]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
       responses:
         "200":
           description: Réponse réussie
@@ -751,12 +751,12 @@ paths:
         - name: libelle
           in: path
           required: true
-          description: Terme de recherche (3-50 caractères, alphanumérique avec espaces)
+          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
           schema:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9 ]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1020,7 +1020,7 @@ components:
         titulaire:
           type: string
           title: Titulaire de l'autorisation
-        surveillanceRenforce:
+        surveillanceRenforcee:
           type: string
           title: Surveillance renforcée
         composition:

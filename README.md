@@ -48,10 +48,10 @@ Voir la section **Optimisations techniques** pour les détails complets des benc
 | ------------------------------------ | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
 | `/v1/medicaments?export=all`     | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
 | `/v1/medicaments?page={n}`       | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
-| `/v1/medicaments?search={query}` | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`       |
+| `/v1/medicaments?search={query}` | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
 | `/v1/medicaments?cis={code}`     | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
 | `/v1/medicaments?cip={code}`     | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
-| `/v1/generiques?libelle={nom}`   | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`       |
+| `/v1/generiques?libelle={nom}`   | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
 | `/v1/generiques?group={id}`      | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
 | `/v1/presentations?cip={code}`   | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
 | `/`                              | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
@@ -68,9 +68,9 @@ Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 202
 | ---------------------------- | --------------------------------- | ----- | ---- | ---------- | --------------------- |
 | `GET /database`              | Base complète (15,000+ médicaments)  | 6h    | 200  | ETag/LM/RL | -                     |
 | `GET /database/{page}`       | Pagination (10/page)              | 6h    | 20   | ETag/LM/RL | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars) | 1h    | 80   | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars) | 1h    | 80   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
 | `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)       | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé            | 1h    | 20   | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
+| `GET /generiques/{libelle}`  | Génériques par libellé            | 1h    | 20   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
 | `GET /generiques/group/{id}` | Groupe générique par ID           | 12h   | 20   | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
 
 ### Guide de Migration vers v1
@@ -147,8 +147,8 @@ Response: {
   "data": [...],
   "page": 1,
   "pageSize": 10,
-  "totalItems": 15803,
-  "maxPage": 1581
+  "totalItems": 15000,
+  "maxPage": 1500
 }
 
 GET /v1/medicaments?export=all
@@ -670,7 +670,7 @@ L'endpoint `/health` fournit des métriques complètes :
     "api_version": "1.0",
     "generiques": 38,
     "is_updating": false,
-    "medicaments": 15803,
+    "medicaments": 15000,
     "next_update": "2025-10-07T18:00:00+02:00"
   },
   "system": {

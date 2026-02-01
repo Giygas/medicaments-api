@@ -560,7 +560,7 @@
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number">&lt;100ms</span>
+            <span class="stat-number"><100ms</span>
             <span class="stat-label">Temps de réponse</span>
           </div>
           <div class="stat">
@@ -769,7 +769,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <p>
               Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
               Validation stricte (3-50 chars alphanumériques) et échappement
-              automatique. Temps de réponse : &lt;100ms (nom) et &lt;50ms (CIS).
+              automatique. Temps de réponse : <100ms (nom) et <50ms (CIS).
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -780,7 +780,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                GET /medicament/paracetamol
+                GET /v1/medicaments?search=paracetamol
               </code>
             </div>
           </div>
@@ -803,7 +803,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                GET /database/{pageNumber}
+                GET /v1/medicaments?page={n}
               </code>
             </div>
           </div>
@@ -826,7 +826,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                Zero-downtime &lt;2s
+                Zero-downtime <2s
               </code>
             </div>
           </div>
@@ -1918,12 +1918,14 @@ Content-Type: application/json
             >
               <li><strong>Longueur :</strong> 3-50 caractères</li>
               <li>
-                <strong>Caractères autorisés :</strong> Lettres, chiffres,
-                espaces, tirets (-), apostrophes ('), points (.)
+                <strong>Caractères autorisés :</strong> Lettres (a-z, A-Z),
+                chiffres (0-9), espaces, tirets (-), apostrophes ('),
+                points (.), signe plus (+), et caractères accentués français
+                (àâäéèêëïîôöùûüÿç)
               </li>
               <li>
                 <strong>Interdits :</strong> Chaînes vides, caractères spéciaux
-                (@, #, $, %, etc.)
+                (@, #, $, %, *, ?, etc.)
               </li>
               <li>
                 <strong>Sensibilité à la casse :</strong> Recherche insensible à
@@ -1969,6 +1971,30 @@ Content-Type: application/json
                   >✅ "abc"</code
                 >
                 - Valide (minimum 3 caractères)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >✅ "paracétamol"</code
+                >
+                - Valide (avec accent français)
+              </div>
+              <div>
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                  >✅ "ibuprofène-400"</code
+                >
+                - Valide (avec tiret)
               </div>
               <div>
                 <code
@@ -2116,8 +2142,8 @@ Response: {
   "data": [...],
   "page": 1,
   "pageSize": 10,
-  "totalItems": 15803,
-  "maxPage": 1581
+  "totalItems": 15000,
+  "maxPage": 1500
 }
 
 GET /v1/medicaments?export=all
@@ -2171,7 +2197,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
     "etatComercialisation": "Commercialisée",
     "dateAMM": "10/05/2013",
     "titulaire": "OPELLA HEALTHCARE FRANCE",
-    "surveillanceRenforce": "Non",
+    "surveillanceRenforcee": "Non",
     "composition": [
       {
         "cis": 60904643,
@@ -2234,7 +2260,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
                 overflow-x: auto;
                 margin-top: 0.5rem;
               "
-            ><code>curl "https://medicaments-api.giygas.dev/generiques/paracetamol"</code></pre>
+            ><code>curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol"</code></pre>
           </div>
           <strong style="color: var(--color-text)">Réponse JSON :</strong>
           <pre
@@ -2363,7 +2389,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
     "api_version": "1.0",
     "generiques": 1618,
     "is_updating": false,
-    "medicaments": 15803,
+    "medicaments": 15000,
     "next_update": "2025-10-06T06:00:00+02:00"
   },
   "system": {
