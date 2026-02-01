@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -73,16 +72,13 @@ func TestServePresentationsV1_Success(t *testing.T) {
 				NewMockDataValidatorBuilder().Build(),
 			)
 
+			router := chi.NewRouter()
+			router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
+
 			req := httptest.NewRequest("GET", "/v1/presentations/"+tt.pathParam, nil)
-
-			// Set up chi context for path parameter
-			chiCtx := chi.NewRouteContext()
-			chiCtx.URLParams.Add("cip", tt.pathParam)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, chiCtx))
-
 			rr := httptest.NewRecorder()
 
-			handler.ServePresentationsV1(rr, req)
+			router.ServeHTTP(rr, req)
 
 			// Simple: only check success case
 			if rr.Code != http.StatusOK {
@@ -140,16 +136,13 @@ func TestServePresentationsV1_Errors(t *testing.T) {
 				NewMockDataValidatorBuilder().Build(),
 			)
 
+			router := chi.NewRouter()
+			router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
+
 			req := httptest.NewRequest("GET", "/v1/presentations/"+tt.pathParam, nil)
-
-			// Set up chi context for path parameter
-			chiCtx := chi.NewRouteContext()
-			chiCtx.URLParams.Add("cip", tt.pathParam)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, chiCtx))
-
 			rr := httptest.NewRecorder()
 
-			handler.ServePresentationsV1(rr, req)
+			router.ServeHTTP(rr, req)
 
 			// Simple: only check error case
 			if rr.Code != tt.expectedCode {
@@ -189,17 +182,14 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 		NewMockDataValidatorBuilder().Build(),
 	).(*HTTPHandlerImpl)
 
+	router := chi.NewRouter()
+	router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
+
 	// First request - should return full response with ETag
 	req1 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
-
-	// Set up chi context for path parameter
-	chiCtx1 := chi.NewRouteContext()
-	chiCtx1.URLParams.Add("cip", "1234567")
-	req1 = req1.WithContext(context.WithValue(req1.Context(), chi.RouteCtxKey, chiCtx1))
-
 	rr1 := httptest.NewRecorder()
 
-	handler.ServePresentationsV1(rr1, req1)
+	router.ServeHTTP(rr1, req1)
 
 	if rr1.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", rr1.Code)
@@ -217,14 +207,9 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 	// Second request with matching ETag - should return 304 Not Modified
 	req2 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
 	req2.Header.Set("If-None-Match", etag)
-
-	chiCtx2 := chi.NewRouteContext()
-	chiCtx2.URLParams.Add("cip", "1234567")
-	req2 = req2.WithContext(context.WithValue(req2.Context(), chi.RouteCtxKey, chiCtx2))
-
 	rr2 := httptest.NewRecorder()
 
-	handler.ServePresentationsV1(rr2, req2)
+	router.ServeHTTP(rr2, req2)
 
 	if rr2.Code != http.StatusNotModified {
 		t.Errorf("Expected 304 Not Modified, got %d", rr2.Code)
@@ -233,14 +218,9 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 	// Third request with different ETag - should return 200
 	req3 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
 	req3.Header.Set("If-None-Match", `"different-etag"`)
-
-	chiCtx3 := chi.NewRouteContext()
-	chiCtx3.URLParams.Add("cip", "1234567")
-	req3 = req3.WithContext(context.WithValue(req3.Context(), chi.RouteCtxKey, chiCtx3))
-
 	rr3 := httptest.NewRecorder()
 
-	handler.ServePresentationsV1(rr3, req3)
+	router.ServeHTTP(rr3, req3)
 
 	if rr3.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d", rr3.Code)

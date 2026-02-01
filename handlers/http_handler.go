@@ -476,7 +476,7 @@ func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // NEW v1 handlers
 
 func (h *HTTPHandlerImpl) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
-	cipStr := chi.URLParam(r, "cip")
+	cipStr := r.PathValue("cip")
 
 	// Validate the CIP
 	cip, err := h.validator.ValidateCIP(cipStr)
