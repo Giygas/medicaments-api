@@ -177,6 +177,15 @@ func (j *Job) Name(name string) {
 	j.jobName = name
 }
 
+// GetName returns the name of the current job.
+// The name is either the name set using Job.Name() / Scheduler.Name() or
+// the name of the funcion as Go sees it, for example `main.func1`
+func (j *Job) GetName() string {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.jobFunction.getName()
+}
+
 func (j *Job) setRandomInterval(a, b int) {
 	j.random.rand = rand.New(rand.NewSource(time.Now().UnixNano())) // nolint
 
@@ -231,24 +240,21 @@ func (j *Job) getFirstAtTime() time.Duration {
 }
 
 func (j *Job) getAtTime(lastRun time.Time) time.Duration {
-	var r time.Duration
 	if len(j.atTimes) == 0 {
+		return 0
+	}
+
+	r := j.atTimes[0]
+
+	if len(j.atTimes) == 1 || lastRun.IsZero() {
 		return r
 	}
 
-	if len(j.atTimes) == 1 {
-		return j.atTimes[0]
-	}
-
-	if lastRun.IsZero() {
-		r = j.atTimes[0]
-	} else {
-		for _, d := range j.atTimes {
-			nt := time.Date(lastRun.Year(), lastRun.Month(), lastRun.Day(), 0, 0, 0, 0, lastRun.Location()).Add(d)
-			if nt.After(lastRun) {
-				r = d
-				break
-			}
+	for _, d := range j.atTimes {
+		nt := time.Date(lastRun.Year(), lastRun.Month(), lastRun.Day(), 0, 0, 0, 0, lastRun.Location()).Add(d)
+		if nt.After(lastRun) {
+			r = d
+			break
 		}
 	}
 
@@ -440,6 +446,16 @@ func (j *Job) ScheduledTime() time.Time {
 	return j.nextRun
 }
 
+// ScheduledUnit returns the scheduled unit of the Job.
+func (j *Job) ScheduledUnit() string {
+	return j.unit.String()
+}
+
+// Interval returns the scheduled interval of the Job.
+func (j *Job) ScheduledInterval() int {
+	return j.interval
+}
+
 // ScheduledAtTime returns the specific time of day the Job will run at.
 // If multiple times are set, the earliest time will be returned.
 func (j *Job) ScheduledAtTime() string {
@@ -476,6 +492,9 @@ func (j *Job) Weekdays() []time.Weekday {
 	if len(j.scheduledWeekdays) == 0 {
 		return []time.Weekday{time.Sunday}
 	}
+	sort.Slice(j.scheduledWeekdays, func(i, k int) bool {
+		return j.scheduledWeekdays[i] < j.scheduledWeekdays[k]
+	})
 
 	return j.scheduledWeekdays
 }
