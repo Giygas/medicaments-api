@@ -59,7 +59,7 @@ func setupRealworldServer() *httptest.Server {
 		router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 		router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 		router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
-		router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
+		router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
 		router.Get("/health", httpHandler.HealthCheck)
 
 		realworldServer = httptest.NewServer(router)

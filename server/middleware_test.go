@@ -18,7 +18,8 @@ func TestGetTokenCost(t *testing.T) {
 		{"Health endpoint", "/health", "", 5},
 
 		// V1 Medicaments endpoint
-		{"V1 export all", "/v1/medicaments", "export=all", 200},
+		{"V1 export route", "/v1/medicaments/export", "", 200},
+		{"V1 export all (deprecated query param)", "/v1/medicaments", "export=all", 5},
 		{"V1 page query", "/v1/medicaments", "page=1", 20},
 		{"V1 search query", "/v1/medicaments", "search=paracetamol", 50},
 		{"V1 CIS query", "/v1/medicaments", "cis=12345678", 10},
@@ -30,8 +31,8 @@ func TestGetTokenCost(t *testing.T) {
 		{"V1 generiques group", "/v1/generiques", "group=1", 5},
 		{"V1 generiques default", "/v1/generiques", "", 5},
 
-		// V1 Presentations endpoint
-		{"V1 presentations", "/v1/presentations", "cip=1234567", 5},
+		// V1 Presentations endpoint (now uses path parameter)
+		{"V1 presentations", "/v1/presentations/1234567", "", 5},
 
 		// Legacy endpoints (for backward compatibility)
 		{"Legacy database", "/database", "", 200},
@@ -47,20 +48,19 @@ func TestGetTokenCost(t *testing.T) {
 
 		// ===== EDGE CASES =====
 		// Multi-parameter scenarios (should return default 5)
-		{"V1 medicaments export+CIP", "/v1/medicaments", "export=all&cip=1234567", 5},
+		{"V1 medicaments export query+CIP (invalid)", "/v1/medicaments", "export=all&cip=1234567", 5},
 		{"V1 medicaments page+search", "/v1/medicaments", "page=1&search=test", 5},
 		{"V1 medicaments CIS+CIP", "/v1/medicaments", "cis=123&cip=456", 5},
 		{"V1 generiques libelle+group", "/v1/generiques", "libelle=test&group=1", 5},
-		{"V1 presentations with extra param", "/v1/presentations", "cip=123&extra=value", 5},
 
 		// Invalid parameter values (cost based on param type, handler validates value)
-		{"V1 export invalid value", "/v1/medicaments", "export=invalid", 5}, // Falls to default
-		{"V1 export case insensitive", "/v1/medicaments", "export=ALL", 5},  // Case sensitive, falls to default
-		{"V1 page non-numeric", "/v1/medicaments", "page=abc", 20},          // page param present, handler will reject
-		{"V1 page zero", "/v1/medicaments", "page=0", 20},                   // page param present, handler will reject
-		{"V1 search empty string", "/v1/medicaments", "search=", 5},         // Falls to default (empty value)
-		{"V1 CIS empty string", "/v1/medicaments", "cis=", 5},               // Falls to default (empty value)
-		{"V1 CIP empty string", "/v1/medicaments", "cip=", 5},               // Falls to default (empty value)
+		{"V1 export invalid value (query param)", "/v1/medicaments", "export=invalid", 5}, // Falls to default
+		{"V1 export case insensitive", "/v1/medicaments", "export=ALL", 5},                // Case sensitive, falls to default
+		{"V1 page non-numeric", "/v1/medicaments", "page=abc", 20},                        // page param present, handler will reject
+		{"V1 page zero", "/v1/medicaments", "page=0", 20},                                 // page param present, handler will reject
+		{"V1 search empty string", "/v1/medicaments", "search=", 5},                       // Falls to default (empty value)
+		{"V1 CIS empty string", "/v1/medicaments", "cis=", 5},                             // Falls to default (empty value)
+		{"V1 CIP empty string", "/v1/medicaments", "cip=", 5},                             // Falls to default (empty value)
 
 		// Health endpoint with params (should return default 5)
 		{"V1 health with params", "/v1/health", "test=value", 5},
@@ -69,7 +69,6 @@ func TestGetTokenCost(t *testing.T) {
 		// Unknown parameters on valid endpoints (should return default 5)
 		{"V1 medicaments unknown param", "/v1/medicaments", "unknown=value", 5},
 		{"V1 generiques unknown param", "/v1/generiques", "unknown=value", 5},
-		{"V1 presentations unknown param", "/v1/presentations", "unknown=value", 5},
 	}
 
 	for _, tt := range tests {

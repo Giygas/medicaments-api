@@ -102,7 +102,7 @@ func TestEndpoints(t *testing.T) {
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
-	router.Get("/v1/presentations", httpHandler.ServePresentationsV1)
+	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)
 
 	for _, tt := range testCases {

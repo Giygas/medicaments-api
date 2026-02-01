@@ -117,7 +117,7 @@ func (s *Server) setupRoutes() {
 	// V1 routes
 	s.router.Get("/v1/medicaments/export", s.httpHandler.ExportMedicaments)
 	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
-	s.router.Get("/v1/presentations", s.httpHandler.ServePresentationsV1)
+	s.router.Get("/v1/presentations/{cip}", s.httpHandler.ServePresentationsV1)
 	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
 }
 

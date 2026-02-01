@@ -193,6 +193,11 @@ func getTokenCost(r *http.Request) int64 {
 
 	// V1 routes - check first for performance
 	if strings.HasPrefix(requestPath, "/v1/") {
+		// Special case for presentations with path parameter
+		if strings.HasPrefix(requestPath, "/v1/presentations/") {
+			return 5
+		}
+
 		switch requestPath {
 		case "/v1/medicaments/export":
 			// Full medicament export - expensive operation
@@ -229,14 +234,6 @@ func getTokenCost(r *http.Request) int64 {
 				return 5
 			}
 			return 5 // Default for /v1/generiques without recognized params
-
-		case "/v1/presentations":
-			// Presentations only supports cip parameter
-			if !HasSingleParam(q, []string{"cip"}) {
-				return 5 // Default for invalid multi-param requests
-			}
-			return 5
-
 		case "/v1/health", "/health":
 			// Health endpoint has no parameters
 			if len(q) > 0 {

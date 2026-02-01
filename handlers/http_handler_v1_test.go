@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/go-chi/chi/v5"
 )
 
 // ============================================================================
@@ -42,20 +44,20 @@ func TestServePresentationsV1_Success(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		queryParams string
+		pathParam   string
 		cip7Map     map[int]entities.Presentation
 		cip13Map    map[int]entities.Presentation
 		expectedCIP int
 	}{
-		{"presentation found via CIP7", "?cip=1234567",
+		{"presentation found via CIP7", "1234567",
 			map[int]entities.Presentation{1234567: presentationCIP7},
 			map[int]entities.Presentation{},
 			1234567},
-		{"presentation found via CIP13", "?cip=7654321098765",
+		{"presentation found via CIP13", "7654321098765",
 			map[int]entities.Presentation{},
 			map[int]entities.Presentation{7654321098765: presentationCIP13},
 			7654321098765},
-		{"CIP7 preferred over CIP13", "?cip=1234567890123",
+		{"CIP7 preferred over CIP13", "1234567890123",
 			map[int]entities.Presentation{1234567890123: presentationCIP7},
 			map[int]entities.Presentation{1234567890123: presentationCIP13},
 			1234567890123},
@@ -71,7 +73,13 @@ func TestServePresentationsV1_Success(t *testing.T) {
 				NewMockDataValidatorBuilder().Build(),
 			)
 
-			req := httptest.NewRequest("GET", "/v1/presentations"+tt.queryParams, nil)
+			req := httptest.NewRequest("GET", "/v1/presentations/"+tt.pathParam, nil)
+
+			// Set up chi context for path parameter
+			chiCtx := chi.NewRouteContext()
+			chiCtx.URLParams.Add("cip", tt.pathParam)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, chiCtx))
+
 			rr := httptest.NewRecorder()
 
 			handler.ServePresentationsV1(rr, req)
@@ -117,14 +125,12 @@ func TestServePresentationsV1_Success(t *testing.T) {
 func TestServePresentationsV1_Errors(t *testing.T) {
 	tests := []struct {
 		name         string
-		queryParams  string
+		pathParam    string
 		expectedCode int
 		expectError  string
 	}{
-		{"missing CIP parameter", "", http.StatusBadRequest, "input cannot be empty"},
-		{"empty CIP parameter", "?cip=", http.StatusBadRequest, "input cannot be empty"},
-		{"non-numeric CIP", "?cip=abc123", http.StatusBadRequest, "CIP should have 7 or 13 characters"},
-		{"presentation not found", "?cip=9999999", http.StatusNotFound, "Presentation not found"},
+		{"non-numeric CIP", "abc123", http.StatusBadRequest, "CIP should have 7 or 13 characters"},
+		{"presentation not found", "9999999", http.StatusNotFound, "Presentation not found"},
 	}
 
 	for _, tt := range tests {
@@ -134,7 +140,13 @@ func TestServePresentationsV1_Errors(t *testing.T) {
 				NewMockDataValidatorBuilder().Build(),
 			)
 
-			req := httptest.NewRequest("GET", "/v1/presentations"+tt.queryParams, nil)
+			req := httptest.NewRequest("GET", "/v1/presentations/"+tt.pathParam, nil)
+
+			// Set up chi context for path parameter
+			chiCtx := chi.NewRouteContext()
+			chiCtx.URLParams.Add("cip", tt.pathParam)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, chiCtx))
+
 			rr := httptest.NewRecorder()
 
 			handler.ServePresentationsV1(rr, req)
@@ -178,7 +190,13 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 	).(*HTTPHandlerImpl)
 
 	// First request - should return full response with ETag
-	req1 := httptest.NewRequest("GET", "/v1/presentations?cip=1234567", nil)
+	req1 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
+
+	// Set up chi context for path parameter
+	chiCtx1 := chi.NewRouteContext()
+	chiCtx1.URLParams.Add("cip", "1234567")
+	req1 = req1.WithContext(context.WithValue(req1.Context(), chi.RouteCtxKey, chiCtx1))
+
 	rr1 := httptest.NewRecorder()
 
 	handler.ServePresentationsV1(rr1, req1)
@@ -197,8 +215,13 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 	}
 
 	// Second request with matching ETag - should return 304 Not Modified
-	req2 := httptest.NewRequest("GET", "/v1/presentations?cip=1234567", nil)
+	req2 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
 	req2.Header.Set("If-None-Match", etag)
+
+	chiCtx2 := chi.NewRouteContext()
+	chiCtx2.URLParams.Add("cip", "1234567")
+	req2 = req2.WithContext(context.WithValue(req2.Context(), chi.RouteCtxKey, chiCtx2))
+
 	rr2 := httptest.NewRecorder()
 
 	handler.ServePresentationsV1(rr2, req2)
@@ -208,8 +231,13 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 	}
 
 	// Third request with different ETag - should return 200
-	req3 := httptest.NewRequest("GET", "/v1/presentations?cip=1234567", nil)
+	req3 := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
 	req3.Header.Set("If-None-Match", `"different-etag"`)
+
+	chiCtx3 := chi.NewRouteContext()
+	chiCtx3.URLParams.Add("cip", "1234567")
+	req3 = req3.WithContext(context.WithValue(req3.Context(), chi.RouteCtxKey, chiCtx3))
+
 	rr3 := httptest.NewRecorder()
 
 	handler.ServePresentationsV1(rr3, req3)
