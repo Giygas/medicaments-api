@@ -9,6 +9,17 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
+// DataQualityReport provides a summary of data quality issues
+type DataQualityReport struct {
+	DuplicateCIS                    []int
+	DuplicateGroupIDs               []int
+	MedicamentsWithoutConditions    int
+	MedicamentsWithoutGeneriques    int
+	MedicamentsWithoutPresentations int // Count of medicaments without presentations
+	MedicamentsWithoutCompositions  int // Count of medicaments without compositions
+	GeneriqueOnlyCIS                int // CIS values in generiques that don't have corresponding medicaments
+}
+
 // DataStore defines the contract for data storage operations.
 // It provides thread-safe access to medicaments and generiques data
 // with atomic operations for zero-downtime updates.
@@ -95,6 +106,9 @@ type DataValidator interface {
 
 	// ValidateDataIntegrity performs comprehensive data validation
 	ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
+
+	// ReportDataQuality generates a data quality report with all issues found
+	ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *DataQualityReport
 
 	// ValidateInput validates user input strings
 	ValidateInput(input string) error

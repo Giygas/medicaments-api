@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 )
@@ -426,6 +427,18 @@ func (m *MockDataValidator) ValidateMedicament(med *entities.Medicament) error {
 
 func (m *MockDataValidator) CheckDuplicateCIP(presentations []entities.Presentation) error {
 	return nil
+}
+
+func (m *MockDataValidator) ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *interfaces.DataQualityReport {
+	return &interfaces.DataQualityReport{
+		DuplicateCIS:                    []int{},
+		DuplicateGroupIDs:               []int{},
+		MedicamentsWithoutConditions:    0,
+		MedicamentsWithoutGeneriques:    0,
+		MedicamentsWithoutPresentations: 0,
+		MedicamentsWithoutCompositions:  0,
+		GeneriqueOnlyCIS:                0,
+	}
 }
 
 func (m *MockDataValidator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {

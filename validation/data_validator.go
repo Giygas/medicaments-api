@@ -163,6 +163,80 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 	return nil
 }
 
+func (v *DataValidatorImpl) ReportDataQuality(
+	medicaments []entities.Medicament,
+	generiques []entities.GeneriqueList,
+) *interfaces.DataQualityReport {
+	report := &interfaces.DataQualityReport{
+		DuplicateCIS:                    []int{},
+		DuplicateGroupIDs:               []int{},
+		MedicamentsWithoutConditions:    0,
+		MedicamentsWithoutGeneriques:    0,
+		MedicamentsWithoutPresentations: 0,
+		MedicamentsWithoutCompositions:  0,
+		GeneriqueOnlyCIS:                0,
+	}
+
+	// Check 1: Find all duplicate CIS codes
+	cisMap := make(map[int]bool)
+	for _, med := range medicaments {
+		if cisMap[med.Cis] {
+			report.DuplicateCIS = append(report.DuplicateCIS, med.Cis)
+		}
+		cisMap[med.Cis] = true
+	}
+
+	// Check 2: Find all duplicate Group IDs
+	groupIDMap := make(map[int]bool)
+	for _, gen := range generiques {
+		if groupIDMap[gen.GroupID] {
+			report.DuplicateGroupIDs = append(report.DuplicateGroupIDs, gen.GroupID)
+		}
+		groupIDMap[gen.GroupID] = true
+	}
+
+	// Check 3: Count medicaments without conditions
+	for _, med := range medicaments {
+		if len(med.Conditions) == 0 {
+			report.MedicamentsWithoutConditions++
+		}
+	}
+
+	// Check 4: Count medicaments without generiques
+	generiquesCISMap := make(map[int]bool)
+	for _, gen := range generiques {
+		for _, med := range gen.Medicaments {
+			generiquesCISMap[med.Cis] = true
+		}
+	}
+	for _, med := range medicaments {
+		if !generiquesCISMap[med.Cis] {
+			report.MedicamentsWithoutGeneriques++
+		}
+	}
+
+	// Check 5: Count medicaments without presentations
+	for _, med := range medicaments {
+		if len(med.Presentation) == 0 {
+			report.MedicamentsWithoutPresentations++
+		}
+	}
+
+	// Check 6: Count medicaments without compositions
+	for _, med := range medicaments {
+		if len(med.Composition) == 0 {
+			report.MedicamentsWithoutCompositions++
+		}
+	}
+
+	// Check 7: Count generique-only CIS (CIS in generiques without corresponding medicament)
+	for _, gen := range generiques {
+		report.GeneriqueOnlyCIS += len(gen.OrphanCIS)
+	}
+
+	return report
+}
+
 // ValidateInput validates user input strings with enhanced security
 func (v *DataValidatorImpl) ValidateInput(input string) error {
 	if strings.TrimSpace(input) == "" {

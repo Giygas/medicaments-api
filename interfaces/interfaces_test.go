@@ -234,6 +234,18 @@ func (m *MockDataValidator) CheckDuplicateCIP(presentations []entities.Presentat
 	return nil
 }
 
+func (m *MockDataValidator) ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *DataQualityReport {
+	return &DataQualityReport{
+		DuplicateCIS:                    []int{},
+		DuplicateGroupIDs:               []int{},
+		MedicamentsWithoutConditions:    0,
+		MedicamentsWithoutGeneriques:    0,
+		MedicamentsWithoutPresentations: 0,
+		MedicamentsWithoutCompositions:  0,
+		GeneriqueOnlyCIS:                0,
+	}
+}
+
 func (m *MockDataValidator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	if m.shouldFail {
 		return fmt.Errorf("validation failed")
