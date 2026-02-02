@@ -60,7 +60,7 @@ type Server struct {
 func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 	router := chi.NewRouter()
 
-	// Create interface-based dependencies
+	// Dependencies
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
 	healthChecker := health.NewHealthChecker(dataContainer)
@@ -95,7 +95,10 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RedirectSlashes)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
-	s.router.Use(RateLimitHandler)
+	// Disable rate limiting in test mode to measure true throughput performance
+	if s.config.Env != "test" {
+		s.router.Use(RateLimitHandler)
+	}
 }
 
 // setupRoutes configures all routes
