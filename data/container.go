@@ -26,6 +26,7 @@ type DataContainer struct {
 	lastUpdated           atomic.Value // time.Time
 	updating              atomic.Bool
 	serverStartTime       atomic.Value // time.Time
+	dataQualityReport     atomic.Value // *interfaces.DataQualityReport
 }
 
 // NewDataContainer creates a new DataContainer with empty data
@@ -39,6 +40,7 @@ func NewDataContainer() *DataContainer {
 	dc.presentationsCIP13Map.Store(make(map[int]entities.Presentation))
 	dc.lastUpdated.Store(time.Time{})
 	dc.serverStartTime.Store(time.Time{}) // Initialize with zero value
+	dc.dataQualityReport.Store(&interfaces.DataQualityReport{})
 	return dc
 }
 
@@ -150,10 +152,23 @@ func (dc *DataContainer) GetServerStartTime() time.Time {
 	return time.Time{}
 }
 
+// GetDataQualityReport returns the cached data quality report
+func (dc *DataContainer) GetDataQualityReport() *interfaces.DataQualityReport {
+	if v := dc.dataQualityReport.Load(); v != nil {
+		if report, ok := v.(*interfaces.DataQualityReport); ok {
+			return report
+		}
+	}
+
+	logging.Warn("Could not get the data quality report")
+	return &interfaces.DataQualityReport{}
+}
+
 // UpdateData atomically updates all data in the container
 func (dc *DataContainer) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
 	medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
-	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
+	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation,
+	report *interfaces.DataQualityReport) {
 
 	// Atomic swap (zero downtime replacement)
 	dc.medicaments.Store(medicaments)
@@ -163,6 +178,7 @@ func (dc *DataContainer) UpdateData(medicaments []entities.Medicament, generique
 	dc.presentationsCIP7Map.Store(presentationsCIP7Map)
 	dc.presentationsCIP13Map.Store(presentationsCIP13Map)
 	dc.lastUpdated.Store(time.Now())
+	dc.dataQualityReport.Store(report)
 }
 
 // BeginUpdate marks the start of a data update operation

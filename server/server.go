@@ -120,6 +120,7 @@ func (s *Server) setupRoutes() {
 	s.router.Get("/v1/medicaments/{cis}", s.httpHandler.FindMedicamentByCIS)
 	s.router.Get("/v1/presentations/{cip}", s.httpHandler.ServePresentationsV1)
 	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
+	s.router.Get("/v1/diagnostics", s.httpHandler.ServeDiagnosticsV1)
 }
 
 // setupDocumentationRoutes configures documentation and static file routes

@@ -168,13 +168,18 @@ func (v *DataValidatorImpl) ReportDataQuality(
 	generiques []entities.GeneriqueList,
 ) *interfaces.DataQualityReport {
 	report := &interfaces.DataQualityReport{
-		DuplicateCIS:                    []int{},
-		DuplicateGroupIDs:               []int{},
-		MedicamentsWithoutConditions:    0,
-		MedicamentsWithoutGeneriques:    0,
-		MedicamentsWithoutPresentations: 0,
-		MedicamentsWithoutCompositions:  0,
-		GeneriqueOnlyCIS:                0,
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
 	}
 
 	// Check 1: Find all duplicate CIS codes
@@ -195,14 +200,17 @@ func (v *DataValidatorImpl) ReportDataQuality(
 		groupIDMap[gen.GroupID] = true
 	}
 
-	// Check 3: Count medicaments without conditions
+	// Check 3: Count medicaments without conditions (store first 10 CIS)
 	for _, med := range medicaments {
 		if len(med.Conditions) == 0 {
 			report.MedicamentsWithoutConditions++
+			if len(report.MedicamentsWithoutConditionsCIS) < 10 {
+				report.MedicamentsWithoutConditionsCIS = append(report.MedicamentsWithoutConditionsCIS, med.Cis)
+			}
 		}
 	}
 
-	// Check 4: Count medicaments without generiques
+	// Check 4: Count medicaments without generiques (store first 10 CIS)
 	generiquesCISMap := make(map[int]bool)
 	for _, gen := range generiques {
 		for _, med := range gen.Medicaments {
@@ -212,26 +220,38 @@ func (v *DataValidatorImpl) ReportDataQuality(
 	for _, med := range medicaments {
 		if !generiquesCISMap[med.Cis] {
 			report.MedicamentsWithoutGeneriques++
+			if len(report.MedicamentsWithoutGeneriquesCIS) < 10 {
+				report.MedicamentsWithoutGeneriquesCIS = append(report.MedicamentsWithoutGeneriquesCIS, med.Cis)
+			}
 		}
 	}
 
-	// Check 5: Count medicaments without presentations
+	// Check 5: Count medicaments without presentations (store first 10 CIS)
 	for _, med := range medicaments {
 		if len(med.Presentation) == 0 {
 			report.MedicamentsWithoutPresentations++
+			if len(report.MedicamentsWithoutPresentationsCIS) < 10 {
+				report.MedicamentsWithoutPresentationsCIS = append(report.MedicamentsWithoutPresentationsCIS, med.Cis)
+			}
 		}
 	}
 
-	// Check 6: Count medicaments without compositions
+	// Check 6: Count medicaments without compositions (store ALL CIS)
 	for _, med := range medicaments {
 		if len(med.Composition) == 0 {
 			report.MedicamentsWithoutCompositions++
+			report.MedicamentsWithoutCompositionsCIS = append(report.MedicamentsWithoutCompositionsCIS, med.Cis)
 		}
 	}
 
-	// Check 7: Count generique-only CIS (CIS in generiques without corresponding medicament)
+	// Check 7: Count generique-only CIS (store first 10 CIS)
 	for _, gen := range generiques {
 		report.GeneriqueOnlyCIS += len(gen.OrphanCIS)
+		for _, cis := range gen.OrphanCIS {
+			if len(report.GeneriqueOnlyCISList) < 10 {
+				report.GeneriqueOnlyCISList = append(report.GeneriqueOnlyCISList, cis)
+			}
+		}
 	}
 
 	return report

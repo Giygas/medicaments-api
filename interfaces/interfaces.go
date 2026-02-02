@@ -18,6 +18,12 @@ type DataQualityReport struct {
 	MedicamentsWithoutPresentations int // Count of medicaments without presentations
 	MedicamentsWithoutCompositions  int // Count of medicaments without compositions
 	GeneriqueOnlyCIS                int // CIS values in generiques that don't have corresponding medicaments
+	// Sample CIS for investigation (first 10, except compositions which has all)
+	MedicamentsWithoutConditionsCIS    []int
+	MedicamentsWithoutGeneriquesCIS    []int
+	MedicamentsWithoutPresentationsCIS []int
+	MedicamentsWithoutCompositionsCIS  []int
+	GeneriqueOnlyCISList               []int
 }
 
 // DataStore defines the contract for data storage operations.
@@ -34,11 +40,13 @@ type DataStore interface {
 	GetLastUpdated() time.Time
 	IsUpdating() bool
 	GetServerStartTime() time.Time
+	GetDataQualityReport() *DataQualityReport
 
 	// Data update methods
 	UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
 		medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
-		presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation)
+		presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation,
+		report *DataQualityReport)
 	BeginUpdate() bool
 	EndUpdate()
 }
@@ -83,6 +91,7 @@ type HTTPHandler interface {
 	ServeMedicamentsV1(w http.ResponseWriter, r *http.Request)
 	ServePresentationsV1(w http.ResponseWriter, r *http.Request)
 	ServeGeneriquesV1(w http.ResponseWriter, r *http.Request)
+	ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request)
 }
 
 // HealthChecker defines the contract for health check functionality.

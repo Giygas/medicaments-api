@@ -116,48 +116,16 @@ func (s *Scheduler) updateData() error {
 		)
 	}
 
-	// Log medicaments without conditions
-	if report.MedicamentsWithoutConditions > 0 {
-		logging.Info("Medicaments without conditions",
-			"count", report.MedicamentsWithoutConditions,
-		)
-	}
-
-	// Log medicaments without generiques
-	if report.MedicamentsWithoutGeneriques > 0 {
-		logging.Info("Medicaments without generiques",
-			"count", report.MedicamentsWithoutGeneriques,
-		)
-	}
-
-	// Log medicaments without presentations
-	if report.MedicamentsWithoutPresentations > 0 {
-		logging.Info("Medicaments without presentations",
-			"count", report.MedicamentsWithoutPresentations,
-		)
-	}
-
-	// Log medicaments without compositions
+	// Log medicaments without compositions as WARN (with full CIS list)
 	if report.MedicamentsWithoutCompositions > 0 {
-		logging.Info("Medicaments without compositions",
+		logging.Warn("Medicaments without compositions",
 			"count", report.MedicamentsWithoutCompositions,
+			"cis_list", report.MedicamentsWithoutCompositionsCIS,
 		)
 	}
 
-	// Log generique-only CIS (CIS in generiques without corresponding medicament)
-	if report.GeneriqueOnlyCIS > 0 {
-		logging.Info("Generique-only CIS (CIS in generiques without corresponding medicament)",
-			"count", report.GeneriqueOnlyCIS,
-		)
-	}
-
-	// Log if all checks passed
-	if len(report.DuplicateCIS) == 0 && len(report.DuplicateGroupIDs) == 0 && report.MedicamentsWithoutPresentations == 0 && report.MedicamentsWithoutCompositions == 0 {
-		logging.Info("Data quality OK: no issues found")
-	}
-
-	// Atomic update using injected data store
-	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap, newPresentationsCIP7Map, newPresentationsCIP13Map)
+	// Atomic update using injected data store (including report)
+	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap, newPresentationsCIP7Map, newPresentationsCIP13Map, report)
 
 	elapsed := time.Since(start)
 	logging.Info("Database update completed", "duration", elapsed.String(), "medicament_count", len(newMedicaments))

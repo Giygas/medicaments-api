@@ -41,12 +41,8 @@ func (h *HTTPHandlerImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // HealthResponseImpl defines the structure for consistent JSON ordering
 type HealthResponseImpl struct {
-	Status        string         `json:"status"`
-	LastUpdate    string         `json:"last_update"`
-	DataAgeHours  float64        `json:"data_age_hours"`
-	UptimeSeconds float64        `json:"uptime_seconds"`
-	Data          map[string]any `json:"data"`
-	System        map[string]any `json:"system"`
+	Status string         `json:"status"`
+	Data   map[string]any `json:"data"`
 }
 
 // RespondWithJSON writes a JSON response with compression optimization
@@ -409,20 +405,6 @@ func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http
 
 // HealthCheck returns server health information
 func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	// Get memory statistics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	// Calculate uptime using actual server start time
-	serverStartTime := h.dataStore.GetServerStartTime()
-	var uptime time.Duration
-	if serverStartTime.IsZero() {
-		// Fallback if start time is not available
-		uptime = 0
-	} else {
-		uptime = time.Since(serverStartTime)
-	}
-
 	// Get data statistics
 	medicaments := h.dataStore.GetMedicaments()
 	generiques := h.dataStore.GetGeneriques()
@@ -446,25 +428,12 @@ func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := HealthResponseImpl{
-		Status:        healthStatus,
-		LastUpdate:    lastUpdate.Format(time.RFC3339),
-		DataAgeHours:  dataAge.Hours(),
-		UptimeSeconds: uptime.Seconds(),
+		Status: healthStatus,
 		Data: map[string]any{
-			"api_version": "1.0",
+			"last_update": lastUpdate.Format(time.RFC3339),
 			"medicaments": len(medicaments),
 			"generiques":  len(generiques),
 			"is_updating": isUpdating,
-			"next_update": h.calculateNextUpdate().Format(time.RFC3339),
-		},
-		System: map[string]any{
-			"goroutines": runtime.NumGoroutine(),
-			"memory": map[string]any{
-				"alloc_mb":       int(m.Alloc / 1024 / 1024),
-				"total_alloc_mb": int(m.TotalAlloc / 1024 / 1024),
-				"sys_mb":         int(m.Sys / 1024 / 1024),
-				"num_gc":         m.NumGC,
-			},
 		},
 	}
 
@@ -474,6 +443,84 @@ func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.RespondWithJSON(w, httpStatus, response)
+}
+
+// DiagnosticsResponseImpl defines the structure for diagnostics endpoint
+type DiagnosticsResponseImpl struct {
+	Timestamp     string         `json:"timestamp"`
+	UptimeSeconds float64        `json:"uptime_seconds"`
+	NextUpdate    string         `json:"next_update"`
+	DataAgeHours  float64        `json:"data_age_hours"`
+	System        map[string]any `json:"system"`
+	DataIntegrity map[string]any `json:"data_integrity"`
+}
+
+// ServeDiagnosticsV1 returns detailed system diagnostics including data integrity
+func (h *HTTPHandlerImpl) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request) {
+	// Get memory statistics
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// Calculate uptime using actual server start time
+	serverStartTime := h.dataStore.GetServerStartTime()
+	var uptime time.Duration
+	if serverStartTime.IsZero() {
+		// Fallback if start time is not available
+		uptime = 0
+	} else {
+		uptime = time.Since(serverStartTime)
+	}
+
+	// Get data statistics
+	lastUpdate := h.dataStore.GetLastUpdated()
+	dataAge := time.Since(lastUpdate)
+
+	// Get cached data quality report (no recomputation)
+	report := h.dataStore.GetDataQualityReport()
+
+	// Build data integrity section with sample CIS (include all categories, even with zero count)
+	dataIntegrity := map[string]any{
+		"medicaments_without_conditions": map[string]any{
+			"count":      report.MedicamentsWithoutConditions,
+			"sample_cis": report.MedicamentsWithoutConditionsCIS,
+		},
+		"medicaments_without_generiques": map[string]any{
+			"count":      report.MedicamentsWithoutGeneriques,
+			"sample_cis": report.MedicamentsWithoutGeneriquesCIS,
+		},
+		"medicaments_without_presentations": map[string]any{
+			"count":      report.MedicamentsWithoutPresentations,
+			"sample_cis": report.MedicamentsWithoutPresentationsCIS,
+		},
+		"medicaments_without_compositions": map[string]any{
+			"count":      report.MedicamentsWithoutCompositions,
+			"sample_cis": report.MedicamentsWithoutCompositionsCIS, // All CIS stored here
+		},
+		"generique_only_cis": map[string]any{
+			"count":      report.GeneriqueOnlyCIS,
+			"sample_cis": report.GeneriqueOnlyCISList,
+		},
+	}
+
+	response := DiagnosticsResponseImpl{
+		Timestamp:     time.Now().Format(time.RFC3339),
+		UptimeSeconds: uptime.Seconds(),
+		NextUpdate:    h.calculateNextUpdate().Format(time.RFC3339),
+		DataAgeHours:  dataAge.Hours(),
+		System: map[string]any{
+			"goroutines": runtime.NumGoroutine(),
+			"memory": map[string]any{
+				"alloc_mb": int(m.Alloc / 1024 / 1024),
+				"sys_mb":   int(m.Sys / 1024 / 1024),
+				"num_gc":   m.NumGC,
+			},
+		},
+		DataIntegrity: dataIntegrity,
+	}
+
+	// Add 10-second cache to prevent hammering while keeping data reasonably fresh
+	w.Header().Set("Cache-Control", "public, max-age=10")
+	h.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // NEW v1 handlers

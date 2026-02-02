@@ -247,6 +247,9 @@ func getTokenCost(r *http.Request) int64 {
 				return 5 // Default if params present
 			}
 			return 5
+		case "/v1/diagnostics":
+			// Diagnostics endpoint - moderate cost (caching prevents recomputation)
+			return 30
 		}
 	}
 
