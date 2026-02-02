@@ -44,19 +44,19 @@ Voir la section **Optimisations techniques** pour les détails complets des benc
 
 **Nouveaux endpoints v1 (recommandés) :**
 
-| Endpoint                             | Description                        | Cache | Coût | Headers    | Validation              |
-| ------------------------------------ | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
-| `/v1/medicaments?export=all`     | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
-| `/v1/medicaments?page={n}`       | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
-| `/v1/medicaments?search={query}` | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
-| `/v1/medicaments?cis={code}`     | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
-| `/v1/medicaments?cip={code}`     | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
-| `/v1/generiques?libelle={nom}`   | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
-| `/v1/generiques?group={id}`      | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
-| `/v1/presentations?cip={code}`   | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
-| `/`                              | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
-| `/docs`                          | Swagger UI interactive             | 1h    | 0    | CC         | -                       |
-| `/health`                        | Santé système + rate limit headers | -     | 5    | RL         | -                       |
+| Endpoint                          | Description                        | Cache | Coût | Headers    | Validation              |
+| --------------------------------- | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
+| `/v1/medicaments/export`          | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
+| `/v1/medicaments?page={n}`        | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
+| `/v1/medicaments?search={query}`  | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
+| `/v1/medicaments/{cis}`           | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
+| `/v1/medicaments?cip={code}`      | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
+| `/v1/generiques?libelle={nom}`    | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
+| `/v1/generiques?group={id}`       | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
+| `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
+| `/`                               | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
+| `/docs`                           | Swagger UI interactive             | 1h    | 0    | CC         | -                       |
+| `/health`                         | Santé système + rate limit headers | -     | 5    | RL         | -                       |
 
 **Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
@@ -82,15 +82,15 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 | Endpoint Legacy               | Endpoint v1                              |
 | ----------------------------- | ---------------------------------------- |
 | `GET /medicament/paracetamol` | `GET /v1/medicaments?search=paracetamol` |
-| `GET /medicament/id/61504672` | `GET /v1/medicaments?cis=61504672`       |
+| `GET /medicament/id/61504672` | `GET /v1/medicaments/61504672`           |
 | `GET /database/1`             | `GET /v1/medicaments?page=1`             |
-| `GET /database`               | `GET /v1/medicaments?export=all`         |
+| `GET /database`               | `GET /v1/medicaments/export`              |
 | `GET /generiques/paracetamol` | `GET /v1/generiques?libelle=paracetamol` |
 | `GET /generiques/group/1234`  | `GET /v1/generiques?group=1234`          |
 
 **Règles v1 :**
 
-- **Un seul paramètre** par requête : export, page, search, cis, cip, libelle, ou group
+- **Un seul paramètre** par requête : page, search, cip, libelle, ou group (CIS et export utilisent des paths séparés)
 - **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
 - **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
   - `Deprecation: true`
@@ -122,7 +122,7 @@ data = response.json()
 GET /v1/medicaments?search={query}
 Response: [...]  // Tableau direct des objets medicament
 
-GET /v1/medicaments?cis={code}
+GET /v1/medicaments/{cis}
 Response: {...}  // Objet médicament unique ou erreur
 
 GET /v1/medicaments?cip={code}
@@ -161,7 +161,7 @@ Response: [...]  // Export complet en tableau
 
 ```bash
 # Base de données complète (~20MB)
-curl https://medicaments-api.giygas.dev/v1/medicaments?export=all
+curl https://medicaments-api.giygas.dev/v1/medicaments/export
 
 # Pagination (10 médicaments par page)
 curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
@@ -170,7 +170,7 @@ curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
 curl https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
 
 # Recherche par CIS (Code Identifiant de Spécialité)
-curl https://medicaments-api.giygas.dev/v1/medicaments?cis=61504672
+curl https://medicaments-api.giygas.dev/v1/medicaments/61504672
 
 # Recherche par CIP
 curl https://medicaments-api.giygas.dev/v1/medicaments?cip=3400936403114
@@ -190,7 +190,7 @@ curl https://medicaments-api.giygas.dev/v1/generiques?group=1234
 
 ```bash
 # Présentations par CIP
-curl https://medicaments-api.giygas.dev/v1/presentations?cip=3400936403114
+curl https://medicaments-api.giygas.dev/v1/presentations/3400936403114
 ```
 
 ### Exemples détaillés
@@ -380,7 +380,7 @@ class MedicamentsApi {
   }
 
   async getByCis(cis: number): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/v1/medicaments?cis=${cis}`);
+    const response = await fetch(`${this.baseUrl}/v1/medicaments/${cis}`);
     return response.json();
   }
 
@@ -395,7 +395,7 @@ class MedicamentsApi {
   }
 
   async getDatabase(): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/v1/medicaments?export=all`);
+    const response = await fetch(`${this.baseUrl}/v1/medicaments/export`);
     return response.json();
   }
 
@@ -449,7 +449,7 @@ class MedicamentsApi:
 
     def get_by_cis(self, cis: int) -> Dict[str, Any]:
         """Obtenir un médicament par CIS"""
-        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?cis={cis}")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments/{cis}")
         response.raise_for_status()
         return response.json()
 
@@ -467,7 +467,7 @@ class MedicamentsApi:
 
     def get_database(self) -> Dict[str, Any]:
         """Exporter toute la base de données"""
-        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?export=all")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments/export")
         response.raise_for_status()
         return response.json()
 
@@ -1022,6 +1022,9 @@ Janvier 2026
 - Correction du logging lors de l'arrêt du serveur
 - Mise à jour de la suite de tests pour utiliser les endpoints v1 avec paramètres de requête
 - Ajout du champ orphanCIS dans les réponses génériques : contient les codes CIS sans entrée médicament correspondante
+- Nouvelles routes RESTful : `/v1/medicaments/{cis}` et `/v1/presentations/{cip}` utilisent des paramètres de chemin
+- Endpoint d'export déplacé : `/v1/medicaments/export` au lieu de `?export=all`
+- Endpoint `/v1/medicaments` simplifié : ne supporte plus les paramètres `cis` et `export` (migrés vers des paths dédiés)
 
 ---
 

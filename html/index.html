@@ -625,7 +625,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
 
 # Authentification : Aucune requise
 # Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
-# Coûts v1 : /health (5), /v1/medicaments?export=all (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments?cis={code} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations?cip={code} (5)
+# Coûts v1 : /health (5), /v1/medicaments/export (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments/{cis} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations/{cip} (5)
 # Coûts legacy (dépréciés) : /medicament/{nom} (80), /medicament/id/{cis} (10), /database (200), autres (20)</code></pre>
             </div>
 
@@ -951,8 +951,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?export=all</code
-                    >
+                      >GET /v1/medicaments/export</code
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1065,8 +1064,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/medicaments?cis={code}</code
-                    >
+                      >GET /v1/medicaments/{cis}</code
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1217,8 +1215,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/presentations?cip={code}</code
-                    >
+                      >GET /v1/presentations/{cip}</code
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1703,7 +1700,7 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                  >NOUVEAU : GET /v1/medicaments?cis=61504672</code
+                  >NOUVEAU : GET /v1/medicaments/61504672</code
                 >
               </div>
             </div>
@@ -1775,7 +1772,7 @@ print(f"Found {len(data)} results")</code></pre>
                     font-size: 0.85rem;
                     color: var(--color-primary);
                   "
-                  >NOUVEAU : GET /v1/medicaments?export=all</code
+                  >NOUVEAU : GET /v1/medicaments/export</code
                 >
               </div>
             </div>
@@ -2099,7 +2096,7 @@ Content-Type: application/json
               ><code>GET /v1/medicaments?search={query}
 Response: [...]  // Direct array of medicament objects
 
-GET /v1/medicaments?cis={code}
+GET /v1/medicaments/{cis}
 Response: {...}  // Single medicament object or error
 
 GET /v1/medicaments?cip={code}
@@ -2146,7 +2143,7 @@ Response: {
   "maxPage": 1500
 }
 
-GET /v1/medicaments?export=all
+GET /v1/medicaments/export
 Response: [...]  // Direct array of all medicaments</code></pre>
             </div>
           </div>

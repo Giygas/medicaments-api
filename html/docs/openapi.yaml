@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.1.1
 info:
   title: API Médicaments FR
   description: |
@@ -13,14 +13,14 @@ info:
 
     ## Coûts par endpoint (v1)
     - `/health` : 5 tokens
-    - `/v1/medicaments?export=all` : 200 tokens
+    - `/v1/medicaments/export` : 200 tokens
     - `/v1/medicaments?page={n}` : 20 tokens
     - `/v1/medicaments?search={query}` : 50 tokens
-    - `/v1/medicaments?cis={code}` : 10 tokens
+    - `/v1/medicaments/{cis}` : 10 tokens
     - `/v1/medicaments?cip={code}` : 10 tokens
     - `/v1/generiques?libelle={nom}` : 30 tokens
     - `/v1/generiques?group={id}` : 5 tokens
-    - `/v1/presentations?cip={code}` : 5 tokens
+    - `/v1/presentations/{cip}` : 5 tokens
 
     ## Endpoints legacy (dépréciés)
     Les endpoints ci-dessous sont dépréciés et seront supprimés le **31 juillet 2026**.
@@ -41,13 +41,13 @@ info:
     - X-RateLimit-Rate : Taux de recharge (tokens/sec)
 
     ## Migration vers v1
-    Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de chemin :
+    Les endpoints v1 utilisent des paramètres de requête ou de chemin selon l'opération :
     - `/medicament/paracetamol` → `/v1/medicaments?search=paracetamol`
-    - `/medicament/id/61504672` → `/v1/medicaments?cis=61504672`
+    - `/medicament/id/61504672` → `/v1/medicaments/61504672`
     - `/generiques/paracetamol` → `/v1/generiques?libelle=paracetamol`
     - `/generiques/group/1234` → `/v1/generiques?group=1234`
     - `/database/1` → `/v1/medicaments?page=1`
-    - `/database` → `/v1/medicaments?export=all`
+    - `/database` → `/v1/medicaments/export`
 
     Les endpoints legacy renvoient les headers de dépréciation suivants :
     - Deprecation: true
@@ -62,42 +62,25 @@ info:
   license:
     name: AGPL-3.0
     url: https://www.gnu.org/licenses/agpl-3.0.html
-  externalDocs:
-    description: Base de données publique des médicaments
-    url: https://base-donnees-publique.medicaments.gouv.fr
+externalDocs:
+  description: Base de données publique des médicaments
+  url: https://base-donnees-publique.medicaments.gouv.fr
+servers:
+  - url: https://medicaments-api.giygas.dev/v1/
 
 paths:
-  /v1/medicaments:
+  /medicaments:
     get:
       summary: Obtenir des médicaments (v1)
       description: |
         Recherche et récupération de médicaments avec différents paramètres de requête.
         Seul un paramètre est autorisé à la fois.
-
-        **Paramètres disponibles :**
-        - `export=all` : Exporter toute la base de données (200 tokens)
-        - `page={n}` : Pagination, 10 médicaments par page (20 tokens)
-        - `search={query}` : Recherche par nom (50 tokens)
-        - `cis={code}` : Recherche par code CIS (10 tokens)
-        - `cip={code}` : Recherche par code CIP (10 tokens)
-
-        **Exemple :**
-        ```
-        /v1/medicaments?search=paracetamol
-        /v1/medicaments?cis=61504672
-        /v1/medicaments?page=1
-        /v1/medicaments?export=all
-        ```
+        Pour les recherches par CIS ou l'export complet, utilisez les endpoints dédiés :
+        - `/v1/medicaments/{cis}` pour la recherche par CIS
+        - `/v1/medicaments/export` pour l'export complet
       tags:
         - Médicaments (v1)
       parameters:
-        - name: export
-          in: query
-          required: false
-          description: Exporter toute la base de données (doit être égal à "all")
-          schema:
-            type: string
-            enum: ["all"]
         - name: page
           in: query
           required: false
@@ -114,14 +97,6 @@ paths:
             minLength: 3
             maxLength: 50
             pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
-        - name: cis
-          in: query
-          required: false
-          description: Code CIS (entier positif)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 999999999
         - name: cip
           in: query
           required: false
@@ -211,47 +186,206 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Only one parameter allowed at a time"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Only one parameter allowed at a time"
+                    code: 400
         "404":
           description: Aucun résultat
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "No medicaments found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "No medicaments found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
 
-  /v1/generiques:
+  /medicaments/export:
+    get:
+      summary: Exporter tous les médicaments (v1)
+      description: |
+        Exporter la base de données complète de tous les médicaments.
+        Utilisez ETag et Last-Modified headers pour le cache conditionnel.
+      tags:
+        - Médicaments (v1)
+      responses:
+        "200":
+          description: Réponse réussie avec liste complète
+          headers:
+            ETag:
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: '"W/"abc123""'
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
+          content:
+            application/json:
+              examples:
+                export:
+                  summary: Export complet
+                  value:
+                    - cis: 61504672
+                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforcee: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+                    - cis: 60904643
+                      elementPharmaceutique: "CODOLIPRANE 500 mg/30 mg, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "10/05/2013"
+                      titulaire: "OPELLA HEALTHCARE FRANCE"
+                      surveillanceRenforcee: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
+
+  /medicaments/{cis}:
+    get:
+      summary: Obtenir un médicament par code CIS (v1)
+      description: |
+        Récupérer un médicament spécifique par son Code Identifiant de Spécialité (CIS).
+        C'est un lookup O(1) très rapide.
+      tags:
+        - Médicaments (v1)
+      parameters:
+        - name: cis
+          in: path
+          required: true
+          description: Code CIS (Code Identifiant de Spécialité, entier positif)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 999999999
+      responses:
+        "200":
+          description: Réponse réussie
+          headers:
+            ETag:
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: '"W/"abc123""'
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
+          content:
+            application/json:
+              examples:
+                medicament:
+                  summary: Médicament trouvé
+                  value:
+                    cis: 61504672
+                    elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                    formePharmaceutique: "comprimé"
+                    voiesAdministration: ["orale"]
+                    statusAutorisation: "Autorisation active"
+                    typeProcedure: "Procédure nationale"
+                    etatComercialisation: "Commercialisée"
+                    dateAMM: "2000-01-01"
+                    titulaire: "MYLAN SAS"
+                    surveillanceRenforcee: "Non"
+                    composition: []
+                    generiques: []
+                    presentation: []
+                    conditions: []
+        "400":
+          description: Code CIS invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid CIS"
+                    code: 400
+        "404":
+          description: Médicament non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Medicament not found"
+                    code: 404
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
+
+  /generiques:
     get:
       summary: Rechercher des groupes génériques (v1)
       description: |
         Recherche et récupération de groupes génériques avec différents paramètres de requête.
         Seul un paramètre est autorisé à la fois.
-
-        **Paramètres disponibles :**
-        - `libelle={nom}` : Recherche par libellé (30 tokens)
-        - `group={id}` : Recherche par ID de groupe (5 tokens)
-
-        **Exemple :**
-        ```
-        /v1/generiques?libelle=paracetamol
-        /v1/generiques?group=1234
-        ```
       tags:
         - Génériques (v1)
       parameters:
@@ -361,12 +495,12 @@ paths:
                         formePharmaceutique: "comprimé"
                         type: "Générique"
                         composition:
-                           - elementPharmaceutique: "comprimé"
-                             substance: "PARACÉTAMOL"
-                             dosage: "500 mg"
-                           - elementPharmaceutique: "comprimé"
-                             substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                             dosage: "30 mg"
+                          - elementPharmaceutique: "comprimé"
+                            substance: "PARACÉTAMOL"
+                            dosage: "500 mg"
+                          - elementPharmaceutique: "comprimé"
+                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                            dosage: "30 mg"
                     orphanCIS: null
         "400":
           description: Paramètres invalides
@@ -374,49 +508,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Needs libelle or group param"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Needs libelle or group param"
+                    code: 400
         "404":
           description: Aucun générique trouvé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "No generiques found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "No generiques found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
 
-  /v1/presentations:
+  /presentations/{cip}:
     get:
       summary: Obtenir des présentations (v1)
       description: |
         Recherche de présentations par code CIP (CIP7 ou CIP13).
 
         **Paramètre disponible :**
-        - `cip={code}` : Recherche par code CIP (5 tokens)
+        - `/{cip}` : Code CIP dans le chemin (5 tokens)
 
         **Exemple :**
         ```
-        /v1/presentations?cip=3400936403114
+        /v1/presentations/3400936403114
         ```
       tags:
         - Présentations (v1)
       parameters:
         - name: cip
-          in: query
+          in: path
           required: true
           description: Code CIP (CIP7 ou CIP13, entier positif)
           schema:
@@ -429,47 +569,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PresentationResponse"
-              example:
-                cis: 60904643
-                cip7: 3400936403114
-                libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
-                statusAdministratif: "Présentation active"
-                etatComercialisation: "Commercialisée"
-                dateDeclaration: "19/01/1965"
-                cip13: 3400936403114
-                agreement: "non"
-                tauxRemboursement: "65%"
-                prix: 3.85
+              examples:
+                presentation:
+                  value:
+                    cis: 60904643
+                    cip7: 3400936403114
+                    libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
+                    statusAdministratif: "Présentation active"
+                    etatComercialisation: "Commercialisée"
+                    dateDeclaration: "19/01/1965"
+                    cip13: 3400936403114
+                    agreement: "non"
+                    tauxRemboursement: "65%"
+                    prix: 3.85
         "400":
           description: Code CIP invalide
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid CIP"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid CIP"
+                    code: 400
         "404":
           description: Présentation non trouvée
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "Presentation not found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Presentation not found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
 
   /database:
     get:
@@ -480,7 +628,7 @@ paths:
 
         Récupérer la liste complète de tous les médicaments dans la base de données.
 
-        **Migration :** Utilisez `/v1/medicaments?export=all` à la place.
+        **Migration :** Utilisez `/v1/medicaments/export` à la place.
       tags:
         - Médicaments (Legacy)
       responses:
@@ -490,16 +638,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/medicaments?export=all>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/medicaments/export>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -540,16 +694,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -573,20 +733,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid page number"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid page number"
+                    code: 400
         "404":
           description: Page non trouvée
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "Page not found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Page not found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
@@ -623,16 +787,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -645,20 +815,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
+                    code: 400
         "404":
           description: Aucun médicament trouvé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "No medicaments found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "No medicaments found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
@@ -675,7 +849,7 @@ paths:
 
         Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité).
 
-        **Migration :** Utilisez `/v1/medicaments?cis={code}` à la place.
+        **Migration :** Utilisez `/v1/medicaments/{cis}` à la place.
       tags:
         - Médicaments (Legacy)
       parameters:
@@ -694,16 +868,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/medicaments?cis=61504672>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/medicaments/61504672>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -714,20 +894,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid CIS"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid CIS"
+                    code: 400
         "404":
           description: Médicament non trouvé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "Medicament not found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Medicament not found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
@@ -764,16 +948,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -786,20 +976,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
+                    code: 400
         "404":
           description: Aucun générique trouvé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "No generiques found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "No generiques found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
@@ -835,16 +1029,22 @@ paths:
             Deprecation:
               schema:
                 type: string
-                example: "true"
+              examples:
+                deprecation-header:
+                  value: "true"
             Sunset:
               schema:
                 type: string
                 format: date-time
-                example: "2026-07-31T23:59:59Z"
+              examples:
+                sunset-date:
+                  value: "2026-07-31T23:59:59Z"
             Link:
               schema:
                 type: string
-                example: '<https://medicaments-api.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
           content:
             application/json:
               schema:
@@ -855,20 +1055,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Bad Request"
-                message: "Invalid group ID"
-                code: 400
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid group ID"
+                    code: 400
         "404":
           description: Groupe générique non trouvé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Not Found"
-                message: "Generique group not found"
-                code: 404
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Generique group not found"
+                    code: 404
         "500":
           description: Erreur interne du serveur
           content:
@@ -889,87 +1093,92 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
+                schemas:
                   status:
                     type: string
                     enum: ["healthy", "degraded", "unhealthy"]
-                    example: "healthy"
+                    examples: ["healthy"]
                     description: État de santé global de l'API
                   uptime_seconds:
                     type: integer
-                    example: 86400
+                    examples: [86400]
                     description: Temps de fonctionnement en secondes
                   uptime_human:
                     type: string
-                    example: "1d 2h 30m 45s"
+                    examples: ["1d 2h 30m 45s"]
                     description: Temps de fonctionnement au format lisible
                   last_updated:
                     type: string
                     format: date-time
-                    example: "2026-01-15T06:00:00Z"
+                    examples: ["2026-01-15T06:00:00Z"]
                     description: Date et heure de la dernière mise à jour réussie
                   data:
                     type: object
                     properties:
                       medicament_count:
                         type: integer
-                        example: 15420
+                        examples: [15420]
                         description: Nombre total de médicaments dans la base
                       generique_count:
                         type: integer
-                        example: 5200
+                        examples: [5200]
                         description: Nombre total de groupes génériques
                       data_age_hours:
                         type: number
                         format: float
-                        example: 2.5
+                        examples: [2.5]
                         description: Âge des données en heures depuis la dernière mise à jour
                       next_update:
                         type: string
                         format: date-time
-                        example: "2026-01-15T18:00:00Z"
+                        examples: ["2026-01-15T18:00:00Z"]
                         description: Prochaine mise à jour planifiée
-                    description: Informations sur les données de l'API
+                  description: Informations sur les données de l'API
                   system:
                     type: object
                     properties:
                       updating:
                         type: boolean
-                        example: false
+                        examples: [false]
                         description: Indique si une mise à jour est en cours
                       memory_usage_mb:
                         type: integer
-                        example: 130
+                        examples: [130]
                         description: Utilisation mémoire en MB
                       goroutines:
                         type: integer
-                        example: 45
+                        examples: [45]
                         description: Nombre de goroutines actives
-                    description: Informations système et performance
-                example:
-                  status: "healthy"
-                  uptime_seconds: 86400
-                  uptime_human: "1d 0h 0m 0s"
-                  last_updated: "2026-01-15T06:00:00Z"
-                  data:
-                    medicament_count: 15420
-                    generique_count: 5200
-                    data_age_hours: 2.5
-                    next_update: "2026-01-15T18:00:00Z"
-                  system:
-                    updating: false
-                    memory_usage_mb: 130
-                    goroutines: 45
+                      description: Informations système et performance
+              examples:
+                healthy:
+                  summary: État de santé normal
+                  value:
+                    status: "healthy"
+                    uptime_seconds: 86400
+                    uptime_human: "1d 0h 0m 0s"
+                    last_updated: "2026-01-15T06:00:00Z"
+                    data:
+                      medicament_count: 15420
+                      generique_count: 5200
+                      data_age_hours: 2.5
+                      next_update: "2026-01-15T18:00:00Z"
+                    system:
+                      updating: false
+                      memory_usage_mb: 130
+                      goroutines: 45
         "500":
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-              example:
-                error: "Internal Server Error"
-                message: "Internal server error"
-                code: 500
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
 
 tags:
   - name: Médicaments (v1)
@@ -1026,17 +1235,48 @@ components:
         composition:
           type: array
           items:
-            $ref: "#/components/schemas/CompositionResponse"
+            type: object
+            properties:
+              cis:
+                type: integer
+                title: Code CIS
+              elementPharmaceutique:
+                type: string
+                title: Élément pharmaceutique
+              codeSubstance:
+                type: integer
+                title: Code de substance
+              denominationSubstance:
+                type: string
+                title: Dénomination de substance
+              dosage:
+                type: string
+                title: Dosage
+              referenceDosage:
+                type: string
+                title: Dosage de référence
+              natureComposant:
+                type: string
+                title: Nature du composant
           title: Composition
         generiques:
           type: array
           items:
-            $ref: "#/components/schemas/GeneriqueResponse"
-          title: Génériques associés
+            type: object
+            properties:
+              cis:
+                type: integer
+                title: Code CIS
+              group:
+                type: integer
+                title: ID de groupe générique
+              libelle:
+                type: string
+                title: Libellé de groupe générique
+            title: Génériques associés
         presentation:
           type: array
-          items:
-            $ref: "#/components/schemas/PresentationResponse"
+          $ref: "#/components/schemas/PresentationResponse"
           title: Présentations disponibles
         conditions:
           type: array
@@ -1044,33 +1284,8 @@ components:
             type: string
           title: Conditions de prescription
 
-    CompositionResponse:
-      type: object
-      title: CompositionResponse
-      properties:
-        cis:
-          type: integer
-          title: Code CIS
-        elementPharmaceutique:
-          type: string
-          title: Élément pharmaceutique
-        codeSubstance:
-          type: integer
-          title: Code de substance
-        denominationSubstance:
-          type: string
-          title: Dénomination de substance
-        dosage:
-          type: string
-          title: Dosage
-        referenceDosage:
-          type: string
-          title: Dosage de référence
-        natureComposant:
-          type: string
-          title: Nature du composant
-
     GeneriqueResponse:
+      # Remove this at sunset
       type: object
       title: GeneriqueResponse
       properties:
@@ -1083,9 +1298,6 @@ components:
         libelle:
           type: string
           title: Libellé de groupe générique
-        type:
-          type: string
-          title: Type de générique
 
     PresentationResponse:
       type: object
@@ -1136,60 +1348,46 @@ components:
         medicaments:
           type: array
           items:
-            $ref: "#/components/schemas/GeneriqueMedicamentResponse"
-          title: Médicaments du groupe
+            title: GeneriqueMedicament
+            properties:
+              cis:
+                type: integer
+                title: Code CIS
+              elementPharmaceutique:
+                type: string
+                title: Nom pharmaceutique
+              formePharmaceutique:
+                type: string
+                title: Forme pharmaceutique
+              type:
+                type: string
+                title: Type de générique
+              composition:
+                type: object
+                title: Composition pour groupement générique
+                properties:
+                  elementPharmaceutique:
+                    type: string
+                    title: Élément pharmaceutique
+                  substance:
+                    type: string
+                    title: Nom de substance
+                  dosage:
+                    type: string
+                    title: Dosage
         orphanCIS:
           type:
             - array
-            - 'null'
+            - "null"
           items:
             type: integer
           title: CIS orphelins
-          nullable: true
           description: |
             Liste des codes CIS référencés dans le groupe générique mais sans entrée médicament correspondante dans la base de données.
             Ces CIS n'ont pas de données détaillées disponibles (composition, forme pharmaceutique, type, etc.).
             Peut être :
             - Un tableau d'entiers : [61586325, 60473805]
-            - Un tableau vide : []
             - Null : null (si le groupe ne contient aucun CIS orphelin)
-
-    GeneriqueMedicamentResponse:
-      type: object
-      title: GeneriqueMedicamentResponse
-      properties:
-        cis:
-          type: integer
-          title: Code CIS
-        elementPharmaceutique:
-          type: string
-          title: Nom pharmaceutique
-        formePharmaceutique:
-          type: string
-          title: Forme pharmaceutique
-        type:
-          type: string
-          title: Type de générique
-        composition:
-          type: array
-          items:
-            $ref: "#/components/schemas/GeneriqueCompositionResponse"
-          title: Composition pour groupement générique
-
-    GeneriqueCompositionResponse:
-      type: object
-      title: GeneriqueCompositionResponse
-      properties:
-        elementPharmaceutique:
-          type: string
-          title: Élément pharmaceutique
-        substance:
-          type: string
-          title: Nom de substance
-        dosage:
-          type: string
-          title: Dosage
-
     ErrorResponse:
       type: object
       title: ErrorResponse
