@@ -917,7 +917,7 @@ func TestHealthCheck(t *testing.T) {
 			}
 
 			// Check required fields
-			requiredFields := []string{"status", "last_update", "data_age_hours", "uptime_seconds", "data", "system"}
+			requiredFields := []string{"status", "data"}
 			for _, field := range requiredFields {
 				if _, ok := response[field]; !ok {
 					t.Errorf("Response should contain '%s' field", field)
@@ -926,7 +926,7 @@ func TestHealthCheck(t *testing.T) {
 
 			// Verify data field contains expected keys
 			if data, ok := response["data"].(map[string]any); ok {
-				expectedDataKeys := []string{"api_version", "medicaments", "generiques", "is_updating", "next_update"}
+				expectedDataKeys := []string{"last_update", "medicaments", "generiques", "is_updating"}
 				for _, key := range expectedDataKeys {
 					if _, ok := data[key]; !ok {
 						t.Errorf("Data should contain '%s' key", key)
@@ -934,13 +934,11 @@ func TestHealthCheck(t *testing.T) {
 				}
 			}
 
-			// Verify system field contains expected keys
-			if system, ok := response["system"].(map[string]any); ok {
-				expectedSystemKeys := []string{"goroutines", "memory"}
-				for _, key := range expectedSystemKeys {
-					if _, ok := system[key]; !ok {
-						t.Errorf("System should contain '%s' key", key)
-					}
+			// Verify removed fields are not present
+			removedFields := []string{"data_age_hours", "uptime_seconds", "system"}
+			for _, field := range removedFields {
+				if _, ok := response[field]; ok {
+					t.Errorf("Response should not contain '%s' field (removed)", field)
 				}
 			}
 		})

@@ -53,7 +53,7 @@ func (m *mockSchedulerDataStore) IsUpdating() bool {
 	return m.updating
 }
 
-func (m *mockSchedulerDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
+func (m *mockSchedulerDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation, report *interfaces.DataQualityReport) {
 	m.medicaments = medicaments
 	m.generiques = generiques
 	m.medicamentsMap = medicamentsMap
@@ -78,6 +78,23 @@ func (m *mockSchedulerDataStore) EndUpdate() {
 
 func (m *mockSchedulerDataStore) GetServerStartTime() time.Time {
 	return time.Time{} // Return zero time for mock
+}
+
+func (m *mockSchedulerDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
+	return &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
+	}
 }
 
 // MockParser for testing scheduler

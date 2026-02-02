@@ -1,8 +1,10 @@
 package logging
 
 import (
+	"flag"
 	"log/slog"
 	"os"
+	"testing"
 	"time"
 )
 
@@ -13,12 +15,12 @@ type LoggingService struct {
 
 var DefaultLoggingService *LoggingService
 
-// InitLogger initializes the global logger instance
+// InitLogger initializes global logger instance
 func InitLogger(logDir string) {
 	InitLoggerWithRetention(logDir, 4) // Default 4 weeks retention
 }
 
-// InitLoggerWithRetention initializes the global logger with custom retention
+// InitLoggerWithRetention initializes global logger with custom retention
 func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 	InitLoggerWithRetentionAndSize(logDir, retentionWeeks, 100*1024*1024) // Default 100MB
 }
@@ -30,11 +32,29 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 		logDir = "logs" // Default directory
 	}
 
+	// Detect if running tests by checking for Go's test flags
+	// All Go tests set these flags, even if not explicitly passed
+	testV := flag.CommandLine.Lookup("test.v")
+	testRun := flag.CommandLine.Lookup("test.run")
+	isTest := testV != nil || testRun != nil
+
+	// Determine log level: suppress console output during tests by default
+	var consoleLevel slog.Level
+	if isTest {
+		consoleLevel = slog.LevelError // Only show errors during tests by default
+		// Override to Info if -v is passed (for debugging)
+		if testing.Verbose() {
+			consoleLevel = slog.LevelInfo // Show all logs when verbose
+		}
+	} else {
+		consoleLevel = slog.LevelInfo // Normal operation
+	}
+
 	// Create logs directory if it doesn't exist
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		// If we can't create logs directory, just log to console
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: consoleLevel,
 		}))
 		consoleLogger.Error("Failed to create logs directory", "error", err)
 		DefaultLoggingService = &LoggingService{
@@ -48,11 +68,11 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 	// Create rotating logger with size limit
 	rotatingLogger := NewRotatingLoggerWithSizeLimit(logDir, retentionWeeks, maxFileSize)
 
-	// Initialize the rotating logger
+	// Initialize rotating logger
 	if err := rotatingLogger.rotateIfNeeded(); err != nil {
 		// Fallback to console logger if rotation fails
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: consoleLevel,
 		}))
 		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
 		DefaultLoggingService = &LoggingService{
@@ -84,7 +104,7 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 
 	// Create multi-handler that writes to both console and rotating file
 	consoleHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: consoleLevel,
 	})
 
 	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
@@ -106,7 +126,7 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 
 }
 
-// Close closes the logging service and cleans up resources
+// Close closes logging service and cleans up resources
 func Close() {
 	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
 		if err := DefaultLoggingService.RotatingLogger.Close(); err != nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/server"
 	"github.com/giygas/medicaments-api/validation"
@@ -59,7 +60,20 @@ func TestMain(m *testing.M) {
 	// Initialize mock data for tests
 	testDataContainer = data.NewDataContainer()
 	testDataContainer.UpdateData(testMedicaments, testGeneriques, testMedicamentsMap, testGeneriquesMap,
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 	fmt.Printf("Mock data initialized: %d medicaments, %d generiques\n", len(testMedicaments), len(testGeneriques))
 
 	fmt.Println("Running tests...")

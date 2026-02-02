@@ -121,7 +121,20 @@ func (f *TestDataFactory) CreateDataContainer(medicamentsCount int, generiquesCo
 
 	dataContainer := &data.DataContainer{}
 	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 	return dataContainer
 }
 
@@ -386,7 +399,8 @@ func (m *MockDataStore) IsUpdating() bool {
 
 func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
 	medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
-	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
+	presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation,
+	report *interfaces.DataQualityReport) {
 	m.updateDataCalled = true
 	m.medicaments = medicaments
 	m.generiques = generiques
@@ -412,6 +426,23 @@ func (m *MockDataStore) GetServerStartTime() time.Time {
 	return time.Time{} // Return zero time for mock
 }
 
+func (m *MockDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
+	return &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
+	}
+}
+
 // MockDataValidator implements interfaces.DataValidator for testing
 type MockDataValidator struct {
 	validateInputError      error
@@ -431,13 +462,18 @@ func (m *MockDataValidator) CheckDuplicateCIP(presentations []entities.Presentat
 
 func (m *MockDataValidator) ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *interfaces.DataQualityReport {
 	return &interfaces.DataQualityReport{
-		DuplicateCIS:                    []int{},
-		DuplicateGroupIDs:               []int{},
-		MedicamentsWithoutConditions:    0,
-		MedicamentsWithoutGeneriques:    0,
-		MedicamentsWithoutPresentations: 0,
-		MedicamentsWithoutCompositions:  0,
-		GeneriqueOnlyCIS:                0,
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
 	}
 }
 

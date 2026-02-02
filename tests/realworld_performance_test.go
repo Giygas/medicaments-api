@@ -15,6 +15,7 @@ import (
 
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
@@ -49,7 +50,20 @@ func setupRealworldServer() *httptest.Server {
 
 		container := data.NewDataContainer()
 		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-			presentationsCIP7Map, presentationsCIP13Map)
+			presentationsCIP7Map, presentationsCIP13Map, &interfaces.DataQualityReport{
+				DuplicateCIS:                       []int{},
+				DuplicateGroupIDs:                  []int{},
+				MedicamentsWithoutConditions:       0,
+				MedicamentsWithoutGeneriques:       0,
+				MedicamentsWithoutPresentations:    0,
+				MedicamentsWithoutCompositions:     0,
+				GeneriqueOnlyCIS:                   0,
+				MedicamentsWithoutConditionsCIS:    []int{},
+				MedicamentsWithoutGeneriquesCIS:    []int{},
+				MedicamentsWithoutPresentationsCIS: []int{},
+				MedicamentsWithoutCompositionsCIS:  []int{},
+				GeneriqueOnlyCISList:               []int{},
+			})
 
 		// Create router with v1 routes
 		router := chi.NewRouter()

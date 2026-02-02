@@ -10,6 +10,7 @@ import (
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
@@ -350,7 +351,20 @@ func TestGetHealthData(t *testing.T) {
 	dc.UpdateData(testMedicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{1: testMedicaments[0], 2: testMedicaments[1]},
 		map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 
 	server := NewServer(cfg, dc)
 

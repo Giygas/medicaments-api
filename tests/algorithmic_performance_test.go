@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
@@ -43,7 +44,20 @@ func setupAlgorithmicTestData() *data.DataContainer {
 
 		algorithmicTestData = data.NewDataContainer()
 		algorithmicTestData.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-			presentationsCIP7Map, presentationsCIP13Map)
+			presentationsCIP7Map, presentationsCIP13Map, &interfaces.DataQualityReport{
+				DuplicateCIS:                       []int{},
+				DuplicateGroupIDs:                  []int{},
+				MedicamentsWithoutConditions:       0,
+				MedicamentsWithoutGeneriques:       0,
+				MedicamentsWithoutPresentations:    0,
+				MedicamentsWithoutCompositions:     0,
+				GeneriqueOnlyCIS:                   0,
+				MedicamentsWithoutConditionsCIS:    []int{},
+				MedicamentsWithoutGeneriquesCIS:    []int{},
+				MedicamentsWithoutPresentationsCIS: []int{},
+				MedicamentsWithoutCompositionsCIS:  []int{},
+				GeneriqueOnlyCISList:               []int{},
+			})
 
 		fmt.Printf("Algorithmic test data loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})

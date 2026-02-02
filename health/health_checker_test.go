@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -59,7 +60,7 @@ func (m *MockHealthDataStore) IsUpdating() bool {
 	return m.isUpdating
 }
 
-func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentionsCIP7Map map[int]entities.Presentation, presentionsCIP13Map map[int]entities.Presentation) {
+func (m *MockHealthDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentionsCIP7Map map[int]entities.Presentation, presentionsCIP13Map map[int]entities.Presentation, report *interfaces.DataQualityReport) {
 	// Not used in health tests
 }
 
@@ -73,6 +74,23 @@ func (m *MockHealthDataStore) EndUpdate() {
 
 func (m *MockHealthDataStore) GetServerStartTime() time.Time {
 	return time.Time{} // Return zero time for mock
+}
+
+func (m *MockHealthDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
+	return &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
+	}
 }
 
 func TestNewHealthChecker(t *testing.T) {

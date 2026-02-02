@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -121,7 +122,20 @@ func TestDataContainer_ConcurrentReads(t *testing.T) {
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
 	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-		presentationsCIP7Map, presentationsCIP13Map)
+		presentationsCIP7Map, presentationsCIP13Map, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 
 	// Concurrent reads
 	var wg sync.WaitGroup
@@ -161,7 +175,7 @@ func TestDataContainer_ConcurrentReadsDuringUpdate(t *testing.T) {
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
 	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-		presentationsCIP7Map, presentationsCIP13Map)
+		presentationsCIP7Map, presentationsCIP13Map, nil)
 
 	// Begin update
 	container.BeginUpdate()
@@ -196,7 +210,7 @@ func TestDataContainer_UpdateDataWithNil(t *testing.T) {
 	container := NewDataContainer()
 
 	// Update with nil medicaments
-	container.UpdateData(nil, nil, nil, nil, nil, nil)
+	container.UpdateData(nil, nil, nil, nil, nil, nil, nil)
 
 	// Get data - should return empty slices (not nil) for safety
 	medicaments := container.GetMedicaments()
@@ -225,7 +239,7 @@ func TestDataContainer_UpdateDataWithEmptySlices(t *testing.T) {
 	container := NewDataContainer()
 
 	// Update with empty slices
-	container.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{}, map[int]entities.Medicament{}, map[int]entities.GeneriqueList{}, map[int]entities.Presentation{}, map[int]entities.Presentation{})
+	container.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{}, map[int]entities.Medicament{}, map[int]entities.GeneriqueList{}, map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 
 	// Verify data was stored
 	if len(container.GetMedicaments()) != 0 {
@@ -277,7 +291,7 @@ func TestDataContainer_ThreadSafety(t *testing.T) {
 			newMedicaments[0].Cis = id + 100
 
 			container.UpdateData(newMedicaments, generiques, medicamentsMap, generiquesMap,
-				presentationsCIP7Map, presentationsCIP13Map)
+				presentationsCIP7Map, presentationsCIP13Map, nil)
 
 			// Read data
 			_ = container.GetMedicaments()
@@ -309,7 +323,7 @@ func TestDataContainer_GetLastUpdated(t *testing.T) {
 	presentationsCIP13Map := map[int]entities.Presentation{}
 
 	container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-		presentationsCIP7Map, presentationsCIP13Map)
+		presentationsCIP7Map, presentationsCIP13Map, nil)
 
 	// Should now have a time
 	lastUpdated = container.GetLastUpdated()

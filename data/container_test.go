@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
@@ -78,7 +79,20 @@ func TestUpdateData(t *testing.T) {
 	presentationsCIP13Map := map[int]entities.Presentation{
 		3400912345678: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
 	}
-	dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap, presentationsCIP7Map, presentationsCIP13Map)
+	dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap, presentationsCIP7Map, presentationsCIP13Map, &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
+	})
 
 	// Verify data was updated
 	retrievedMedicaments := dc.GetMedicaments()
@@ -173,7 +187,20 @@ func TestConcurrentAccess(t *testing.T) {
 
 	// Set initial data
 	dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 
 	var wg sync.WaitGroup
 	numReaders := 10
@@ -245,7 +272,20 @@ func TestConcurrentAccess(t *testing.T) {
 					}
 
 					dc.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap,
-						map[int]entities.Presentation{}, map[int]entities.Presentation{})
+						map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+							DuplicateCIS:                       []int{},
+							DuplicateGroupIDs:                  []int{},
+							MedicamentsWithoutConditions:       0,
+							MedicamentsWithoutGeneriques:       0,
+							MedicamentsWithoutPresentations:    0,
+							MedicamentsWithoutCompositions:     0,
+							GeneriqueOnlyCIS:                   0,
+							MedicamentsWithoutConditionsCIS:    []int{},
+							MedicamentsWithoutGeneriquesCIS:    []int{},
+							MedicamentsWithoutPresentationsCIS: []int{},
+							MedicamentsWithoutCompositionsCIS:  []int{},
+							GeneriqueOnlyCISList:               []int{},
+						})
 					dc.EndUpdate()
 				}
 
@@ -275,7 +315,20 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 	dc.UpdateData(initialMedicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{1: {Cis: 1, Denomination: "Initial"}},
 		map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 
 	// Start a reader that continuously reads data
 	stop := make(chan bool)
@@ -310,7 +363,7 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 		dc.UpdateData(newMedicaments, []entities.GeneriqueList{},
 			map[int]entities.Medicament{i + 2: {Cis: i + 2, Denomination: "Update"}},
 			map[int]entities.GeneriqueList{},
-			map[int]entities.Presentation{}, map[int]entities.Presentation{})
+			map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 	}
 
 	// Stop the reader
@@ -498,7 +551,7 @@ func BenchmarkGetMedicaments(b *testing.B) {
 	}
 	dc.UpdateData(medicaments, []entities.GeneriqueList{},
 		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -518,7 +571,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 	}
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
 		medicamentsMap, map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, map[int]entities.Presentation{})
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -554,7 +607,7 @@ func BenchmarkUpdateData(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
-			map[int]entities.Presentation{}, map[int]entities.Presentation{})
+			map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 	}
 }
 
@@ -577,7 +630,7 @@ func TestGetPresentationsCIP7Map(t *testing.T) {
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
 		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
-		testPresentations, map[int]entities.Presentation{})
+		testPresentations, map[int]entities.Presentation{}, nil)
 
 	// Verify data was stored
 	retrievedMap := dc.GetPresentationsCIP7Map()
@@ -614,7 +667,7 @@ func TestGetPresentationsCIP13Map(t *testing.T) {
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
 		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, testPresentations)
+		map[int]entities.Presentation{}, testPresentations, nil)
 
 	// Verify data was stored
 	retrievedMap := dc.GetPresentationsCIP13Map()
@@ -647,7 +700,7 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
 		map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
-		cip7Map, cip13Map)
+		cip7Map, cip13Map, nil)
 
 	var wg sync.WaitGroup
 	numReaders := 20
@@ -690,7 +743,7 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 				}
 				dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
 					map[int]entities.Medicament{}, map[int]entities.GeneriqueList{},
-					newCIP7, newCIP13)
+					newCIP7, newCIP13, nil)
 			}
 		}(i)
 	}

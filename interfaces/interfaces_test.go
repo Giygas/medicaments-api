@@ -55,7 +55,7 @@ func (m *MockDataStore) IsUpdating() bool {
 	return m.updating
 }
 
-func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
+func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation, report *DataQualityReport) {
 	m.medicaments = medicaments
 	m.generiques = generiques
 	m.medicamentsMap = medicamentsMap
@@ -63,6 +63,23 @@ func (m *MockDataStore) UpdateData(medicaments []entities.Medicament, generiques
 	m.presentationsCIP7Map = presentationsCIP7Map
 	m.presentationsCIP13Map = presentationsCIP13Map
 	m.lastUpdated = time.Now()
+}
+
+func (m *MockDataStore) GetDataQualityReport() *DataQualityReport {
+	return &DataQualityReport{
+		DuplicateCIS:                       []int{},
+		DuplicateGroupIDs:                  []int{},
+		MedicamentsWithoutConditions:       0,
+		MedicamentsWithoutGeneriques:       0,
+		MedicamentsWithoutPresentations:    0,
+		MedicamentsWithoutCompositions:     0,
+		GeneriqueOnlyCIS:                   0,
+		MedicamentsWithoutConditionsCIS:    []int{},
+		MedicamentsWithoutGeneriquesCIS:    []int{},
+		MedicamentsWithoutPresentationsCIS: []int{},
+		MedicamentsWithoutCompositionsCIS:  []int{},
+		GeneriqueOnlyCISList:               []int{},
+	}
 }
 
 func (m *MockDataStore) BeginUpdate() bool {
@@ -196,6 +213,11 @@ func (m *MockHTTPHandler) ServePresentationsV1(w http.ResponseWriter, r *http.Re
 }
 
 func (m *MockHTTPHandler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(m.responseCode)
+	_, _ = w.Write([]byte(m.responseBody))
+}
+
+func (m *MockHTTPHandler) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
 	_, _ = w.Write([]byte(m.responseBody))
 }
