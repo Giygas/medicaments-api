@@ -78,8 +78,8 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicaments export", "/v1/medicaments/export", http.StatusOK},
 		{"Test medicaments pagination", "/v1/medicaments?page=1", http.StatusOK},
 		{"Test medicaments search", "/v1/medicaments?search=Test", http.StatusOK},
-		{"Test medicaments by CIS", "/v1/medicaments?cis=12345678", http.StatusOK},
-		{"Test medicaments by invalid CIS", "/v1/medicaments?cis=99999999", http.StatusNotFound},
+		{"Test medicaments by CIS", "/v1/medicaments/12345678", http.StatusOK},
+		{"Test medicaments by invalid CIS", "/v1/medicaments/99999999", http.StatusNotFound},
 		{"Test generiques by libelle", "/v1/generiques?libelle=Test Group", http.StatusOK},
 		{"Test generiques by group", "/v1/generiques?group=100", http.StatusOK},
 		{"Test generiques with no params", "/v1/generiques", http.StatusBadRequest},
@@ -91,7 +91,7 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicaments multiple params", "/v1/medicaments?page=1&search=test", http.StatusBadRequest},
 		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},
 		{"Test medicaments negative page", "/v1/medicaments?page=-1", http.StatusBadRequest},
-		{"Test medicaments invalid CIS", "/v1/medicaments?cis=abc", http.StatusBadRequest},
+		{"Test medicaments invalid CIS", "/v1/medicaments/abc", http.StatusBadRequest},
 		{"Test health", "/health", http.StatusOK},
 	}
 
@@ -101,6 +101,7 @@ func TestEndpoints(t *testing.T) {
 	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
 	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)

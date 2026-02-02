@@ -274,9 +274,10 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 	h.RespondWithJSON(w, http.StatusOK, results)
 }
 
-// FindMedicamentByID finds a medicament by CIS
-func (h *HTTPHandlerImpl) FindMedicamentByID(w http.ResponseWriter, r *http.Request) {
-	cisStr := chi.URLParam(r, "cis")
+// FindMedicamentByCIS finds a medicament by CIS
+func (h *HTTPHandlerImpl) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
+	cisStr := r.PathValue("cis")
+	path := r.URL.Path
 
 	cis, err := h.validator.ValidateCIS(cisStr)
 
@@ -285,9 +286,11 @@ func (h *HTTPHandlerImpl) FindMedicamentByID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/medicament?cis=%v", cis)
-	h.AddDeprecationHeaders(w, r, newPath)
+	// Add deprecation headers for legacy endpoint
+	if strings.HasPrefix(path, "/medicament/id/") {
+		newPath := fmt.Sprintf("/v1/medicaments/%v", cis)
+		h.AddDeprecationHeaders(w, r, newPath)
+	}
 
 	medicamentsMap := h.dataStore.GetMedicamentsMap()
 	med, exists := medicamentsMap[cis]
@@ -576,7 +579,7 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 	q := r.URL.Query()
 
 	totalParams := 0
-	for _, v := range []string{q.Get("cip"), q.Get("cis"), q.Get("search"), q.Get("page")} {
+	for _, v := range []string{q.Get("cip"), q.Get("search"), q.Get("page")} {
 		if v != "" {
 			totalParams++
 		}
@@ -588,7 +591,7 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 	}
 
 	if totalParams > 1 {
-		h.RespondWithError(w, http.StatusBadRequest, "Only one parameter allowed at a time. Choose: page, cis, cip, search")
+		h.RespondWithError(w, http.StatusBadRequest, "Only one parameter allowed at a time. Choose: page, cip, search")
 		return
 	}
 
@@ -658,27 +661,6 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 
 		// Always return 200 with results array (empty if no matches)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
-		return
-	}
-
-	// Search medicament by CIS
-	if cisStr := q.Get("cis"); cisStr != "" {
-
-		cis, err := h.validator.ValidateCIS(cisStr)
-
-		if err != nil {
-			h.RespondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		medicamentsMap := h.dataStore.GetMedicamentsMap()
-		med, exists := medicamentsMap[cis]
-		if !exists {
-			h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
-			return
-		}
-
-		h.RespondWithJSON(w, http.StatusOK, med)
 		return
 	}
 

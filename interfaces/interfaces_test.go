@@ -160,7 +160,7 @@ func (m *MockHTTPHandler) FindMedicament(w http.ResponseWriter, r *http.Request)
 	_, _ = w.Write([]byte(m.responseBody))
 }
 
-func (m *MockHTTPHandler) FindMedicamentByID(w http.ResponseWriter, r *http.Request) {
+func (m *MockHTTPHandler) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(m.responseCode)
 	_, _ = w.Write([]byte(m.responseBody))
 }

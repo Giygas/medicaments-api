@@ -573,7 +573,6 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 		{"second page", "?page=2", "page", 5},
 		{"search with results", "?search=paracetamol", "search", "PARACETAMOL 500 mg"},
 		{"search no results", "?search=unknown", "search", nil},
-		{"lookup by CIS", "?cis=10000001", "cis", "PARACETAMOL 500 mg"},
 		{"lookup by CIP7", "?cip=1234567", "cip", "PARACETAMOL 500 mg"},
 		{"lookup by CIP13", "?cip=7654321098765", "cip", "IBUPROFENE 400 mg"},
 	}
@@ -685,21 +684,6 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 					}
 				}
 
-			case "cis":
-				// CIS lookup (O(1) map lookup)
-				var response entities.Medicament
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Fatalf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if response.Denomination != tt.expectedValue.(string) {
-					t.Errorf("Expected denomination '%s', got '%s'", tt.expectedValue, response.Denomination)
-				}
-				if rr.Header().Get("ETag") != "" {
-					t.Error("ETag header should not be present for CIS lookup")
-				}
-
 			case "cip":
 				// CIP lookup (O(1) map lookup)
 				var response entities.Medicament
@@ -742,12 +726,11 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 		expectError   string
 	}{
 		{"no parameters", "", false, http.StatusBadRequest, "Needs at least one param"},
-		{"multiple parameters", "?page=1&cis=10000001", false, http.StatusBadRequest, "Only one parameter allowed"},
+		{"multiple parameters", "?page=1&cip=1234567", false, http.StatusBadRequest, "Only one parameter allowed"},
 		{"invalid page zero", "?page=0", false, http.StatusBadRequest, "Invalid page number"},
 		{"invalid page negative", "?page=-1", false, http.StatusBadRequest, "Invalid page number"},
 		{"invalid page non-numeric", "?page=abc", false, http.StatusBadRequest, "Invalid page number"},
 		{"page not found", "?page=999", false, http.StatusNotFound, "Page not found"},
-		{"invalid CIS non-numeric", "?cis=abc12345", false, http.StatusBadRequest, "input contains invalid characters"},
 		{"invalid CIP length", "?cip=123", false, http.StatusBadRequest, "CIP should have 7 or 13 characters"},
 		{"invalid search input", "?search=test@123", true, http.StatusBadRequest, "input must be between"},
 	}

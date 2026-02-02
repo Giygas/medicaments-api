@@ -22,8 +22,8 @@ func TestGetTokenCost(t *testing.T) {
 		{"V1 export all (deprecated query param)", "/v1/medicaments", "export=all", 5},
 		{"V1 page query", "/v1/medicaments", "page=1", 20},
 		{"V1 search query", "/v1/medicaments", "search=paracetamol", 50},
-		{"V1 CIS query", "/v1/medicaments", "cis=12345678", 10},
 		{"V1 CIP query", "/v1/medicaments", "cip=1234567", 10},
+		{"V1 medicaments by CIS (path param)", "/v1/medicaments/12345678", "", 10},
 		{"V1 medicaments default", "/v1/medicaments", "", 5},
 
 		// V1 Generiques endpoint
@@ -48,9 +48,9 @@ func TestGetTokenCost(t *testing.T) {
 
 		// ===== EDGE CASES =====
 		// Multi-parameter scenarios (should return default 5)
-		{"V1 medicaments export query+CIP (invalid)", "/v1/medicaments", "export=all&cip=1234567", 5},
+		// Invalid param with valid CIP param should cost 10 (CIP is the only valid param)
+		{"V1 medicaments export query+CIP (CIP wins)", "/v1/medicaments", "export=all&cip=1234567", 10},
 		{"V1 medicaments page+search", "/v1/medicaments", "page=1&search=test", 5},
-		{"V1 medicaments CIS+CIP", "/v1/medicaments", "cis=123&cip=456", 5},
 		{"V1 generiques libelle+group", "/v1/generiques", "libelle=test&group=1", 5},
 
 		// Invalid parameter values (cost based on param type, handler validates value)
@@ -59,7 +59,6 @@ func TestGetTokenCost(t *testing.T) {
 		{"V1 page non-numeric", "/v1/medicaments", "page=abc", 20},                        // page param present, handler will reject
 		{"V1 page zero", "/v1/medicaments", "page=0", 20},                                 // page param present, handler will reject
 		{"V1 search empty string", "/v1/medicaments", "search=", 5},                       // Falls to default (empty value)
-		{"V1 CIS empty string", "/v1/medicaments", "cis=", 5},                             // Falls to default (empty value)
 		{"V1 CIP empty string", "/v1/medicaments", "cip=", 5},                             // Falls to default (empty value)
 
 		// Health endpoint with params (should return default 5)

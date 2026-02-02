@@ -291,6 +291,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	// Add routes using v1 handlers
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
 	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)
@@ -332,7 +333,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	// Test medicament by CIS endpoint (use first medicament)
 	if len(medicaments) > 0 {
 		firstCIS := medicaments[0].Cis
-		req = httptest.NewRequest("GET", fmt.Sprintf("/v1/medicaments?cis=%d", firstCIS), nil)
+		req = httptest.NewRequest("GET", fmt.Sprintf("/v1/medicaments/%d", firstCIS), nil)
 		w = httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 

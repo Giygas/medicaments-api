@@ -171,21 +171,15 @@ func init() {
 	globalRateLimiter.cleanup()
 }
 
-// getTokenCost calculates token cost for HTTP requests based on route and query parameters.
+// getTokenCost returns the rate limit token cost for an HTTP request.
+// Cost reflects the computational expense of the operation:
+// - Exports and full DB operations: 50-200 tokens
+// - Search operations: 20-80 tokens
+// - ID lookups and simple queries: 5-10 tokens
+// - Unknown/invalid requests: 5 tokens (default)
 //
-// Priority:
-// 1. V1 routes (checked first for performance): /v1/medicaments?export=all (200), etc.
-// 2. Legacy routes: /database (200), /medicament/{id} (10), etc.
-// 3. Default: 5 tokens for unknown endpoints
-//
-// Behavior:
-// - Only ONE query parameter is allowed per request
-// - Multiple parameters → return default cost (5 tokens)
-// - Invalid parameter values → fall through to next case
-//
-// Note: Parameter validation is defensive - handlers validate requirements independently.
-// This prevents cost bypass by adding cheap params to expensive operations.
-// Invalid requests cost 5 tokens to prevent free abuse while covering server resources.
+// V1 routes are checked first for performance.
+// Legacy routes (deprecated, will be removed) are handled last.
 func getTokenCost(r *http.Request) int64 {
 	requestPath := r.URL.Path
 
@@ -193,9 +187,22 @@ func getTokenCost(r *http.Request) int64 {
 
 	// V1 routes - check first for performance
 	if strings.HasPrefix(requestPath, "/v1/") {
-		// Special case for presentations with path parameter
-		if strings.HasPrefix(requestPath, "/v1/presentations/") {
+		const (
+			v1MedicamentsPrefix   = "/v1/medicaments/"
+			v1PresentationsPrefix = "/v1/presentations/"
+		)
+
+		// Match /v1/presentations/{id}
+		if len(requestPath) > len(v1PresentationsPrefix) &&
+			requestPath[:len(v1PresentationsPrefix)] == v1PresentationsPrefix {
 			return 5
+		}
+
+		// Match /v1/medicaments/{cis} (excludes /v1/medicaments and /v1/medicaments/export/*)
+		if len(requestPath) > len(v1MedicamentsPrefix) &&
+			requestPath[:len(v1MedicamentsPrefix)] == v1MedicamentsPrefix &&
+			!strings.HasPrefix(requestPath[len(v1MedicamentsPrefix):], "export") {
+			return 10
 		}
 
 		switch requestPath {
@@ -205,7 +212,7 @@ func getTokenCost(r *http.Request) int64 {
 
 		case "/v1/medicaments":
 			// Ensure only one parameter is present
-			if !HasSingleParam(q, []string{"export", "search", "page", "cis", "cip"}) {
+			if !HasSingleParam(q, []string{"search", "page", "cip"}) {
 				return 5 // Default for invalid multi-param requests
 			}
 
@@ -215,7 +222,7 @@ func getTokenCost(r *http.Request) int64 {
 			if q.Get("page") != "" {
 				return 20
 			}
-			if q.Get("cis") != "" || q.Get("cip") != "" {
+			if q.Get("cip") != "" {
 				return 10
 			}
 

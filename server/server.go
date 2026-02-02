@@ -104,7 +104,7 @@ func (s *Server) setupRoutes() {
 	s.router.Get("/database", s.httpHandler.ExportMedicaments)
 	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
 	s.router.Get("/medicament/cip/{cip}", s.httpHandler.FindMedicamentByCIP)
-	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
+	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByCIS)
 	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament) // General string search
 	s.router.Get("/generiques/group/{groupId}", s.httpHandler.FindGeneriquesByGroupID)
 	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
@@ -117,6 +117,7 @@ func (s *Server) setupRoutes() {
 	// V1 routes
 	s.router.Get("/v1/medicaments/export", s.httpHandler.ExportMedicaments)
 	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
+	s.router.Get("/v1/medicaments/{cis}", s.httpHandler.FindMedicamentByCIS)
 	s.router.Get("/v1/presentations/{cip}", s.httpHandler.ServePresentationsV1)
 	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
 }

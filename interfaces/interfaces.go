@@ -60,7 +60,7 @@ type HTTPHandler interface {
 	// Specific endpoint handlers
 	ServePagedMedicaments(w http.ResponseWriter, r *http.Request)
 	FindMedicament(w http.ResponseWriter, r *http.Request)
-	FindMedicamentByID(w http.ResponseWriter, r *http.Request)
+	FindMedicamentByCIS(w http.ResponseWriter, r *http.Request)
 	FindMedicamentByCIP(w http.ResponseWriter, r *http.Request)
 	FindGeneriques(w http.ResponseWriter, r *http.Request)
 	FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request)

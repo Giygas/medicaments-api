@@ -436,8 +436,8 @@ func TestFindMedicament(t *testing.T) {
 	}
 }
 
-// TestFindMedicamentByID tests medicament lookup by CIS
-func TestFindMedicamentByID(t *testing.T) {
+// TestFindMedicamentByCIS tests medicament lookup by CIS
+func TestFindMedicamentByCIS(t *testing.T) {
 	factory := NewTestDataFactory()
 
 	tests := []struct {
@@ -487,15 +487,14 @@ func TestFindMedicamentByID(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("cis", tt.cis)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/medicament/id/{cis}", handler.FindMedicamentByCIS)
 
 			req := httptest.NewRequest("GET", "/medicament/id/"+tt.cis, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.FindMedicamentByID(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
