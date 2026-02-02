@@ -13,8 +13,6 @@ import (
 type MockHealthDataStore struct {
 	medicaments           []entities.Medicament
 	generiques            []entities.GeneriqueList
-	medicamentsMap        map[int]entities.Medicament
-	generiquesMap         map[int]entities.GeneriqueList
 	presentationsCIP7Map  map[int]entities.Presentation
 	presentationsCIP13Map map[int]entities.Presentation
 	lastUpdated           time.Time

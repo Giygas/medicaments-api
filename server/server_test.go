@@ -106,10 +106,6 @@ func TestNewServer(t *testing.T) {
 
 			server := NewServer(cfg, dc)
 
-			if server == nil {
-				t.Fatal("Server should not be nil")
-			}
-
 			if server.server.Addr != cfg.Address+":"+cfg.Port {
 				t.Errorf("Expected server address %s, got %s", cfg.Address+":"+cfg.Port, server.server.Addr)
 			}
