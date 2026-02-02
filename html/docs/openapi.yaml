@@ -21,6 +21,7 @@ info:
     - `/v1/generiques?libelle={nom}` : 30 tokens
     - `/v1/generiques?group={id}` : 5 tokens
     - `/v1/presentations/{cip}` : 5 tokens
+    - `/v1/diagnostics` : 30 tokens
 
     ## Endpoints legacy (dépréciés)
     Les endpoints ci-dessous sont dépréciés et seront supprimés le **31 juillet 2026**.
@@ -1083,90 +1084,253 @@ paths:
   /health:
     get:
       summary: Point de terminaison de vérification de santé
-      description: Vérifier l'état de santé de l'API et de la base de données
+      description: |
+        Vérifier l'état de santé de l'API et de la base de données.
+
+        **États possibles :**
+        - `healthy` : API opérationnelle avec données fraîches (< 24h)
+        - `degraded` : API opérationnelle mais données âgées (> 24h)
+        - `unhealthy` : API non opérationnelle (pas de médicaments) - renvoie HTTP 503
       tags:
         - Système
       responses:
         "200":
-          description: État du système
+          description: État de santé normal ou dégradé
           content:
             application/json:
               schema:
                 type: object
-                schemas:
+                properties:
                   status:
                     type: string
                     enum: ["healthy", "degraded", "unhealthy"]
                     examples: ["healthy"]
                     description: État de santé global de l'API
-                  uptime_seconds:
-                    type: integer
-                    examples: [86400]
-                    description: Temps de fonctionnement en secondes
-                  uptime_human:
-                    type: string
-                    examples: ["1d 2h 30m 45s"]
-                    description: Temps de fonctionnement au format lisible
-                  last_updated:
-                    type: string
-                    format: date-time
-                    examples: ["2026-01-15T06:00:00Z"]
-                    description: Date et heure de la dernière mise à jour réussie
                   data:
                     type: object
                     properties:
-                      medicament_count:
+                      last_update:
+                        type: string
+                        format: date-time
+                        examples: ["2026-01-15T06:00:00Z"]
+                        description: Date et heure de la dernière mise à jour réussie
+                      medicaments:
                         type: integer
                         examples: [15420]
-                        description: Nombre total de médicaments dans la base
-                      generique_count:
+                        description: Nombre total de médicaments en mémoire
+                      generiques:
                         type: integer
                         examples: [5200]
                         description: Nombre total de groupes génériques
-                      data_age_hours:
-                        type: number
-                        format: float
-                        examples: [2.5]
-                        description: Âge des données en heures depuis la dernière mise à jour
-                      next_update:
-                        type: string
-                        format: date-time
-                        examples: ["2026-01-15T18:00:00Z"]
-                        description: Prochaine mise à jour planifiée
-                  description: Informations sur les données de l'API
-                  system:
-                    type: object
-                    properties:
-                      updating:
+                      is_updating:
                         type: boolean
                         examples: [false]
                         description: Indique si une mise à jour est en cours
-                      memory_usage_mb:
-                        type: integer
-                        examples: [130]
-                        description: Utilisation mémoire en MB
-                      goroutines:
-                        type: integer
-                        examples: [45]
-                        description: Nombre de goroutines actives
-                      description: Informations système et performance
               examples:
                 healthy:
                   summary: État de santé normal
                   value:
                     status: "healthy"
-                    uptime_seconds: 86400
-                    uptime_human: "1d 0h 0m 0s"
-                    last_updated: "2026-01-15T06:00:00Z"
                     data:
-                      medicament_count: 15420
-                      generique_count: 5200
-                      data_age_hours: 2.5
-                      next_update: "2026-01-15T18:00:00Z"
+                      last_update: "2026-01-15T06:00:00Z"
+                      medicaments: 15420
+                      generiques: 5200
+                      is_updating: false
+                degraded:
+                  summary: État de santé dégradé
+                  value:
+                    status: "degraded"
+                    data:
+                      last_update: "2026-01-14T06:00:00Z"
+                      medicaments: 15420
+                      generiques: 5200
+                      is_updating: false
+        "503":
+          description: Service non disponible (unhealthy)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                service-unavailable:
+                  value:
+                    error: "Service Unavailable"
+                    message: "No medicaments in database"
+                    code: 503
+
+  /v1/diagnostics:
+    get:
+      summary: Obtenir les diagnostics système détaillés (v1)
+      description: |
+        Endpoint de monitoring avancé fournissant des métriques système détaillées et un rapport d'intégrité des données.
+
+        **Informations fournies :**
+        - Métriques système : uptime, mémoire, goroutines
+        - Intégrité des données : médicaments sans conditions, génériques, présentations, compositions
+        - Métriques de données : âge des données, prochaine mise à jour planifiée
+
+        Cache de 10 secondes pour éviter le spam tout en gardant les données fraîches.
+
+        **Coût : 30 tokens** (diagnostics complets avec rapport d'intégrité)
+      tags:
+        - Système
+      responses:
+        "200":
+          description: Diagnostics système
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              examples:
+                cache-header:
+                  value: "public, max-age=10"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                    examples: ["2026-01-15T14:30:45Z"]
+                    description: Horodatage de la réponse (ISO 8601)
+                  uptime_seconds:
+                    type: number
+                    format: float
+                    examples: [86400]
+                    description: Temps d'exécution de l'application en secondes
+                  next_update:
+                    type: string
+                    format: date-time
+                    examples: ["2026-01-15T18:00:00Z"]
+                    description: Prochaine mise à jour planifiée (ISO 8601)
+                  data_age_hours:
+                    type: number
+                    format: float
+                    examples: [2.5]
+                    description: Âge des données en heures
+                  system:
+                    type: object
+                    properties:
+                      goroutines:
+                        type: integer
+                        examples: [45]
+                        description: Nombre de goroutines actives
+                      memory:
+                        type: object
+                        properties:
+                          alloc_mb:
+                            type: integer
+                            examples: [130]
+                            description: Mémoire allouée en MB
+                          sys_mb:
+                            type: integer
+                            examples: [150]
+                            description: Mémoire système en MB
+                          num_gc:
+                            type: integer
+                            examples: [25]
+                            description: Nombre de cycles de garbage collection
+                    description: Informations système et performance
+                  data_integrity:
+                    type: object
+                    properties:
+                      medicaments_without_conditions:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            examples: [1250]
+                            description: Nombre de médicaments sans conditions
+                          sample_cis:
+                            type: array
+                            items:
+                              type: integer
+                            examples: [[60012345, 60023456]]
+                            description: Exemples de CIS concernés
+                      medicaments_without_generiques:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            examples: [8450]
+                            description: Nombre de médicaments sans génériques
+                          sample_cis:
+                            type: array
+                            items:
+                              type: integer
+                            examples: [[61504672, 61001234]]
+                            description: Exemples de CIS concernés
+                      medicaments_without_presentations:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            examples: [3200]
+                            description: Nombre de médicaments sans présentations
+                          sample_cis:
+                            type: array
+                            items:
+                              type: integer
+                            examples: [[62003456, 62004567]]
+                            description: Exemples de CIS concernés
+                      medicaments_without_compositions:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            examples: [890]
+                            description: Nombre de médicaments sans composition
+                          sample_cis:
+                            type: array
+                            items:
+                              type: integer
+                            examples: [[63005678, 63006789]]
+                            description: Exemples de CIS concernés
+                      generique_only_cis:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            examples: [45]
+                            description: Nombre de CIS présents uniquement dans les génériques
+                          sample_cis:
+                            type: array
+                            items:
+                              type: integer
+                            examples: [[64007890, 64008901]]
+                            description: Exemples de CIS concernés
+                    description: Rapport d'intégrité des données
+              examples:
+                diagnostics:
+                  summary: Diagnostics système complets
+                  value:
+                    timestamp: "2026-01-15T14:30:45Z"
+                    uptime_seconds: 86400
+                    next_update: "2026-01-15T18:00:00Z"
+                    data_age_hours: 2.5
                     system:
-                      updating: false
-                      memory_usage_mb: 130
                       goroutines: 45
+                      memory:
+                        alloc_mb: 130
+                        sys_mb: 150
+                        num_gc: 25
+                    data_integrity:
+                      medicaments_without_conditions:
+                        count: 1250
+                        sample_cis: [60012345, 60023456]
+                      medicaments_without_generiques:
+                        count: 8450
+                        sample_cis: [61504672, 61001234]
+                      medicaments_without_presentations:
+                        count: 3200
+                        sample_cis: [62003456, 62004567]
+                      medicaments_without_compositions:
+                        count: 890
+                        sample_cis: [63005678, 63006789]
+                      generique_only_cis:
+                        count: 45
+                        sample_cis: [64007890, 64008901]
         "500":
           description: Erreur interne du serveur
           content:
@@ -1180,7 +1344,7 @@ paths:
                     message: "Internal server error"
                     code: 500
 
-tags:
+  tags:
   - name: Médicaments (v1)
     description: Points de terminaison v1 liés aux médicaments
   - name: Génériques (v1)

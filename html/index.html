@@ -625,7 +625,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
 
 # Authentification : Aucune requise
 # Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
-# Coûts v1 : /health (5), /v1/medicaments/export (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments/{cis} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations/{cip} (5)
+# Coûts v1 : /health (5), /v1/medicaments/export (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments/{cis} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations/{cip} (5), /v1/diagnostics (30)
 # Coûts legacy (dépréciés) : /medicament/{nom} (80), /medicament/id/{cis} (10), /database (200), autres (20)</code></pre>
             </div>
 
@@ -731,6 +731,38 @@ BASE_URL="https://medicaments-api.giygas.dev"
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Health Response Example -->
+          <div
+            style="
+              background: var(--color-surface);
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              padding: 1.5rem;
+              margin-top: 1.5rem;
+            "
+          >
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Réponse Health Endpoint
+            </h4>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 0.85rem;
+              "
+            ><code>{
+  "status": "healthy",
+  "data": {
+    "last_update": "2026-01-15T06:00:00Z",
+    "medicaments": 15420,
+    "generiques": 5200,
+    "is_updating": false
+  }
+}</code></pre>
           </div>
         </div>
       </section>
@@ -1247,6 +1279,70 @@ BASE_URL="https://medicaments-api.giygas.dev"
             </table>
           </div>
 
+          <!-- Diagnostics Endpoint -->
+          <h3
+            style="
+              color: var(--color-text-muted);
+              margin-bottom: 1rem;
+              margin-top: 3rem;
+              font-size: 1.2rem;
+              font-weight: 500;
+            "
+          >
+            Endpoint de Diagnostics (Nouveau)
+          </h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            L'endpoint <code>/v1/diagnostics</code> fournit des métriques
+            détaillées sur le système et l'intégrité des données.
+          </p>
+          <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; margin-top: 1rem">
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">Réponse Diagnostics</h4>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 0.85rem;
+              "
+            ><code>{
+  "timestamp": "2026-01-15T14:30:45Z",
+  "uptime_seconds": 86400,
+  "next_update": "2026-01-15T18:00:00Z",
+  "data_age_hours": 2.5,
+  "system": {
+    "goroutines": 45,
+    "memory": {
+      "alloc_mb": 130,
+      "sys_mb": 150,
+      "num_gc": 25
+    }
+  },
+  "data_integrity": {
+    "medicaments_without_conditions": {
+      "count": 1250,
+      "sample_cis": [60012345, 60023456]
+    },
+    "medicaments_without_generiques": {
+      "count": 8450,
+      "sample_cis": [61504672, 61001234]
+    },
+    "medicaments_without_presentations": {
+      "count": 3200,
+      "sample_cis": [62003456, 62004567]
+    },
+    "medicaments_without_compositions": {
+      "count": 890,
+      "sample_cis": [63005678, 63006789]
+    },
+    "generique_only_cis": {
+      "count": 45,
+      "sample_cis": [64007890, 64008901]
+    }
+  }
+}</code></pre>
+          </div>
+
           <!-- Legacy Endpoints -->
           <h3
             style="
@@ -1542,7 +1638,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    État de santé avancé (data+system)
+                    Santé système simplifiée (statut + données)
                   </td>
                   <td
                     style="

@@ -54,9 +54,10 @@ Voir la section **Optimisations techniques** pour les détails complets des benc
 | `/v1/generiques?libelle={nom}`    | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
 | `/v1/generiques?group={id}`       | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
 | `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
+| `/v1/diagnostics`                | Diagnostics système (détails)    | 10s   | 30   | CC         | -                       |
 | `/`                               | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
 | `/docs`                           | Swagger UI interactive             | 1h    | 0    | CC         | -                       |
-| `/health`                         | Santé système + rate limit headers | -     | 5    | RL         | -                       |
+| `/health`                         | Santé système simplifiée            | -     | 5    | RL         | -                       |
 
 **Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
@@ -477,6 +478,12 @@ class MedicamentsApi:
         response.raise_for_status()
         return response.json()
 
+    def get_diagnostics(self) -> Dict[str, Any]:
+        """Obtenir les diagnostics système détaillés"""
+        response = self.session.get(f"{self.BASE_URL}/v1/diagnostics")
+        response.raise_for_status()
+        return response.json()
+
 # Utilisation
 api = MedicamentsApi()
 results = api.search_by_name("paracetamol")
@@ -658,45 +665,99 @@ logs/
 
 ### Monitoring Intégré
 
-L'endpoint `/health` fournit des métriques complètes :
+### Endpoint de santé
+
+L'endpoint `/health` fournit une réponse simplifiée pour vérifier l'état de l'API :
 
 ```json
 {
   "status": "healthy",
-  "last_update": "2025-10-07T17:30:03+02:00",
-  "data_age_hours": 0.0009391726388888889,
-  "uptime_seconds": 86400.00000025,
   "data": {
-    "api_version": "1.0",
-    "generiques": 38,
-    "is_updating": false,
-    "medicaments": 15000,
-    "next_update": "2025-10-07T18:00:00+02:00"
-  },
+    "last_update": "2026-01-15T06:00:00Z",
+    "medicaments": 15420,
+    "generiques": 5200,
+    "is_updating": false
+  }
+}
+```
+
+#### États de santé
+
+- **`healthy`** : API opérationnelle avec données fraîches (< 24h)
+- **`degraded`** : API opérationnelle mais données âgées (> 24h)
+- **`unhealthy`** : API non opérationnelle (pas de médicaments en mémoire) - renvoie HTTP 503
+
+#### Métriques Clés
+
+- **`status`** : État de santé (healthy/degraded/unhealthy)
+- **`last_update`** : Dernière mise à jour réussie des données (ISO 8601)
+- **`medicaments`** : Nombre de médicaments en mémoire
+- **`generiques`** : Nombre de groupes génériques
+- **`is_updating`** : Indique si une mise à jour est en cours
+
+### Endpoint de diagnostics v1
+
+L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitoring avancé :
+
+```json
+{
+  "timestamp": "2026-01-15T14:30:45Z",
+  "uptime_seconds": 86400,
+  "next_update": "2026-01-15T18:00:00Z",
+  "data_age_hours": 2.5,
   "system": {
-    "goroutines": 16,
+    "goroutines": 45,
     "memory": {
-      "alloc_mb": 40,
-      "num_gc": 16,
-      "sys_mb": 62,
-      "total_alloc_mb": 125
+      "alloc_mb": 130,
+      "sys_mb": 150,
+      "num_gc": 25
+    }
+  },
+  "data_integrity": {
+    "medicaments_without_conditions": {
+      "count": 1250,
+      "sample_cis": [60012345, 60023456]
+    },
+    "medicaments_without_generiques": {
+      "count": 8450,
+      "sample_cis": [61504672, 61001234]
+    },
+    "medicaments_without_presentations": {
+      "count": 3200,
+      "sample_cis": [62003456, 62004567]
+    },
+    "medicaments_without_compositions": {
+      "count": 890,
+      "sample_cis": [63005678, 63006789]
+    },
+    "generique_only_cis": {
+      "count": 45,
+      "sample_cis": [64007890, 64008901]
     }
   }
 }
 ```
 
-#### Métriques Clés
+#### Métriques Clés - Diagnostics
 
-- **`status`** : État de santé (healthy/degraded/unhealthy)
-- **`last_update`** : Dernière mise à jour réussie des données
+- **`timestamp`** : Horodatage de la réponse (ISO 8601)
+- **`uptime_seconds`** : Temps d'exécution de l'application en secondes
+- **`next_update`** : Prochaine mise à jour planifiée (ISO 8601)
 - **`data_age_hours`** : Âge des données en heures
-- **`uptime_seconds`** : Temps d'exécution de l'application
-- **`medicaments`** : Nombre de médicaments en mémoire
-- **`generiques`** : Nombre de groupes génériques
-- **`is_updating`** : Indique si une mise à jour est en cours
-- **`next_update`** : Prochaine mise à jour planifiée
 - **`goroutines`** : Nombre de goroutines actives
-- **`memory`** : Statistiques mémoire détaillées (alloc, sys, total_alloc, num_gc)
+- **`memory`** : Statistiques mémoire détaillées (alloc_mb, sys_mb, num_gc)
+- **`data_integrity`** : Rapport de qualité des données avec catégories :
+  - `medicaments_without_conditions` : Médicaments sans conditions de prescription
+  - `medicaments_without_generiques` : Médicaments sans association générique
+  - `medicaments_without_presentations` : Médicaments sans présentations
+  - `medicaments_without_compositions` : Médicaments sans composition
+  - `generique_only_cis` : CIS présents uniquement dans les génériques
+
+#### Notes sur l'intégrité des données
+
+- Les comptages représentent le nombre d'entrées affectées par chaque catégorie
+- `sample_cis` contient des exemples de CIS pour chaque catégorie (limité à 2 exemples)
+- Ces informations aident à identifier les incohérences potentielles dans les données BDPM
 
 ## Architecture système
 
@@ -1025,6 +1086,9 @@ Janvier 2026
 - Nouvelles routes RESTful : `/v1/medicaments/{cis}` et `/v1/presentations/{cip}` utilisent des paramètres de chemin
 - Endpoint d'export déplacé : `/v1/medicaments/export` au lieu de `?export=all`
 - Endpoint `/v1/medicaments` simplifié : ne supporte plus les paramètres `cis` et `export` (migrés vers des paths dédiés)
+- Ajout de l'endpoint `/v1/diagnostics` : rapports détaillés sur l'intégrité des données et métriques système
+- Endpoint `/health` simplifié : ne retourne que le statut de santé et les données de base
+- Ajout de la qualité des données : rapports sur les médicaments sans conditions, génériques, présentations, ou composition
 
 ---
 
