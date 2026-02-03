@@ -69,7 +69,10 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 	rotatingLogger := NewRotatingLoggerWithSizeLimit(logDir, retentionWeeks, maxFileSize)
 
 	// Initialize rotating logger
-	if err := rotatingLogger.rotateIfNeeded(); err != nil {
+	rotatingLogger.mu.Lock()
+	err := rotatingLogger.doRotate(getWeekKey(time.Now()))
+	rotatingLogger.mu.Unlock()
+	if err != nil {
 		// Fallback to console logger if rotation fails
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: consoleLevel,

@@ -25,7 +25,9 @@ func TestRotatingLogger(t *testing.T) {
 	rl := NewRotatingLogger(tempDir, 1)
 
 	// Test initial rotation
-	err = rl.rotateIfNeeded()
+	rl.mu.Lock()
+	err = rl.doRotate(getWeekKey(time.Now()))
+	rl.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
 	}
@@ -95,12 +97,16 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 	rl2.currentWeek = "2025-W41"
 
 	// Create files for both weeks
-	err = rl1.rotateIfNeeded()
+	rl1.mu.Lock()
+	err = rl1.doRotate(getWeekKey(time.Now()))
+	rl1.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate to week 40: %v", err)
 	}
 
-	err = rl2.rotateIfNeeded()
+	rl2.mu.Lock()
+	err = rl2.doRotate(getWeekKey(time.Now()))
+	rl2.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate to week 41: %v", err)
 	}
@@ -260,7 +266,7 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 100)
 
 	// Initialize rotation
-	err = rl.rotateIfNeeded()
+	err = rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
 	}
@@ -309,7 +315,7 @@ func TestRotatingLoggerErrorCases(t *testing.T) {
 	rl := NewRotatingLogger(invalidDir, 1)
 
 	// Try to rotate with invalid directory
-	err := rl.rotateIfNeeded()
+	err := rl.doRotate(getWeekKey(time.Now()))
 	if err == nil {
 		t.Error("Expected error when rotating with invalid directory, got nil")
 	}
@@ -339,7 +345,7 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 	defer func() { _ = rl.Close() }()
 
 	// Initialize rotation
-	err = rl.rotateIfNeeded()
+	err = rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
 	}
@@ -407,13 +413,13 @@ func TestRotatingLoggerEdgeCases(t *testing.T) {
 
 	// Test multiple rotations in quick succession
 	rl.currentWeek = "2025-W40"
-	err = rl.rotateIfNeeded()
+	err = rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed first rotation: %v", err)
 	}
 
 	rl.currentWeek = "2025-W41"
-	err = rl.rotateIfNeeded()
+	err = rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed second rotation: %v", err)
 	}
