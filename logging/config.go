@@ -18,6 +18,7 @@ type RotatingLogger struct {
 	currentWeek string
 	retention   time.Duration
 	maxFileSize int64
+	currentSize int64
 	mu          sync.RWMutex
 	lastCleanup time.Time
 	ctx         context.Context
@@ -37,6 +38,7 @@ func NewRotatingLoggerWithSizeLimit(logDir string, retentionWeeks int, maxFileSi
 		logDir:      logDir,
 		retention:   time.Duration(retentionWeeks) * 7 * 24 * time.Hour,
 		maxFileSize: maxFileSize,
+		currentSize: 0,
 		lastCleanup: time.Now(),
 		ctx:         ctx,
 		cancel:      cancel,
@@ -91,6 +93,8 @@ func (rl *RotatingLogger) rotateIfNeeded() error {
 	}
 
 	rl.currentFile = file
+	// Reset size counter for new file
+	rl.currentSize = 0
 	return nil
 }
 
@@ -108,47 +112,46 @@ func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("no log file available")
 	}
 
-	// Check if writing this data would exceed max file size
-	if rl.maxFileSize > 0 {
-		stat, err := rl.currentFile.Stat()
-		if err == nil {
-			if stat.Size()+int64(len(p)) > rl.maxFileSize {
-				// Need to rotate due to size limit
-				rl.mu.RUnlock()
+	// Check if writing this data would exceed max file size (using cached size instead of os.Stat)
+	if rl.maxFileSize > 0 && rl.currentSize+int64(len(p)) > rl.maxFileSize {
+		// Need to rotate due to size limit
+		rl.mu.RUnlock()
 
-				// Force rotation by appending a timestamp to current week
-				rl.mu.Lock()
-				originalWeek := rl.currentWeek
-				rl.currentWeek = fmt.Sprintf("%s_size_%s", originalWeek, time.Now().Format("20060102_150405"))
+		// Force rotation by appending a timestamp to current week
+		rl.mu.Lock()
+		originalWeek := rl.currentWeek
+		rl.currentWeek = fmt.Sprintf("%s_size_%s", originalWeek, time.Now().Format("20060102_150405"))
 
-				// Close current file and create new one
-				if rl.currentFile != nil {
-					if err := rl.currentFile.Close(); err != nil {
-						slog.Warn("Failed to close current log file before rotation", "error", err)
-					}
-				}
-
-				// Create new log file with size suffix
-				logFileName := rl.getCurrentLogFileName()
-				logPath := filepath.Join(rl.logDir, logFileName)
-				file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-				if err != nil {
-					rl.mu.Unlock()
-					return 0, fmt.Errorf("failed to create size-rotated log file %s: %w", logPath, err)
-				}
-
-				rl.currentFile = file
-				// Reset to original week for next regular rotation
-				rl.currentWeek = originalWeek
-				rl.mu.Unlock()
-
-				// Re-acquire read lock
-				rl.mu.RLock()
+		// Close current file and create new one
+		if rl.currentFile != nil {
+			if err := rl.currentFile.Close(); err != nil {
+				slog.Warn("Failed to close current log file before rotation", "error", err)
 			}
 		}
+
+		// Create new log file with size suffix
+		logFileName := rl.getCurrentLogFileName()
+		logPath := filepath.Join(rl.logDir, logFileName)
+		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			rl.mu.Unlock()
+			return 0, fmt.Errorf("failed to create size-rotated log file %s: %w", logPath, err)
+		}
+
+		rl.currentFile = file
+		// Reset size counter after rotation
+		rl.currentSize = 0
+		// Reset to original week for next regular rotation
+		rl.currentWeek = originalWeek
+		rl.mu.Unlock()
+
+		// Re-acquire read lock
+		rl.mu.RLock()
 	}
 
-	return rl.currentFile.Write(p)
+	n, err = rl.currentFile.Write(p)
+	rl.currentSize += int64(n)
+	return n, err
 }
 
 // cleanupOldLogs removes log files older than the retention period
