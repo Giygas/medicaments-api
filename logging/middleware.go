@@ -59,7 +59,6 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				"status_code", ww.statusCode,
 				"bytes_written", ww.bytesWritten,
 				"duration_ms", duration.Milliseconds(),
-				"duration", duration.String(),
 			)
 
 			// Return wrapper to pool for reuse
