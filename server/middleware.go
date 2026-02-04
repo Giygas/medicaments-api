@@ -71,7 +71,7 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 							"remote_addr", r.RemoteAddr,
 							"user_agent", r.UserAgent())
 
-						w.Header().Set("Content-Type", "application/json")
+						w.Header().Set("Content-Type", "application/json; charset=utf-8")
 						w.WriteHeader(http.StatusRequestEntityTooLarge)
 
 						errorResponse := map[string]string{
@@ -100,7 +100,7 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 					"remote_addr", r.RemoteAddr,
 					"user_agent", r.UserAgent())
 
-				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
 
 				errorResponse := map[string]string{
@@ -331,12 +331,21 @@ func RateLimitHandler(next http.Handler) http.Handler {
 
 // respondWithJSON writes a JSON response
 func respondWithJSON(w http.ResponseWriter, code int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
 
-	if payload != nil {
-		if err := json.NewEncoder(w).Encode(payload); err != nil {
-			logging.Error("Failed to encode JSON response", "error", err)
-		}
+	if payload == nil {
+		payload = map[string]any{}
 	}
+
+	// Marshal first (before headers)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		logging.Error("Failed to encode JSON response", "error", err)
+		return
+	}
+
+	// Only send headers after successful encoding
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	w.Write(data)
 }

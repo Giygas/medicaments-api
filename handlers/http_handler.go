@@ -55,7 +55,7 @@ func (h *HTTPHandlerImpl) RespondWithJSON(w http.ResponseWriter, code int, paylo
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
+	w.Header().Set("Last-Modified", h.dataStore.GetLastUpdated().UTC().Format(http.TimeFormat))
 	w.WriteHeader(code)
 	if _, err := w.Write(data); err != nil {
 		logging.Error("Failed to write response", "error", err)
