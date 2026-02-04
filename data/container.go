@@ -102,7 +102,7 @@ func (dc *DataContainer) GetPresentationsCIP7Map() map[int]entities.Presentation
 		}
 	}
 
-	logging.Warn("GeneriquesMap is empty or invalid")
+	logging.Warn("presentationsCIP7Map is empty or invalid")
 	return make(map[int]entities.Presentation)
 }
 
@@ -114,7 +114,7 @@ func (dc *DataContainer) GetPresentationsCIP13Map() map[int]entities.Presentatio
 		}
 	}
 
-	logging.Warn("GeneriquesMap is empty or invalid")
+	logging.Warn("presentationsCIP13Map is empty or invalid")
 	return make(map[int]entities.Presentation)
 }
 
