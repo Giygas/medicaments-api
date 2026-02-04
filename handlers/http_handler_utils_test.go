@@ -32,16 +32,17 @@ func NewTestDataFactory() *TestDataFactory {
 // CreateMedicament creates a single test medicament with full realistic data
 func (f *TestDataFactory) CreateMedicament(cis int, denomination string) entities.Medicament {
 	return entities.Medicament{
-		Cis:                   cis,
-		Denomination:          denomination,
-		FormePharmaceutique:   "Comprimé pelliculé",
-		VoiesAdministration:   []string{"Orale"},
-		StatusAutorisation:    "Autorisé",
-		TypeProcedure:         "Procédure nationale",
-		EtatComercialisation:  "Commercialisé",
-		DateAMM:               "2020-01-15",
-		Titulaire:             "Laboratoire Test",
-		SurveillanceRenforcee: "Non",
+		Cis:                    cis,
+		Denomination:           denomination,
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower(denomination), "+", " "),
+		FormePharmaceutique:    "Comprimé pelliculé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisé",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisé",
+		DateAMM:                "2020-01-15",
+		Titulaire:              "Laboratoire Test",
+		SurveillanceRenforcee:  "Non",
 		Composition: []entities.Composition{
 			{
 				Cis:                   cis,
@@ -96,9 +97,11 @@ func (f *TestDataFactory) CreateGeneriqueList(groupID int, libelle string, medic
 	}
 
 	return entities.GeneriqueList{
-		GroupID:     groupID,
-		Libelle:     libelle,
-		Medicaments: generiqueMedicaments,
+		GroupID:           groupID,
+		Libelle:           libelle,
+		LibelleNormalized: strings.ReplaceAll(strings.ToLower(libelle), "+", " "),
+		Medicaments:       generiqueMedicaments,
+		OrphanCIS:         []int{},
 	}
 }
 

@@ -3,6 +3,7 @@ package medicamentsparser
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/giygas/medicaments-api/logging"
@@ -189,6 +190,7 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 
 		medicament.Cis = med.Cis
 		medicament.Denomination = med.Denomination
+		medicament.DenominationNormalized = strings.ReplaceAll(strings.ToLower(med.Denomination), "+", " ")
 		medicament.FormePharmaceutique = med.FormePharmaceutique
 		medicament.VoiesAdministration = med.VoiesAdministration
 		medicament.StatusAutorisation = med.StatusAutorisation

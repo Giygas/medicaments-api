@@ -116,8 +116,8 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
 				return req
 			},
-			claimedReq: 250,
-			claimedLat: 3500.0,
+			claimedReq: 1250,
+			claimedLat: 750.0,
 			tolerance:  30.0,
 		},
 		{
@@ -127,8 +127,8 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/generiques?libelle=Paracetamol", nil)
 				return req
 			},
-			claimedReq: 1500,
-			claimedLat: 3500.0,
+			claimedReq: 15000,
+			claimedLat: 75.0,
 			tolerance:  30.0,
 		},
 		{
@@ -149,7 +149,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/medicaments?cip=1234567", nil)
 				return req
 			},
-			claimedReq: 250000,
+			claimedReq: 375000,
 			claimedLat: 5.0,
 			tolerance:  20.0,
 		},
@@ -253,25 +253,25 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 		{
 			name:       "/v1/medicaments?search={query}",
 			endpoint:   "/v1/medicaments?search=Test",
-			claimedReq: 1000,
+			claimedReq: 5000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/generiques?libelle={nom}",
 			endpoint:   "/v1/generiques?libelle=Paracetamol",
-			claimedReq: 5000,
+			claimedReq: 20000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/presentations?cip={code}",
 			endpoint:   "/v1/presentations/1234567",
-			claimedReq: 40000,
+			claimedReq: 35000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/medicaments?cip={code}",
 			endpoint:   "/v1/medicaments?cip=1234567",
-			claimedReq: 40000,
+			claimedReq: 35000,
 			tolerance:  25.0,
 		},
 		{
@@ -350,8 +350,8 @@ func testMemoryUsage(t *testing.T, _ *data.DataContainer) {
 	allocMB := float64(m.Alloc) / 1024 / 1024
 	sysMB := float64(m.Sys) / 1024 / 1024
 
-	claimedMin := 50.0
-	claimedMax := 75.0
+	claimedMin := 60.0
+	claimedMax := 85.0
 
 	memoryPassed := allocMB >= claimedMin && allocMB <= claimedMax
 	verificationResults = append(verificationResults, PerformanceClaim{

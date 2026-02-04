@@ -100,10 +100,11 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		medicaments, orphaned := getMedicamentsInArray(v, mMap, medsType)
 
 		currentGenerique := entities.GeneriqueList{
-			GroupID:     groupInt,
-			Libelle:     libelle[groupInt],
-			Medicaments: medicaments,
-			OrphanCIS:   orphaned,
+			GroupID:           groupInt,
+			Libelle:           libelle[groupInt],
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower(libelle[groupInt]), "+", " "),
+			Medicaments:       medicaments,
+			OrphanCIS:         orphaned,
 		}
 
 		generiques = append(generiques, currentGenerique)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
@@ -239,16 +240,18 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 func TestServeGeneriquesV1_Success(t *testing.T) {
 	genericList := []entities.GeneriqueList{
 		{
-			GroupID: 1,
-			Libelle: "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg",
+			GroupID:           1,
+			Libelle:           "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg",
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"), "+", " "),
 			Medicaments: []entities.GeneriqueMedicament{
 				{Cis: 1, Denomination: "PARACETAMOL/CODEINE BIOGARAN"},
 				{Cis: 2, Denomination: "DAFALGAN CODEINE"},
 			},
 		},
 		{
-			GroupID: 2,
-			Libelle: "Ibuprofene 400 mg",
+			GroupID:           2,
+			Libelle:           "Ibuprofene 400 mg",
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Ibuprofene 400 mg"), "+", " "),
 			Medicaments: []entities.GeneriqueMedicament{
 				{Cis: 3, Denomination: "IBUPROFENE BIOGARAN"},
 				{Cis: 4, Denomination: "NUROFEN"},
@@ -257,8 +260,16 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 	}
 
 	generiquesMap := map[int]entities.GeneriqueList{
-		1: {GroupID: 1, Libelle: "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"},
-		2: {GroupID: 2, Libelle: "Ibuprofene 400 mg"},
+		1: {
+			GroupID:           1,
+			Libelle:           "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg",
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"), "+", " "),
+		},
+		2: {
+			GroupID:           2,
+			Libelle:           "Ibuprofene 400 mg",
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Ibuprofene 400 mg"), "+", " "),
+		},
 	}
 
 	tests := []struct {
@@ -493,62 +504,67 @@ func TestServeGeneriquesV1_ETagCaching(t *testing.T) {
 func TestServeMedicamentsV1_Success(t *testing.T) {
 	// Create test medicaments with presentations for CIP search
 	med1 := entities.Medicament{
-		Cis:                  10000001,
-		Denomination:         "PARACETAMOL 500 mg",
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisation active",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisée",
-		DateAMM:              "2020-01-01",
-		Titulaire:            "SANOFI",
+		Cis:                    10000001,
+		Denomination:           "PARACETAMOL 500 mg",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("PARACETAMOL 500 mg"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-01-01",
+		Titulaire:              "SANOFI",
 		Presentation: []entities.Presentation{
 			{Cis: 10000001, Cip7: 1234567, Cip13: 1234567890123, Libelle: "Boîte de 8 comprimés"},
 		},
 	}
 
 	med2 := entities.Medicament{
-		Cis:                  10000002,
-		Denomination:         "IBUPROFENE 400 mg",
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisation active",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisée",
-		DateAMM:              "2020-02-01",
-		Titulaire:            "PFIZER",
+		Cis:                    10000002,
+		Denomination:           "IBUPROFENE 400 mg",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("IBUPROFENE 400 mg"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-02-01",
+		Titulaire:              "PFIZER",
 		Presentation: []entities.Presentation{
 			{Cis: 10000002, Cip7: 7654321, Cip13: 7654321098765, Libelle: "Boîte de 10 comprimés"},
 		},
 	}
 
 	med3 := entities.Medicament{
-		Cis:                  10000003,
-		Denomination:         "ASPIRINE 100 mg",
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisation active",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisée",
-		DateAMM:              "2020-03-01",
-		Titulaire:            "BAYER",
-		Presentation:         []entities.Presentation{},
+		Cis:                    10000003,
+		Denomination:           "ASPIRINE 100 mg",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("ASPIRINE 100 mg"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-03-01",
+		Titulaire:              "BAYER",
+		Presentation:           []entities.Presentation{},
 	}
 
 	// Create medicaments array (15 items to test pagination with multiple pages)
 	medicaments := []entities.Medicament{med1, med2, med3}
 	for i := 4; i <= 15; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i)
 		medicaments = append(medicaments, entities.Medicament{
-			Cis:                  10000000 + i,
-			Denomination:         fmt.Sprintf("MEDICAMENT %d", i),
-			FormePharmaceutique:  "Comprimé",
-			VoiesAdministration:  []string{"Orale"},
-			StatusAutorisation:   "Autorisation active",
-			TypeProcedure:        "Procédure nationale",
-			EtatComercialisation: "Commercialisée",
-			DateAMM:              "2020-01-01",
-			Titulaire:            "TEST",
-			Presentation:         []entities.Presentation{},
+			Cis:                    10000000 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ReplaceAll(strings.ToLower(denom), "+", " "),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
 		})
 	}
 

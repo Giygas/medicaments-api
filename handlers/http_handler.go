@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -246,7 +245,7 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Sanitize input (replace + with space for flexible matching)
-	sanitizedElement := regexp.QuoteMeta(strings.ToLower(element))
+	sanitizedElement := strings.ToLower(element)
 	sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
 
 	// Add deprecation headers
@@ -257,11 +256,7 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 	var results []entities.Medicament
 
 	for _, med := range medicaments {
-		// Normalize medication name for comparison
-		medName := strings.ToLower(med.Denomination)
-		medName = strings.ReplaceAll(medName, "+", " ")
-
-		if strings.Contains(medName, sanitizedElement) {
+		if strings.Contains(med.DenominationNormalized, sanitizedElement) {
 			results = append(results, med)
 		}
 	}
@@ -368,11 +363,7 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 	var results []entities.GeneriqueList
 
 	for _, gen := range generiques {
-		// Normalize generique libelle for comparison
-		genLibelle := strings.ToLower(gen.Libelle)
-		genLibelle = strings.ReplaceAll(genLibelle, "+", " ")
-
-		if strings.Contains(genLibelle, sanitizedLibelle) {
+		if strings.Contains(gen.LibelleNormalized, sanitizedLibelle) {
 			results = append(results, gen)
 		}
 	}
@@ -609,11 +600,7 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 		var results []entities.GeneriqueList
 
 		for _, gen := range generiques {
-			// Normalize generique libelle for comparison
-			genLibelle := strings.ToLower(gen.Libelle)
-			genLibelle = strings.ReplaceAll(genLibelle, "+", " ")
-
-			if strings.Contains(genLibelle, sanitizedLibelle) {
+			if strings.Contains(gen.LibelleNormalized, sanitizedLibelle) {
 				results = append(results, gen)
 			}
 		}
@@ -695,18 +682,14 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 		}
 
 		// Sanitize and normalize input (replace + with space for flexible matching)
-		sanitizedElement := regexp.QuoteMeta(strings.ToLower(searchQuery))
+		sanitizedElement := strings.ToLower(searchQuery)
 		sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
 
 		medicaments := h.dataStore.GetMedicaments()
 		var results []entities.Medicament
 
 		for _, med := range medicaments {
-			// Normalize medication name for comparison
-			medName := strings.ToLower(med.Denomination)
-			medName = strings.ReplaceAll(medName, "+", " ")
-
-			if strings.Contains(medName, sanitizedElement) {
+			if strings.Contains(med.DenominationNormalized, sanitizedElement) {
 				results = append(results, med)
 			}
 		}
