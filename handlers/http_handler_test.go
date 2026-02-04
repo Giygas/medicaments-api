@@ -384,8 +384,8 @@ func TestFindMedicament(t *testing.T) {
 			name:         "no results",
 			element:      "NonExistent",
 			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Doliprane")},
-			expectedCode: http.StatusOK,
-			expectError:  "",
+			expectedCode: http.StatusNotFound,
+			expectError:  "No medicaments found",
 		},
 	}
 

@@ -572,7 +572,6 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 		{"first page", "?page=1", "page", 10},
 		{"second page", "?page=2", "page", 5},
 		{"search with results", "?search=paracetamol", "search", "PARACETAMOL 500 mg"},
-		{"search no results", "?search=unknown", "search", nil},
 		{"lookup by CIP7", "?cip=1234567", "cip", "PARACETAMOL 500 mg"},
 		{"lookup by CIP13", "?cip=7654321098765", "cip", "IBUPROFENE 400 mg"},
 	}
@@ -647,41 +646,34 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 					t.Fatalf("Failed to unmarshal JSON: %v", err)
 				}
 
-				if tt.expectedValue == nil {
-					// Search with no results
-					if len(response) != 0 {
-						t.Errorf("Expected empty array, got %d results", len(response))
+				// Search with results
+				if len(response) == 0 {
+					t.Error("Expected at least one result, got empty array")
+				}
+				found := false
+				for _, med := range response {
+					if containsSubstring(med.Denomination, tt.expectedValue.(string)) {
+						found = true
+						break
 					}
-				} else {
-					// Search with results
-					if len(response) == 0 {
-						t.Error("Expected at least one result, got empty array")
-					}
-					found := false
-					for _, med := range response {
-						if containsSubstring(med.Denomination, tt.expectedValue.(string)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("Expected to find medicament containing '%s', got %v", tt.expectedValue, response)
-					}
+				}
+				if !found {
+					t.Errorf("Expected to find medicament containing '%s', got %v", tt.expectedValue, response)
+				}
 
-					// Verify ETag headers for search with results
-					etag := rr.Header().Get("ETag")
-					if etag == "" {
-						t.Error("ETag header should be present for search with results")
-					}
-					if !hasQuotedETag(etag) {
-						t.Errorf("ETag should be quoted, got: %s", etag)
-					}
-					if rr.Header().Get("Cache-Control") != "public, max-age=3600" {
-						t.Error("Expected Cache-Control 'public, max-age=3600'")
-					}
-					if rr.Header().Get("Last-Modified") == "" {
-						t.Error("Expected Last-Modified header")
-					}
+				// Verify ETag headers for search with results
+				etag := rr.Header().Get("ETag")
+				if etag == "" {
+					t.Error("ETag header should be present for search with results")
+				}
+				if !hasQuotedETag(etag) {
+					t.Errorf("ETag should be quoted, got: %s", etag)
+				}
+				if rr.Header().Get("Cache-Control") != "public, max-age=3600" {
+					t.Error("Expected Cache-Control 'public, max-age=3600'")
+				}
+				if rr.Header().Get("Last-Modified") == "" {
+					t.Error("Expected Last-Modified header")
 				}
 
 			case "cip":
@@ -733,6 +725,7 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 		{"page not found", "?page=999", false, http.StatusNotFound, "Page not found"},
 		{"invalid CIP length", "?cip=123", false, http.StatusBadRequest, "CIP should have 7 or 13 characters"},
 		{"invalid search input", "?search=test@123", true, http.StatusBadRequest, "input must be between"},
+		{"search not found", "?search=gripe", false, http.StatusNotFound, "No medicaments found"},
 	}
 
 	for _, tt := range tests {

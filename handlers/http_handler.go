@@ -266,7 +266,12 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Always return 200 with results array (empty if no matches)
+	// Return 404 if no results found
+	if len(results) == 0 {
+		h.RespondWithError(w, http.StatusNotFound, "No medicaments found")
+		return
+	}
+
 	h.RespondWithJSON(w, http.StatusOK, results)
 }
 
@@ -706,7 +711,12 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 			}
 		}
 
-		// Always return 200 with results array (empty if no matches)
+		// Return 404 if no results found
+		if len(results) == 0 {
+			h.RespondWithError(w, http.StatusNotFound, "No medicaments found")
+			return
+		}
+
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
 		return
 	}
