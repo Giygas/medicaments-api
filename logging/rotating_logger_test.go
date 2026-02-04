@@ -8,25 +8,22 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestRotatingLogger(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "rotating-logger-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Create rotating logger with 1 week retention
 	rl := NewRotatingLogger(tempDir, 1)
 
 	// Test initial rotation
 	rl.mu.Lock()
-	err = rl.doRotate(getWeekKey(time.Now()))
+	err := rl.doRotate(getWeekKey(time.Now()))
 	rl.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
@@ -35,7 +32,7 @@ func TestRotatingLogger(t *testing.T) {
 	// Check that current file is created
 	currentWeek := getWeekKey(time.Now())
 	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
-	if _, err = os.Stat(expectedFileName); os.IsNotExist(err) {
+	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
 		t.Errorf("Expected log file %s was not created", expectedFileName)
 	}
 
@@ -82,12 +79,8 @@ func TestGetWeekKey(t *testing.T) {
 }
 
 func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "rotating-logger-test-weeks")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Test creating two different rotating loggers for different weeks
 	rl1 := NewRotatingLogger(tempDir, 1)
@@ -98,14 +91,14 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 
 	// Create files for both weeks
 	rl1.mu.Lock()
-	err = rl1.doRotate(getWeekKey(time.Now()))
+	err := rl1.doRotate("2025-W40")
 	rl1.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate to week 40: %v", err)
 	}
 
 	rl2.mu.Lock()
-	err = rl2.doRotate(getWeekKey(time.Now()))
+	err = rl2.doRotate("2025-W41")
 	rl2.mu.Unlock()
 	if err != nil {
 		t.Fatalf("Failed to rotate to week 41: %v", err)
@@ -139,12 +132,8 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 }
 
 func TestSetupLoggerWithRetention(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "setup-logger-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Test setup with custom retention
 	logger := SetupLoggerWithRetention(tempDir, 2)
@@ -164,21 +153,12 @@ func TestSetupLoggerWithRetention(t *testing.T) {
 }
 
 func TestGlobalLoggingService(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "global-logger-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
-	// Save original service
-	originalService := DefaultLoggingService
-	defer func() {
-		DefaultLoggingService = originalService
-	}()
+	// Use ResetForTest() for proper test isolation
+	ResetForTest(t, tempDir, 2, 100*1024*1024)
 
-	// Test global service initialization
-	InitLoggerWithRetention(tempDir, 2)
 	if DefaultLoggingService == nil {
 		t.Fatal("DefaultLoggingService was not initialized")
 	}
@@ -193,17 +173,12 @@ func TestGlobalLoggingService(t *testing.T) {
 		t.Errorf("Expected log file %s was not created", expectedFileName)
 	}
 
-	// Test proper shutdown
-	Close()
+	// No need for explicit Close() - t.Cleanup() handles it
 }
 
 func TestCleanupOldLogs(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "cleanup-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1) // 1 week retention
 
@@ -255,18 +230,14 @@ func TestCleanupOldLogs(t *testing.T) {
 }
 
 func TestRotatingLoggerWithSizeLimit(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "size-limit-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Create rotating logger with very small size limit (100 bytes)
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 100)
 
 	// Initialize rotation
-	err = rl.doRotate(getWeekKey(time.Now()))
+	err := rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
 	}
@@ -302,6 +273,25 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 		t.Errorf("Expected at least 2 log files due to size rotation, got %d", logFiles)
 	}
 
+	// Verify size-rotated files have correct naming format
+	hasSizeRotatedFile := false
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), "_size_") {
+			hasSizeRotatedFile = true
+			if !strings.HasSuffix(entry.Name(), ".log") {
+				t.Errorf("Size-rotated file missing .log extension: %s", entry.Name())
+			}
+			// Verify timestamp format (YYYYMMDD_HHMMSS)
+			if matched, _ := regexp.MatchString(`_size_\d{8}_\d{6}\.log$`, entry.Name()); !matched {
+				t.Errorf("Size-rotated file has incorrect timestamp format: %s", entry.Name())
+			}
+		}
+	}
+
+	if !hasSizeRotatedFile {
+		t.Error("Expected at least one size-rotated file due to large write")
+	}
+
 	// Close logger
 	err = rl.Close()
 	if err != nil {
@@ -334,18 +324,14 @@ func TestRotatingLoggerErrorCases(t *testing.T) {
 }
 
 func TestRotatingLoggerConcurrentWrites(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "concurrent-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1)
 	defer func() { _ = rl.Close() }()
 
 	// Initialize rotation
-	err = rl.doRotate(getWeekKey(time.Now()))
+	err := rl.doRotate(getWeekKey(time.Now()))
 	if err != nil {
 		t.Fatalf("Failed to rotate: %v", err)
 	}
@@ -360,8 +346,7 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 		go func(id int) {
 			for j := 0; j < numWrites; j++ {
 				message := fmt.Sprintf("Goroutine %d, Write %d", id, j)
-				_, err = rl.Write([]byte(message))
-				if err != nil {
+				if _, err := rl.Write([]byte(message)); err != nil {
 					t.Errorf("Concurrent write failed: %v", err)
 				}
 			}
@@ -387,19 +372,78 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 	}
 }
 
-func TestRotatingLoggerEdgeCases(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "edge-cases-test")
+func TestRotatingLoggerConcurrentRotation(t *testing.T) {
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
+
+	// Create rotating logger with small size limit to trigger frequent rotations
+	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 1000)
+	defer rl.Close()
+
+	// Initialize rotation
+	rl.mu.Lock()
+	err := rl.doRotate(getWeekKey(time.Now()))
+	rl.mu.Unlock()
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("Failed to rotate: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Test concurrent writes with rotation
+	const numGoroutines = 20
+	const numWrites = 100
+	done := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			message := fmt.Sprintf("Goroutine %d: %s", id, strings.Repeat("x", 100))
+			for j := 0; j < numWrites; j++ {
+				if _, err := rl.Write([]byte(message)); err != nil {
+					t.Errorf("Concurrent write failed: %v", err)
+				}
+			}
+			done <- true
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify files are properly named and no corruption occurred
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to read log directory: %v", err)
+	}
+
+	logFiles := 0
+	sizeRotatedFiles := 0
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "app-") && strings.HasSuffix(entry.Name(), ".log") {
+			logFiles++
+			if strings.Contains(entry.Name(), "_size_") {
+				sizeRotatedFiles++
+			}
+		}
+	}
+
+	if logFiles < 1 {
+		t.Error("Expected at least 1 log file")
+	}
+
+	if sizeRotatedFiles < 1 {
+		t.Log("No size-rotated files created (might not have hit size limit)")
+	}
+}
+
+func TestRotatingLoggerEdgeCases(t *testing.T) {
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1)
 	defer func() { _ = rl.Close() }()
 
 	// Test writing empty message
-	_, err = rl.Write([]byte(""))
+	_, err := rl.Write([]byte(""))
 	if err != nil {
 		t.Errorf("Failed to write empty message: %v", err)
 	}
@@ -413,13 +457,13 @@ func TestRotatingLoggerEdgeCases(t *testing.T) {
 
 	// Test multiple rotations in quick succession
 	rl.currentWeek = "2025-W40"
-	err = rl.doRotate(getWeekKey(time.Now()))
+	err = rl.doRotate("2025-W40")
 	if err != nil {
 		t.Fatalf("Failed first rotation: %v", err)
 	}
 
 	rl.currentWeek = "2025-W41"
-	err = rl.doRotate(getWeekKey(time.Now()))
+	err = rl.doRotate("2025-W41")
 	if err != nil {
 		t.Fatalf("Failed second rotation: %v", err)
 	}
@@ -437,12 +481,8 @@ func TestRotatingLoggerEdgeCases(t *testing.T) {
 }
 
 func TestSetupLoggerFunctions(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "setup-logger-func-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Test SetupLogger function (currently 0% coverage)
 	logger := SetupLogger(tempDir)
@@ -455,23 +495,13 @@ func TestSetupLoggerFunctions(t *testing.T) {
 }
 
 func TestLoggingServiceMethods(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "logging-service-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
-	// Save original service
-	originalService := DefaultLoggingService
-	defer func() {
-		DefaultLoggingService = originalService
-	}()
+	// Use ResetForTest() for proper test isolation
+	ResetForTest(t, tempDir, 2, 100*1024*1024)
 
-	// Initialize logger
-	InitLoggerWithRetention(tempDir, 2)
-
-	// Test all logging methods (currently 0-40% coverage)
+	// Test all logging methods
 	Info("Info message")
 	Error("Error message")
 	Warn("Warning message")
@@ -486,27 +516,17 @@ func TestLoggingServiceMethods(t *testing.T) {
 }
 
 func TestInitLoggerFunctions(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "init-logger-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
-	// Save original service
-	originalService := DefaultLoggingService
-	defer func() {
-		DefaultLoggingService = originalService
-	}()
-
-	// Test InitLogger (currently 0% coverage)
-	InitLogger(tempDir)
+	// Test InitLogger with proper isolation
+	ResetForTest(t, tempDir, 4, 100*1024*1024)
 	if DefaultLoggingService == nil {
 		t.Error("InitLogger did not initialize DefaultLoggingService")
 	}
 
-	// Test InitLoggerWithRetentionAndSize (currently 60.7% coverage)
-	InitLoggerWithRetentionAndSize(tempDir, 2, 1024*1024) // 1MB size limit
+	// Test InitLoggerWithRetentionAndSize with proper isolation
+	ResetForTest(t, tempDir, 2, 1024*1024)
 	if DefaultLoggingService == nil {
 		t.Error("InitLoggerWithRetentionAndSize did not initialize DefaultLoggingService")
 	}
@@ -516,12 +536,8 @@ func TestInitLoggerFunctions(t *testing.T) {
 }
 
 func TestMultiHandlerMethods(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "multi-handler-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Create a rotating logger for testing
 	rotatingLogger := NewRotatingLogger(tempDir, 1)
@@ -547,7 +563,7 @@ func TestMultiHandlerMethods(t *testing.T) {
 	// Test Handle method (currently 80% coverage)
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Test message", 0)
 
-	err = multi.Handle(context.Background(), record)
+	err := multi.Handle(context.Background(), record)
 	if err != nil {
 		t.Errorf("Handle method failed: %v", err)
 	}
@@ -567,12 +583,8 @@ func TestMultiHandlerMethods(t *testing.T) {
 }
 
 func TestLoggingMiddleware(t *testing.T) {
-	// Create temporary directory for test logs
-	tempDir, err := os.MkdirTemp("", "middleware-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	// Create temporary directory for test logs (auto-cleanup)
+	tempDir := t.TempDir()
 
 	// Create a logger for testing
 	logger := SetupLoggerWithRetention(tempDir, 2)

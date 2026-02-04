@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -13,7 +14,11 @@ type LoggingService struct {
 	RotatingLogger *RotatingLogger
 }
 
-var DefaultLoggingService *LoggingService
+var (
+	DefaultLoggingService *LoggingService
+	initOnce              sync.Once
+	resetMu               sync.Mutex // Protects test-only reset
+)
 
 // InitLogger initializes global logger instance
 func InitLogger(logDir string) {
@@ -27,6 +32,13 @@ func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	initOnce.Do(func() {
+		doInit(logDir, retentionWeeks, maxFileSize)
+	})
+}
+
+// doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
+func doInit(logDir string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
 		logDir = "logs" // Default directory
@@ -88,9 +100,9 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 
 	// Start cleanup goroutine with proper cancellation
 	go func() {
-		defer close(rotatingLogger.cleanupDone)
-		ticker := time.NewTicker(24 * time.Hour) // Check daily
+		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
+		defer close(rotatingLogger.cleanupDone)
 
 		for {
 			select {
@@ -126,7 +138,32 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 		RotatingLogger: rotatingLogger,
 	}
 	slog.SetDefault(logger)
+}
 
+// ResetForTest resets the global logger - ONLY for testing
+// Provides proper test isolation by cleaning up resources and reinitializing
+// Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
+func ResetForTest(t *testing.T, logDir string, retentionWeeks int, maxFileSize int64) {
+	t.Helper() // Mark as test helper for better error reporting
+
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, retentionWeeks, maxFileSize)
+
+	// Register cleanup to run after test completes
+	// This is key improvement over save/restore pattern
+	t.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
 }
 
 // Close closes logging service and cleans up resources

@@ -90,28 +90,21 @@ func (rl *RotatingLogger) doRotate(targetWeek string) error {
 
 // Write writes data to the current log file
 func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
-	rl.mu.RLock()
-
-	now := time.Now()
-	currentWeek := getWeekKey(now)
-	needsRotation := rl.currentWeek != currentWeek ||
-		(rl.maxFileSize > 0 && rl.currentSize.Load()+int64(len(p)) > rl.maxFileSize)
-
-	if !needsRotation && rl.currentFile != nil {
-		n, err = rl.currentFile.Write(p)
-		rl.currentSize.Add(int64(n))
-		rl.mu.RUnlock()
-		return n, err
-	}
-
-	rl.mu.RUnlock()
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	now = time.Now()
-	currentWeek = getWeekKey(now)
-	needsRotation = rl.currentWeek != currentWeek ||
-		(rl.maxFileSize > 0 && rl.currentSize.Load()+int64(len(p)) > rl.maxFileSize)
+	currentWeek := getWeekKey(time.Now())
+	// Check if rotation is needed
+	needsRotation := rl.currentWeek != currentWeek
+	// Check if current size is at limit OR if next write would exceed limit
+	if rl.maxFileSize > 0 && !needsRotation {
+		currentSize := rl.currentSize.Load()
+		if currentSize >= rl.maxFileSize || currentSize+int64(len(p)) > rl.maxFileSize {
+			needsRotation = true
+			// Mark that we need a size-rotated file by setting size to limit
+			rl.currentSize.Store(rl.maxFileSize)
+		}
+	}
 
 	if needsRotation {
 		if err := rl.doRotate(currentWeek); err != nil {
@@ -130,16 +123,7 @@ func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
 
 // cleanupOldLogs removes log files older than the retention period
 func (rl *RotatingLogger) cleanupOldLogs() error {
-	// Only cleanup once per day
-	if time.Since(rl.lastCleanup) < 24*time.Hour {
-		return nil
-	}
-
-	rl.mu.Lock()
-	rl.lastCleanup = time.Now()
-	rl.mu.Unlock()
-
-	// Read directory contents
+	// Read directory contents (ticker in goroutine controls frequency)
 	entries, err := os.ReadDir(rl.logDir)
 	if err != nil {
 		return fmt.Errorf("failed to read log directory: %w", err)
@@ -242,9 +226,9 @@ func SetupLoggerWithRetention(logDir string, retentionWeeks int) *slog.Logger {
 
 	// Start cleanup goroutine with proper cancellation
 	go func() {
-		defer close(rotatingLogger.cleanupDone)
-		ticker := time.NewTicker(24 * time.Hour) // Check daily
+		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
+		defer close(rotatingLogger.cleanupDone)
 
 		for {
 			select {
