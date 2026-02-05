@@ -52,11 +52,6 @@ func getWeekKey(t time.Time) string {
 	return fmt.Sprintf("%d-W%02d", year, week)
 }
 
-// getCurrentLogFileName returns the current log file name
-func (rl *RotatingLogger) getCurrentLogFileName() string {
-	return fmt.Sprintf("app-%s.log", rl.currentWeek)
-}
-
 // doRotate performs actual rotation (caller must hold write lock)
 func (rl *RotatingLogger) doRotate(targetWeek string) error {
 	if rl.currentFile != nil {
@@ -107,7 +102,7 @@ func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
 	}
 
 	if needsRotation {
-		if err := rl.doRotate(currentWeek); err != nil {
+		if err = rl.doRotate(currentWeek); err != nil {
 			return 0, err
 		}
 	}
@@ -214,13 +209,13 @@ func SetupLoggerWithRetention(logDir string, retentionWeeks int) *slog.Logger {
 
 	// Initialize rotation
 	rotatingLogger.mu.Lock()
-	err := rotatingLogger.doRotate(getWeekKey(time.Now()))
+	rotateErr := rotatingLogger.doRotate(getWeekKey(time.Now()))
 	rotatingLogger.mu.Unlock()
-	if err != nil {
+	if rotateErr != nil {
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))
-		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
+		consoleLogger.Error("Failed to initialize rotating logger", "error", rotateErr)
 		return consoleLogger
 	}
 

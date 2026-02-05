@@ -140,11 +140,6 @@ func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation
 	generiques := <-generiquesChan
 	compositions := <-compositionsChan
 
-	fmt.Printf("Number of conditions to process: %d\n", len(conditions))
-	fmt.Printf("Number of presentations to process: %d\n", len(presentations))
-	fmt.Printf("Number of generiques to process: %d\n", len(generiques))
-	fmt.Printf("Number of specialites to process: %d\n", len(specialites))
-
 	conditionsChan = nil
 	presentationsChan = nil
 	specialitesChan = nil

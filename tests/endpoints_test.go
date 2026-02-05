@@ -330,7 +330,7 @@ func TestRequestSizeMiddleware(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Add many large headers to exceed MaxHeaderSize (512 bytes)
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			req.Header.Set(fmt.Sprintf("X-Large-Header-%d", i), fmt.Sprintf("%0200d", i))
 		}
 

@@ -126,7 +126,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 			"records_parsed", len(jsonRecords))
 	}
 
-	fmt.Println("Presentations file conversion completed", "records_count", len(jsonRecords))
+	logging.Debug("Presentations file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -228,7 +228,7 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 			"records_parsed", len(jsonRecords))
 	}
 
-	fmt.Println("Generiques file conversion completed", "records_count", len(jsonRecords))
+	logging.Debug("Generiques file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -308,7 +308,7 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 			"records_parsed", len(jsonRecords))
 	}
 
-	fmt.Println("Compositions file conversion completed", "records_count", len(jsonRecords))
+	logging.Debug("Compositions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -385,7 +385,7 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 			"records_parsed", len(jsonRecords))
 	}
 
-	fmt.Println("Specialites file conversion completed", "records_count", len(jsonRecords))
+	logging.Debug("Specialites file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -454,7 +454,7 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 			"records_parsed", len(jsonRecords))
 	}
 
-	fmt.Println("Conditions file conversion completed", "records_count", len(jsonRecords))
+	logging.Debug("Conditions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 

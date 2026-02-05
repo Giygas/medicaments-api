@@ -436,7 +436,7 @@ func TestConcurrentParsing(t *testing.T) {
 	const numGoroutines = 5
 	done := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -454,7 +454,7 @@ func TestConcurrentParsing(t *testing.T) {
 	}
 
 	// Wait for all goroutines to complete
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-done
 	}
 

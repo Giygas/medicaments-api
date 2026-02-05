@@ -27,7 +27,9 @@ func TestLoggingMiddlewareSkipsHealthCheck(t *testing.T) {
 	// Create a test handler
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		if _, err := w.Write([]byte("ok")); err != nil {
+			t.Logf("Write failed: %v", err)
+		}
 	})
 
 	// Wrap the handler

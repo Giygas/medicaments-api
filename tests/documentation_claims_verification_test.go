@@ -215,7 +215,11 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 	fmt.Println("\n--- HTTP PERFORMANCE VERIFICATION ---")
 
 	srv, baseURL := setupTestServer(t)
-	defer srv.Shutdown(context.Background())
+	defer func() {
+		if err := srv.Shutdown(context.Background()); err != nil {
+			t.Logf("Server shutdown error: %v", err)
+		}
+	}()
 
 	transport := &http.Transport{
 		MaxIdleConns:        1000,
@@ -227,8 +231,8 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 	for range 100 {
 		resp, err := client.Get(baseURL + "/health")
 		if err == nil {
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	}
 
@@ -304,8 +308,8 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 						default:
 							resp, err := client.Get(baseURL + claim.endpoint)
 							if err == nil {
-								io.Copy(io.Discard, resp.Body)
-								resp.Body.Close()
+								_, _ = io.Copy(io.Discard, resp.Body)
+								_ = resp.Body.Close()
 								successCount.Add(1)
 							}
 						}
@@ -340,7 +344,11 @@ func testMemoryUsage(t *testing.T, _ *data.DataContainer) {
 	fmt.Println("\n--- MEMORY USAGE VERIFICATION ---")
 
 	srv, _ := setupTestServer(t)
-	defer srv.Shutdown(context.Background())
+	defer func() {
+		if err := srv.Shutdown(context.Background()); err != nil {
+			t.Logf("Server shutdown error: %v", err)
+		}
+	}()
 
 	time.Sleep(2 * time.Second)
 
@@ -463,7 +471,9 @@ func setupTestServer(t *testing.T) (*server.Server, string) {
 		t.Fatal(err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
+	if err := listener.Close(); err != nil {
+		t.Logf("Failed to close listener: %v", err)
+	}
 
 	cfg := &config.Config{
 		Port:           fmt.Sprintf("%d", port),
@@ -487,7 +497,7 @@ func setupTestServer(t *testing.T) (*server.Server, string) {
 	for range maxRetries {
 		resp, err := http.Get(baseURL + "/health")
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			time.Sleep(100 * time.Millisecond)
 			return srv, baseURL
 		}

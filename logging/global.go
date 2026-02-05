@@ -19,7 +19,6 @@ type LoggingService struct {
 var (
 	DefaultLoggingService *LoggingService
 	initOnce              sync.Once
-	resetMu               sync.Mutex // Protects test-only reset
 )
 
 // InitLogger initializes global logger instance

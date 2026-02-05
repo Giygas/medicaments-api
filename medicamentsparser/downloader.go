@@ -63,6 +63,8 @@ func downloadAndParseFile(filepath string, url string) error {
 			return fmt.Errorf("failed to write to file %s: %w", filepath, err)
 		}
 	}
+
+	logging.Debug("url %s download and parsed into %s without errors", url, filepath)
 	return nil
 }
 
@@ -108,8 +110,6 @@ func downloadAndParseAll() error {
 		logging.Error("Download errors occurred", "errors", errors)
 		return fmt.Errorf("download errors: %v", errors)
 	}
-
-	logging.Info("Files downloaded and parsed successfully")
 
 	return nil
 }

@@ -34,7 +34,7 @@ func TestRotatingLogger(t *testing.T) {
 	// Check that current file is created
 	currentWeek := getWeekKey(time.Now())
 	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
-	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
+	if _, statErr := os.Stat(expectedFileName); os.IsNotExist(statErr) {
 		t.Errorf("Expected log file %s was not created", expectedFileName)
 	}
 
@@ -277,6 +277,7 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 
 	// Verify size-rotated files have correct naming format
 	hasSizeRotatedFile := false
+	sizeRotatedPattern := regexp.MustCompile(`_size_\d{8}_\d{6}\.log$`)
 	for _, entry := range entries {
 		if strings.Contains(entry.Name(), "_size_") {
 			hasSizeRotatedFile = true
@@ -284,7 +285,7 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 				t.Errorf("Size-rotated file missing .log extension: %s", entry.Name())
 			}
 			// Verify timestamp format (YYYYMMDD_HHMMSS)
-			if matched, _ := regexp.MatchString(`_size_\d{8}_\d{6}\.log$`, entry.Name()); !matched {
+			if !sizeRotatedPattern.MatchString(entry.Name()) {
 				t.Errorf("Size-rotated file has incorrect timestamp format: %s", entry.Name())
 			}
 		}
@@ -344,12 +345,12 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 
 	done := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
-			for j := 0; j < numWrites; j++ {
+			for j := range numWrites {
 				message := fmt.Sprintf("Goroutine %d, Write %d", id, j)
-				if _, err := rl.Write([]byte(message)); err != nil {
-					t.Errorf("Concurrent write failed: %v", err)
+				if _, writeErr := rl.Write([]byte(message)); writeErr != nil {
+					t.Errorf("Concurrent write failed: %v", writeErr)
 				}
 			}
 			done <- true
@@ -357,7 +358,7 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 	}
 
 	// Wait for all goroutines to complete
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-done
 	}
 
@@ -380,7 +381,11 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 
 	// Create rotating logger with small size limit to trigger frequent rotations
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 1000)
-	defer rl.Close()
+	defer func() {
+		if err := rl.Close(); err != nil {
+			t.Logf("Failed to close logger: %v", err)
+		}
+	}()
 
 	// Initialize rotation
 	rl.mu.Lock()
@@ -395,19 +400,19 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 	const numWrites = 100
 	done := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			message := fmt.Sprintf("Goroutine %d: %s", id, strings.Repeat("x", 100))
-			for j := 0; j < numWrites; j++ {
-				if _, err := rl.Write([]byte(message)); err != nil {
-					t.Errorf("Concurrent write failed: %v", err)
+			for range numWrites {
+				if _, writeErr := rl.Write([]byte(message)); writeErr != nil {
+					t.Errorf("Concurrent write failed: %v", writeErr)
 				}
 			}
 			done <- true
 		}(i)
 	}
 
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-done
 	}
 

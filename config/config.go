@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -217,10 +218,8 @@ func validateLogLevel(logLevel string) error {
 	validLevels := []string{"debug", "info", "warn", "error"}
 	logLevel = strings.ToLower(logLevel)
 
-	for _, level := range validLevels {
-		if logLevel == level {
-			return nil
-		}
+	if slices.Contains(validLevels, logLevel) {
+		return nil
 	}
 
 	return fmt.Errorf("LOG_LEVEL must be one of: %v, got: %s", validLevels, logLevel)

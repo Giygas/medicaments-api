@@ -347,5 +347,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	// Only send headers after successful encoding
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		logging.Warn("Failed to write response", "error", err)
+	}
 }
