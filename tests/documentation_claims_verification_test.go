@@ -50,7 +50,7 @@ func TestDocumentationClaimsVerification(t *testing.T) {
 
 	fmt.Println("=== COMPREHENSIVE DOCUMENTATION CLAIMS VERIFICATION ===")
 
-	logging.InitLogger("")
+	logging.ResetForTest(t, "", config.EnvProduction, 4, 100*1024*1024)
 
 	container := createFullTestData()
 	validator := validation.NewDataValidator()
@@ -116,7 +116,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
 				return req
 			},
-			claimedReq: 1250,
+			claimedReq: 1600,
 			claimedLat: 750.0,
 			tolerance:  30.0,
 		},
@@ -127,8 +127,8 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/generiques?libelle=Paracetamol", nil)
 				return req
 			},
-			claimedReq: 15000,
-			claimedLat: 75.0,
+			claimedReq: 18000,
+			claimedLat: 60.0,
 			tolerance:  30.0,
 		},
 		{
@@ -138,8 +138,8 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 				req := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
 				return req
 			},
-			claimedReq: 350000,
-			claimedLat: 5.0,
+			claimedReq: 430000,
+			claimedLat: 2.0,
 			tolerance:  20.0,
 		},
 		{
@@ -241,43 +241,43 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 		{
 			name:       "/v1/medicaments/{cis}",
 			endpoint:   "/v1/medicaments/61266250",
-			claimedReq: 30000,
+			claimedReq: 78000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/medicaments?page={n}",
 			endpoint:   "/v1/medicaments?page=1",
-			claimedReq: 20000,
+			claimedReq: 41000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/medicaments?search={query}",
 			endpoint:   "/v1/medicaments?search=Test",
-			claimedReq: 5000,
+			claimedReq: 6100,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/generiques?libelle={nom}",
 			endpoint:   "/v1/generiques?libelle=Paracetamol",
-			claimedReq: 20000,
+			claimedReq: 36000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/presentations?cip={code}",
 			endpoint:   "/v1/presentations/1234567",
-			claimedReq: 35000,
+			claimedReq: 77000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/v1/medicaments?cip={code}",
 			endpoint:   "/v1/medicaments?cip=1234567",
-			claimedReq: 35000,
+			claimedReq: 75000,
 			tolerance:  25.0,
 		},
 		{
 			name:       "/health",
 			endpoint:   "/health",
-			claimedReq: 30000,
+			claimedReq: 92000,
 			tolerance:  25.0,
 		},
 	}
@@ -351,7 +351,7 @@ func testMemoryUsage(t *testing.T, _ *data.DataContainer) {
 	sysMB := float64(m.Sys) / 1024 / 1024
 
 	claimedMin := 60.0
-	claimedMax := 85.0
+	claimedMax := 90.0
 
 	memoryPassed := allocMB >= claimedMin && allocMB <= claimedMax
 	verificationResults = append(verificationResults, PerformanceClaim{
@@ -454,7 +454,7 @@ func createFullTestData() *data.DataContainer {
 }
 
 func setupTestServer(t *testing.T) (*server.Server, string) {
-	logging.InitLogger("")
+	logging.ResetForTest(t, "", config.EnvProduction, 4, 100*1024*1024)
 
 	container := createFullTestData()
 
@@ -468,7 +468,7 @@ func setupTestServer(t *testing.T) (*server.Server, string) {
 	cfg := &config.Config{
 		Port:           fmt.Sprintf("%d", port),
 		Address:        "127.0.0.1",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "error",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,

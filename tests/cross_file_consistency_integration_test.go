@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
@@ -23,8 +24,8 @@ func TestIntegrationCrossFileConsistency(t *testing.T) {
 
 	fmt.Println("Starting cross-file consistency integration test...")
 
-	// Initialize logging
-	logging.InitLogger("logs")
+	// Initialize logging with ResetForTest to allow proper reinitialization
+	logging.ResetForTest(t, "logs", config.DetectEnvironment(), 4, 100*1024*1024)
 
 	// Parse all TSV files
 	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()

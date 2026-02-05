@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/interfaces"
@@ -199,8 +200,8 @@ func setupTestEnvironment(t *testing.T) {
 		}
 	}
 
-	// Initialize logging
-	logging.InitLogger("logs")
+	// Initialize logging with ResetForTest to allow proper reinitialization
+	logging.ResetForTest(t, "logs", config.DetectEnvironment(), 4, 100*1024*1024)
 }
 
 func cleanupTestEnvironment(t *testing.T) {

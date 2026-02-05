@@ -178,9 +178,7 @@ func (h *HTTPHandlerImpl) ExportMedicaments(w http.ResponseWriter, r *http.Reque
 
 	if path == "/database" {
 		h.AddDeprecationHeaders(w, r, "/v1/medicaments/export")
-
 	}
-	fmt.Printf("path: %v\n", path)
 
 	medicaments := h.dataStore.GetMedicaments()
 	h.RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)

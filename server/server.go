@@ -96,7 +96,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
 	// Disable rate limiting in test mode to measure true throughput performance
-	if s.config.Env != "test" {
+	if s.config.Env != config.EnvTest {
 		s.router.Use(RateLimitHandler)
 	}
 }
@@ -171,7 +171,7 @@ func (s *Server) Start() error {
 	s.dataContainer.SetServerStartTime(s.startTime)
 
 	// Start profiling server if in development mode
-	if s.config.Env == "dev" {
+	if s.config.Env == config.EnvDevelopment {
 		s.startProfilingServer()
 	}
 

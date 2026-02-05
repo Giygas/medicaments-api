@@ -715,10 +715,11 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 func TestServeMedicamentsV1_Errors(t *testing.T) {
 	// Create minimal test data
 	med1 := entities.Medicament{
-		Cis:                 10000001,
-		Denomination:        "PARACETAMOL",
-		FormePharmaceutique: "Comprimé",
-		VoiesAdministration: []string{"Orale"},
+		Cis:                    10000001,
+		Denomination:           "PARACETAMOL",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("PARACETAMOL"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
 		Presentation: []entities.Presentation{
 			{Cis: 10000001, Cip7: 1234567, Cip13: 1234567890123, Libelle: "Boîte de 8"},
 		},
@@ -790,30 +791,32 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 	// Create test medicaments with presentations for CIP search
 	med1 := entities.Medicament{
-		Cis:                  10000001,
-		Denomination:         "PARACETAMOL 500 mg",
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisation active",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisée",
-		DateAMM:              "2020-01-01",
-		Titulaire:            "SANOFI",
+		Cis:                    10000001,
+		Denomination:           "PARACETAMOL 500 mg",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("PARACETAMOL 500 mg"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-01-01",
+		Titulaire:              "SANOFI",
 		Presentation: []entities.Presentation{
 			{Cis: 10000001, Cip7: 1234567, Cip13: 1234567890123, Libelle: "Boîte de 8 comprimés"},
 		},
 	}
 
 	med2 := entities.Medicament{
-		Cis:                  10000002,
-		Denomination:         "IBUPROFENE 400 mg",
-		FormePharmaceutique:  "Comprimé",
-		VoiesAdministration:  []string{"Orale"},
-		StatusAutorisation:   "Autorisation active",
-		TypeProcedure:        "Procédure nationale",
-		EtatComercialisation: "Commercialisée",
-		DateAMM:              "2020-02-01",
-		Titulaire:            "PFIZER",
+		Cis:                    10000002,
+		Denomination:           "IBUPROFENE 400 mg",
+		DenominationNormalized: strings.ReplaceAll(strings.ToLower("IBUPROFENE 400 mg"), "+", " "),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-02-01",
+		Titulaire:              "PFIZER",
 		Presentation: []entities.Presentation{
 			{Cis: 10000002, Cip7: 7654321, Cip13: 7654321098765, Libelle: "Boîte de 10 comprimés"},
 		},

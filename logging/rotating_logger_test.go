@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/giygas/medicaments-api/config"
 )
 
 func TestRotatingLogger(t *testing.T) {
@@ -157,7 +159,7 @@ func TestGlobalLoggingService(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Use ResetForTest() for proper test isolation
-	ResetForTest(t, tempDir, 2, 100*1024*1024)
+	ResetForTest(t, tempDir, config.EnvTest, 2, 100*1024*1024)
 
 	if DefaultLoggingService == nil {
 		t.Fatal("DefaultLoggingService was not initialized")
@@ -499,7 +501,7 @@ func TestLoggingServiceMethods(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Use ResetForTest() for proper test isolation
-	ResetForTest(t, tempDir, 2, 100*1024*1024)
+	ResetForTest(t, tempDir, config.EnvTest, 2, 100*1024*1024)
 
 	// Test all logging methods
 	Info("Info message")
@@ -520,13 +522,13 @@ func TestInitLoggerFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Test InitLogger with proper isolation
-	ResetForTest(t, tempDir, 4, 100*1024*1024)
+	ResetForTest(t, tempDir, config.EnvTest, 4, 100*1024*1024)
 	if DefaultLoggingService == nil {
 		t.Error("InitLogger did not initialize DefaultLoggingService")
 	}
 
 	// Test InitLoggerWithRetentionAndSize with proper isolation
-	ResetForTest(t, tempDir, 2, 1024*1024)
+	ResetForTest(t, tempDir, config.EnvTest, 2, 1024*1024)
 	if DefaultLoggingService == nil {
 		t.Error("InitLoggerWithRetentionAndSize did not initialize DefaultLoggingService")
 	}

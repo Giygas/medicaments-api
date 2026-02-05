@@ -12,9 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/interfaces"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
@@ -202,6 +204,9 @@ func setupRealWorldServer() (*httptest.Server, *http.Client) {
 // using httptest with a smaller dataset (~500 items) for fast iteration.
 // Usage: go test -bench=BenchmarkAlgorithmicPerformance -benchmem
 func BenchmarkAlgorithmicPerformance(b *testing.B) {
+	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
+	logging.ResetForBenchmark(b, "", config.EnvProduction, 4, 100*1024*1024)
+
 	container := setupAlgorithmicContainer()
 	validator := validation.NewDataValidator()
 	httpHandler := handlers.NewHTTPHandler(container, validator)
@@ -261,6 +266,9 @@ func BenchmarkAlgorithmicPerformance(b *testing.B) {
 // and full dataset (~15K+ items) to verify documentation claims.
 // Usage: go test -bench=BenchmarkHTTPPerformance -benchmem
 func BenchmarkHTTPPerformance(b *testing.B) {
+	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
+	logging.ResetForBenchmark(b, "", config.EnvProduction, 4, 100*1024*1024)
+
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
 
@@ -382,6 +390,9 @@ func BenchmarkHTTPPerformance(b *testing.B) {
 // to verify search performance under real-world conditions.
 // Usage: go test -bench=BenchmarkRealWorldSearch -benchmem
 func BenchmarkRealWorldSearch(b *testing.B) {
+	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
+	logging.ResetForBenchmark(b, "", config.EnvProduction, 4, 100*1024*1024)
+
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
 
@@ -468,6 +479,9 @@ func BenchmarkRealWorldSearch(b *testing.B) {
 // with concurrent users and mixed endpoint patterns.
 // Usage: go test -bench=BenchmarkSustainedPerformance -benchmem
 func BenchmarkSustainedPerformance(b *testing.B) {
+	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
+	logging.ResetForBenchmark(b, "", config.EnvProduction, 4, 100*1024*1024)
+
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
 

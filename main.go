@@ -34,13 +34,13 @@ func main() {
 	}
 
 	// Initialize structured logging with rotating logs using config values
-	logging.InitLoggerWithRetentionAndSize("logs", cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
+	logging.InitLoggerWithEnvironment("logs", cfg.Env, cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
 
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",
 		"port", cfg.Port,
 		"address", cfg.Address,
-		"env", cfg.Env,
+		"env", cfg.Env.String(),
 		"log_level", cfg.LogLevel,
 		"max_request_body", cfg.MaxRequestBody,
 		"max_header_size", cfg.MaxHeaderSize)

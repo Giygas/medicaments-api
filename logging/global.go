@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/giygas/medicaments-api/config"
 )
 
 type LoggingService struct {
@@ -32,34 +34,59 @@ func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	env := config.DetectEnvironment()
+	InitLoggerWithEnvironment(logDir, env, retentionWeeks, maxFileSize)
+}
+
+// InitLoggerWithEnvironment initializes logger with explicit environment control
+func InitLoggerWithEnvironment(logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
 	initOnce.Do(func() {
-		doInit(logDir, retentionWeeks, maxFileSize)
+		doInit(logDir, env, retentionWeeks, maxFileSize)
 	})
 }
 
+// GetConsoleLogLevel returns the appropriate console log level for an environment
+func GetConsoleLogLevel(env config.Environment, isVerbose bool) slog.Level {
+	switch env {
+	case config.EnvDevelopment:
+		return slog.LevelInfo // Full output in dev
+	case config.EnvTest:
+		if isVerbose {
+			return slog.LevelInfo // Verbose tests show all logs
+		}
+		return slog.LevelError // Errors only in tests
+	case config.EnvStaging, config.EnvProduction:
+		return slog.LevelWarn // WARN and errors in staging/prod
+	default:
+		return slog.LevelInfo // Default to info
+	}
+}
+
 // doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
-func doInit(logDir string, retentionWeeks int, maxFileSize int64) {
+func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
 		logDir = "logs" // Default directory
 	}
 
-	// Detect if running tests by checking for Go's test flags
-	// All Go tests set these flags, even if not explicitly passed
-	testV := flag.CommandLine.Lookup("test.v")
-	testRun := flag.CommandLine.Lookup("test.run")
-	isTest := testV != nil || testRun != nil
+	// Determine if running tests (for verbose mode)
+	isVerbose := false
+	if flag := flag.CommandLine.Lookup("test.v"); flag != nil {
+		isVerbose = testing.Verbose()
+	}
 
-	// Determine log level: suppress console output during tests by default
-	var consoleLevel slog.Level
-	if isTest {
-		consoleLevel = slog.LevelError // Only show errors during tests by default
-		// Override to Info if -v is passed (for debugging)
-		if testing.Verbose() {
-			consoleLevel = slog.LevelInfo // Show all logs when verbose
-		}
-	} else {
-		consoleLevel = slog.LevelInfo // Normal operation
+	// Determine console log level based on environment
+	consoleLevel := GetConsoleLogLevel(env, isVerbose)
+
+	// Log detected environment for debugging (skip in tests to avoid noise)
+	if env != config.EnvTest {
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: consoleLevel,
+		}))
+		consoleLogger.Info("Initializing logger",
+			"environment", env.String(),
+			"console_level", consoleLevel.String(),
+			"log_directory", logDir)
 	}
 
 	// Create logs directory if it doesn't exist
@@ -143,7 +170,7 @@ func doInit(logDir string, retentionWeeks int, maxFileSize int64) {
 // ResetForTest resets the global logger - ONLY for testing
 // Provides proper test isolation by cleaning up resources and reinitializing
 // Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
-func ResetForTest(t *testing.T, logDir string, retentionWeeks int, maxFileSize int64) {
+func ResetForTest(t *testing.T, logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
 	t.Helper() // Mark as test helper for better error reporting
 
 	// Close existing logger to prevent resource leaks (goroutines, file handles)
@@ -156,11 +183,35 @@ func ResetForTest(t *testing.T, logDir string, retentionWeeks int, maxFileSize i
 	initOnce = sync.Once{}
 
 	// Reinitialize with new settings
-	doInit(logDir, retentionWeeks, maxFileSize)
+	doInit(logDir, env, retentionWeeks, maxFileSize)
 
 	// Register cleanup to run after test completes
 	// This is key improvement over save/restore pattern
 	t.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
+}
+
+// ResetForBenchmark resets the global logger - ONLY for benchmarks
+// Provides proper benchmark isolation by cleaning up resources and reinitializing
+func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
+	b.Helper() // Mark as benchmark helper for better error reporting
+
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, env, retentionWeeks, maxFileSize)
+
+	// Register cleanup to run after benchmark completes
+	b.Cleanup(func() {
 		Close()
 		DefaultLoggingService = nil
 	})

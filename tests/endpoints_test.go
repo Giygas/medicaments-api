@@ -22,16 +22,18 @@ import (
 // Mock data for testing
 var testMedicaments = []entities.Medicament{
 	{
-		Cis:          12345678, // Updated to valid 8-digit CIS
-		Denomination: "Test Medicament",
-		Generiques:   []entities.Generique{{Cis: 12345678, Group: 100, Libelle: "Test Group", Type: "Princeps"}},
+		Cis:                    12345678,
+		Denomination:           "Test Medicament",
+		DenominationNormalized: "test medicament",
+		Generiques:             []entities.Generique{{Cis: 12345678, Group: 100, Libelle: "Test Group", Type: "Princeps"}},
 	},
 }
 
 var testGeneriques = []entities.GeneriqueList{
 	{
-		GroupID: 100,
-		Libelle: "Test Group",
+		GroupID:           100,
+		Libelle:           "Test Group",
+		LibelleNormalized: "test group",
 		Medicaments: []entities.GeneriqueMedicament{
 			{
 				Cis:                 1,
@@ -269,7 +271,7 @@ func TestRequestSizeMiddleware(t *testing.T) {
 		MaxHeaderSize:  512,  // 512 bytes for testing
 		Port:           "8002",
 		Address:        "127.0.0.1",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 	}
 
