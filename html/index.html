@@ -560,8 +560,8 @@
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number"><100ms</span>
-            <span class="stat-label">Temps de réponse</span>
+            <span class="stat-number">80K req/s</span>
+            <span class="stat-label">Débit HTTP</span>
           </div>
           <div class="stat">
             <span class="stat-number">99.9%</span>
@@ -801,7 +801,8 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <p>
               Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
               Validation stricte (3-50 chars alphanumériques) et échappement
-              automatique. Temps de réponse : <100ms (nom) et <50ms (CIS).
+              automatique. <strong>80K+ req/s</strong> (CIS/CIP), <strong>36K req/s</strong> (génériques),
+              latence moyenne <5ms sur les lookups O(1).
             </p>
             <div style="margin-top: 1rem">
               <code

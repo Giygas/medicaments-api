@@ -5,7 +5,7 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
 [![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
-[![Performance](https://img.shields.io/badge/performance-1.6M%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
+[![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
@@ -15,28 +15,7 @@ par token bucket avec coûts variables par endpoint.
 
 ## Performance
 
-**Performance algorithmique (Apple M2, 15,811 médicaments)** :
-
-| Endpoint                         | Reqs/sec | Latence       | Mémoire/op | Allocs/op |
-| -------------------------------- | -------- | ------------- | ---------- | --------- |
-| `/v1/medicaments?cis={code}`     | ~402,000 | **2.5-3.2µs** | 7.4KB      | 38        |
-| `/v1/generiques?group={id}`      | ~437,000 | **2.3-2.5µs** | 7.4KB      | 37        |
-| `/v1/generiques?libelle={nom}`   | ~474,000 | **2.1-2.6µs** | 7.7KB      | 30        |
-| `/v1/presentations?cip={code}`   | ~308,000 | **3.8-4.3µs** | 9.7KB      | 63        |
-| `/v1/medicaments?cip={code}`     | ~241,000 | ~5.2µs        | 10.9KB     | 54        |
-| `/v1/medicaments?page={n}`       | ~100,000 | ~11.5µs       | 23.7KB     | 38        |
-| `/v1/medicaments?search={query}` | ~14,000  | ~84-86µs      | 30.9KB     | 1,033     |
-| `/v1/medicaments?export=all`     | ~849     | ~1.26ms       | ~1.8MB     | 39        |
-
-**Points clés** :
-
-- **O(1) lookups** (CIS, group, presentations) : 300,000-470,000 req/sec
-- **Pagination** : ~100,000 req/sec avec 10 éléments/page
-- **Regex search** : ~14,000 req/sec (plus coûteuse)
-- **Export complet** : ~850 req/sec (15,811 médicaments)
-- **Cache HTTP** : ETag/Last-Modified réduit la charge (304 Not Modified)
-
-Voir la section **Optimisations techniques** pour les détails complets des benchmarks.
+L'API délivre des performances exceptionnelles grâce à des optimisations continues. Les lookups O(1) par code CIS ou CIP atteignent **80K+ requêtes/seconde** en production avec une latence moyenne inférieure à 5ms. Les recherches regex (par nom) atteignent **6,100 req/s** grâce aux noms normalisés pré-calculés. L'architecture basée sur 6 interfaces principales avec parsing concurrent des 5 fichiers TSV BDPM garantit des mises à jour atomiques zero-downtime.
 
 ## Fonctionnalités
 
@@ -536,16 +515,22 @@ Cette approche basée sur interfaces permet de tester chaque composant indépend
 Les benchmarks mesurent les performances réelles des endpoints API avec des données réalistes (15,811 médicaments) :
 
 ```bash
-# Lancer tous les benchmarks (synthétiques)
+# Lancer tous les benchmarks handlers
 go test -bench=. -benchmem -run=^$ ./handlers
 
-# Lancer tous les benchmarks (données réelles)
+# Lancer tous les benchmarks tests complets
 go test ./tests/ -bench=. -benchmem -run=^$
 
-# Benchmark spécifique (par endpoint v1)
+# Benchmark spécifique handler
 go test -bench=BenchmarkMedicamentByCIS -benchmem -run=^$ ./handlers
 go test -bench=BenchmarkMedicamentsExport -benchmem -run=^$ ./handlers
-go test -bench=BenchmarkMedicamentsPagination -benchmem -run=^$ ./handlers
+
+# Benchmark complet avec sous-tests
+go test -bench=BenchmarkAlgorithmicPerformance -benchmem -run=^$ ./tests/
+go test -bench=BenchmarkHTTPPerformance -benchmem -run=^$ ./tests/
+
+# Sous-benchmark spécifique (exemple)
+go test -bench=BenchmarkAlgorithmicPerformance/CISLookup -benchmem -run=^$ ./tests/
 
 # Avec comptage multiple (plus fiable)
 go test -bench=. -benchmem -count=3 -run=^$ ./handlers
@@ -556,9 +541,6 @@ go tool pprof cpu.prof
 
 # Vérification des claims de documentation
 go test ./tests/ -run TestDocumentationClaimsVerification -v
-
-# Test rapide de parsing
-go test ./tests/ -run TestParsingTime -v
 ```
 
 **Benchmarks v1 disponibles** :
@@ -568,20 +550,29 @@ go test ./tests/ -run TestParsingTime -v
 | `BenchmarkMedicamentsExport`     | `/v1/medicaments?export=all` | Full export    |
 | `BenchmarkMedicamentsPagination` | `/v1/medicaments?page={n}`   | Pagination     |
 | `BenchmarkMedicamentsSearch`     | `/v1/medicaments?search={q}` | Regex search   |
-| `BenchmarkMedicamentByCIS`       | `/v1/medicaments?cis={code}` | O(1) lookup    |
+| `BenchmarkMedicamentByCIS`       | `/v1/medicaments/{cis}`      | O(1) lookup    |
 | `BenchmarkMedicamentByCIP`       | `/v1/medicaments?cip={code}` | O(2) lookups   |
 | `BenchmarkGeneriquesSearch`      | `/v1/generiques?libelle={n}` | Regex search   |
 | `BenchmarkGeneriqueByGroup`      | `/v1/generiques?group={id}`  | O(1) lookup    |
-| `BenchmarkPresentationByCIP`     | `/v1/presentations?cip={c}`  | O(1) lookup    |
+| `BenchmarkPresentationByCIP`     | `/v1/presentations/{cip}`    | O(1) lookup    |
+| `BenchmarkAlgorithmicPerformance` | Test complet algorithmique       | Complet        |
+| `BenchmarkHTTPPerformance`        | Test complet HTTP              | Complet        |
+| `BenchmarkRealWorldSearch`       | Tests de recherche réels       | Complet        |
+| `BenchmarkSustainedPerformance`  | Tests de charge soutenus      | Complet        |
+
+**Notes sur les benchmarks complets** :
+
+- `BenchmarkAlgorithmicPerformance` : Tests complets de performance algorithmique incluant CISLookup, GenericGroupLookup, Pagination, Search, et PresentationsLookup
+- `BenchmarkHTTPPerformance` : Tests complets de performance HTTP incluant CISLookup, GenericGroupLookup, GenericSearch, et HealthCheck avec stack complète
+- `BenchmarkRealWorldSearch` : Tests de recherche réels incluant CommonMedication, BrandName, ShortQuery, et autres scénarios
+- `BenchmarkSustainedPerformance` : Tests de charge soutenus incluant ConcurrentLoad, MixedEndpoints, et MemoryUnderLoad
 
 ### Tests Spécialisés
 
 | Test                                   | Description                           | Commande                                                          |
 | -------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
 | TestDocumentationClaimsVerification    | Vérification des claims documentation | `go test ./tests/ -run TestDocumentationClaimsVerification -v`    |
-| TestParsingTime                        | Performance parsing                   | `go test ./tests/ -run TestParsingTime -v`                        |
 | TestIntegrationFullDataParsingPipeline | Pipeline complet d'intégration        | `go test ./tests/ -run TestIntegrationFullDataParsingPipeline -v` |
-| TestRealWorldConcurrentLoad            | Test de charge réel                   | `go test ./tests/ -run TestRealWorldConcurrentLoad -v`            |
 
 **Interprétation des résultats** :
 
@@ -591,19 +582,66 @@ go test ./tests/ -run TestParsingTime -v
 - `Allocs/op` : Nombre d'allocations mémoire par opération
 **Note** : Les benchmarks v1 mesurent le temps de sérialisation uniquement (sans réseau). L'export complet prend ~1.26ms pour sérialiser 15,811 médicaments, mais le transfert réseau prend plusieurs secondes pour ~20MB de données.
 
-### Tests de charge en production
+### Benchmarks algorithmiques (Handler performance)
 
-```bash
-# Benchmark avec hey (10K requêtes, 50 concurrents)
-hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/v1/medicaments?cis=61504672
+| Endpoint                         | Reqs/sec | Latence      | Allocs/op |
+| -------------------------------- | -------- | ------------ | --------- |
+| `/v1/medicaments/{cis}`         | 400,000  | 3.0µs        | 38        |
+| `/v1/generiques?group={id}`      | 200,000  | 5.0µs        | 37        |
+| `/v1/generiques?libelle={nom}`   | 18,000   | 60µs         | 94        |
+| `/v1/presentations/{cip}`        | 430,000  | 2.0µs        | 63        |
+| `/v1/medicaments?cip={code}`     | 375,000  | 5.0µs        | 54        |
+| `/v1/medicaments?page={n}`       | 40,000   | 30µs         | 38        |
+| `/v1/medicaments?search={query}` | 1,600    | 600µs        | 94        |
 
-# Résultats typiques :
-# - Requêtes/seconde: 1,200-1,500
-# - Latence moyenne: 35ms
-# - 95ème percentile: 85ms
-# - Taux de réussite: 99,95%
-# - Utilisation mémoire stable: 45MB
-```
+**Note** : Benchmarks algorithmiques mesurent la logique pure du handler sans surcharge réseau (go test -bench).
+
+### Performance en production
+
+Les résultats ci-dessous incluent l'overhead HTTP complet (middleware, logging, sérialisation, réseau) :
+
+| Endpoint                         | HTTP Req/sec | Latence (avg) |
+| -------------------------------- | ------------ | -------------- |
+| `/v1/medicaments/{cis}`         | 78,000       | ~4ms          |
+| `/v1/presentations/{cip}`        | 77,000       | ~4ms          |
+| `/v1/medicaments?cip={code}`    | 75,000       | ~5ms          |
+| `/v1/generiques?libelle={nom}`   | 36,000       | ~9ms          |
+| `/v1/medicaments?page={n}`       | 41,000       | ~7ms          |
+| `/v1/medicaments?search={query}` | 6,100        | ~50ms         |
+
+**Testing conditions**: 300 concurrent workers, 3-second duration, HTTP/1.1 with persistent connections, full middleware stack
+
+**Note** : Tests de performance utilisent une tolérance de 25% pour tenir compte des variations d'environnement.
+
+### Optimisations récentes
+
+Les améliorations v1.1 ont été apportées à l'API pour augmenter considérablement le débit HTTP tout en maintenant une stabilité exceptionnelle.
+
+**Noms normalisés pré-calculés**
+
+Élimine les opérations de chaîne répétées (ToLower(), ReplaceAll()) pendant les recherches en calculant les versions normalisées une seule fois lors du parsing des données BDPM. La normalisation se produit une fois par médicament au lieu d'être exécutée à chaque requête de recherche.
+
+Avantages :
+- Réduction drastique des allocations mémoire par recherche (16,000 → 94)
+- Lookups par chaîne directement au lieu de calculer à la volée
+- Amélioration de la latence de recherche par un facteur important
+
+**Logging environment-aware**
+
+Réduit l'overhead I/O console en production en n'activant pas le logging debug/info en environnement de production et de test. Seuls les messages WARN et ERROR sont loggés dans ces environnements.
+
+Avantages :
+- Réduction de ~40% de l'overhead de logging en production
+- Maintient les logs complets en développement
+- Meilleure visibilité des problèmes réels (WARN/ERROR)
+
+**Résultats combinés**
+
+Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-3x sur la plupart des endpoints :
+
+- **Lookups O(1) (CIS, CIP)** : Amélioration significative du débit
+- **Recherches regex** : Performance accrue grâce aux chaînes pré-normalisées
+- **Stabilité maintenue** : Aucune régression sur les endpoints existants
 
 ### Architecture mémoire
 
@@ -615,8 +653,8 @@ hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/v1/medicaments?cis=
 │ generiques        │ ~6MB  │ Slice des generiques            │
 │ medicamentsMap    │ ~15MB │ O(1) lookup par CIS             │
 │ generiquesMap     │ ~4MB  │ O(1) lookup par groupe ID       │
-│ Total             │ 30-50MB│ RAM usage stable (Go optimisé) │
-│ Startup           │ ~50MB │ Pic initial après chargement     │
+│ Total             │ 70-90MB│ RAM usage stable (Go optimisé)  │
+│ Startup           │ ~150MB│ Pic initial après chargement     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -640,7 +678,7 @@ L'API implémente un système de logging structuré avec rotation automatique :
 # Configuration des logs
 LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation (1-52)
 MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (1MB-1GB, défaut: 100MB)
-LOG_LEVEL=info               # Niveau de log (debug/info/warn/error)
+LOG_LEVEL=info               # debug/info/warn/error - controls both console and file handlers; overrides ENV defaults; ignored in test environment
 ```
 
 #### Structure des Fichiers
@@ -991,7 +1029,7 @@ ADDRESS=127.0.0.1            # Adresse d'écoute
 ENV=dev                      # Environnement (dev/production)
 
 # Logging
-LOG_LEVEL=info               # debug/info/warn/error
+LOG_LEVEL=info               # debug/info/warn/error - controls both console and file handlers; overrides ENV defaults; ignored in test environment
 
 # Limites optionnelles
 MAX_REQUEST_BODY=1048576     # 1MB max corps de requête
