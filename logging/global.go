@@ -35,18 +35,41 @@ func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
 	env := config.DetectEnvironment()
-	InitLoggerWithEnvironment(logDir, env, retentionWeeks, maxFileSize)
+	InitLoggerWithEnvironment(logDir, env, "", retentionWeeks, maxFileSize)
 }
 
 // InitLoggerWithEnvironment initializes logger with explicit environment control
-func InitLoggerWithEnvironment(logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
+func InitLoggerWithEnvironment(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	initOnce.Do(func() {
-		doInit(logDir, env, retentionWeeks, maxFileSize)
+		doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
 	})
 }
 
+// parseLogLevel converts a string log level to slog.Level
+// Returns slog.LevelInfo as a safe default for invalid values
+func parseLogLevel(level string) slog.Level {
+	switch level {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo // Safe default
+	}
+}
+
 // GetConsoleLogLevel returns the appropriate console log level for an environment
-func GetConsoleLogLevel(env config.Environment, isVerbose bool) slog.Level {
+// If logLevelStr is provided and not in test environment, it overrides the environment default
+func GetConsoleLogLevel(env config.Environment, logLevelStr string, isVerbose bool) slog.Level {
+	// Use LOG_LEVEL override if provided (except in test environment)
+	if logLevelStr != "" && env != config.EnvTest {
+		return parseLogLevel(logLevelStr)
+	}
+
 	switch env {
 	case config.EnvDevelopment:
 		return slog.LevelInfo // Full output in dev
@@ -62,8 +85,20 @@ func GetConsoleLogLevel(env config.Environment, isVerbose bool) slog.Level {
 	}
 }
 
+// GetFileLogLevel returns the appropriate file log level for an environment
+// If logLevelStr is provided and not in test environment, it overrides the default
+// Default is slog.LevelInfo for all environments
+func GetFileLogLevel(env config.Environment, logLevelStr string) slog.Level {
+	// Use LOG_LEVEL override if provided (except in test environment)
+	if logLevelStr != "" && env != config.EnvTest {
+		return parseLogLevel(logLevelStr)
+	}
+
+	return slog.LevelInfo // Default for file logging
+}
+
 // doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
-func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
+func doInit(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
 		logDir = "logs" // Default directory
@@ -75,8 +110,9 @@ func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSi
 		isVerbose = testing.Verbose()
 	}
 
-	// Determine console log level based on environment
-	consoleLevel := GetConsoleLogLevel(env, isVerbose)
+	// Determine console and file log levels based on environment and LOG_LEVEL
+	consoleLevel := GetConsoleLogLevel(env, logLevelStr, isVerbose)
+	fileLevel := GetFileLogLevel(env, logLevelStr)
 
 	// Log detected environment for debugging (skip in tests to avoid noise)
 	if env != config.EnvTest {
@@ -86,7 +122,11 @@ func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSi
 		consoleLogger.Info("Initializing logger",
 			"environment", env.String(),
 			"console_level", consoleLevel.String(),
+			"file_level", fileLevel.String(),
 			"log_directory", logDir)
+		if logLevelStr != "" {
+			consoleLogger.Info("LOG_LEVEL override applied", "log_level", logLevelStr)
+		}
 	}
 
 	// Create logs directory if it doesn't exist
@@ -150,7 +190,7 @@ func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSi
 	})
 
 	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: fileLevel,
 	})
 
 	// Combine handlers - write to both
@@ -170,7 +210,7 @@ func doInit(logDir string, env config.Environment, retentionWeeks int, maxFileSi
 // ResetForTest resets the global logger - ONLY for testing
 // Provides proper test isolation by cleaning up resources and reinitializing
 // Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
-func ResetForTest(t *testing.T, logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
+func ResetForTest(t *testing.T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	t.Helper() // Mark as test helper for better error reporting
 
 	// Close existing logger to prevent resource leaks (goroutines, file handles)
@@ -183,7 +223,7 @@ func ResetForTest(t *testing.T, logDir string, env config.Environment, retention
 	initOnce = sync.Once{}
 
 	// Reinitialize with new settings
-	doInit(logDir, env, retentionWeeks, maxFileSize)
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
 
 	// Register cleanup to run after test completes
 	// This is key improvement over save/restore pattern
@@ -195,7 +235,7 @@ func ResetForTest(t *testing.T, logDir string, env config.Environment, retention
 
 // ResetForBenchmark resets the global logger - ONLY for benchmarks
 // Provides proper benchmark isolation by cleaning up resources and reinitializing
-func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, retentionWeeks int, maxFileSize int64) {
+func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	b.Helper() // Mark as benchmark helper for better error reporting
 
 	// Close existing logger to prevent resource leaks (goroutines, file handles)
@@ -208,7 +248,7 @@ func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, rete
 	initOnce = sync.Once{}
 
 	// Reinitialize with new settings
-	doInit(logDir, env, retentionWeeks, maxFileSize)
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
 
 	// Register cleanup to run after benchmark completes
 	b.Cleanup(func() {

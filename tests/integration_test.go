@@ -201,7 +201,7 @@ func setupTestEnvironment(t *testing.T) {
 	}
 
 	// Initialize logging with ResetForTest to allow proper reinitialization
-	logging.ResetForTest(t, "logs", config.DetectEnvironment(), 4, 100*1024*1024)
+	logging.ResetForTest(t, "logs", config.DetectEnvironment(), "", 4, 100*1024*1024)
 }
 
 func cleanupTestEnvironment(t *testing.T) {

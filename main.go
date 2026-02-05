@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// Initialize structured logging with rotating logs using config values
-	logging.InitLoggerWithEnvironment("logs", cfg.Env, cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
+	logging.InitLoggerWithEnvironment("logs", cfg.Env, cfg.LogLevel, cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
 
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",
