@@ -340,7 +340,6 @@ Le champ `orphanCIS` contient les codes CIS référencés dans un groupe génér
 - Les CIS orphelins apparaissent dans le tableau `orphanCIS` sans détails supplémentaires
 - Ce champ peut être :
   - Un tableau d'entiers : `[61586325, 60473805]`
-  - Un tableau vide : `[]`
   - Null : `null` (si le groupe ne contient aucun CIS orphelin)
 
 ### Programmatique
@@ -653,7 +652,7 @@ Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-
 │ generiques        │ ~6MB  │ Slice des generiques            │
 │ medicamentsMap    │ ~15MB │ O(1) lookup par CIS             │
 │ generiquesMap     │ ~4MB  │ O(1) lookup par groupe ID       │
-│ Total             │ 70-90MB│ RAM usage stable (Go optimisé)  │
+ │ Total             │ 60-90MB│ RAM usage stable (Go optimisé)  │
 │ Startup           │ ~150MB│ Pic initial après chargement     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -1052,7 +1051,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 
 - **Rate limiting** : 1000 tokens/IP, recharge 3 tokens/seconde
 - **Coûts variables** : 5-200 tokens/requête selon endpoint
-- **Data size** : ~20MB avec 30-50MB RAM stable (150MB startup)
+- **Data size** : ~20MB avec 60-90MB RAM stable (150MB startup)
 - **Pas de SLA** : Service "as-is" sans garantie de disponibilité
 - **Dépendance externe** : Mises à jour selon disponibilité source BDPM
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces
@@ -1113,20 +1112,37 @@ Décembre 2025
 - Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
 - Fix logging shutdown: Correction des logs pendant l'arrêt du serveur
 
-Janvier 2026
-- Ajout des endpoints v1 avec headers de dépréciation, caching ETag et mise à jour des coûts de token
-- Ajout des maps de lookup CIP7/CIP13 avec détection de doublons
-- Ajout de l'endpoint CIP avec validation CIS et routage amélioré
-- Modernisation de la syntaxe, division des fichiers de tests et simplification des calculs
+Février 2026
+
+**Nouvelles fonctionnalités**
+- Endpoints v1 avec headers de dépréciation, caching ETag et coûts de token mis à jour
+- Routes RESTful : `/v1/medicaments/{cis}`, `/v1/presentations/{cip}`, `/v1/medicaments/export`
+- Maps de lookup CIP7/CIP13 avec détection de doublons
+- Endpoint `/v1/diagnostics` : rapports d'intégrité des données et métriques système
+- Champ orphanCIS dans les réponses génériques : codes CIS sans entrée médicament correspondante
+- Endpoint `/health` simplifié : statut de santé et données de base uniquement
+- Support du signe + dans les recherches : "paracetamol+cafeine" fonctionne comme "paracetamol cafeine"
+- LOG_LEVEL fonctionnel : contrôle le niveau de log console/fichiers (fallback par environnement)
+
+**Performance**
+- Amélioration de 6-10x des recherches : noms normalisés pré-calculés réduisant allocations de 170x
+- Validation des entrées optimisée 5-10x : pré-compilation regex, remplacement par string.Contains()
+- Logging optimisé : skip /health et /metrics, réduction volume logs
+
+**Corrections**
 - Correction du logging lors de l'arrêt du serveur
-- Mise à jour de la suite de tests pour utiliser les endpoints v1 avec paramètres de requête
-- Ajout du champ orphanCIS dans les réponses génériques : contient les codes CIS sans entrée médicament correspondante
-- Nouvelles routes RESTful : `/v1/medicaments/{cis}` et `/v1/presentations/{cip}` utilisent des paramètres de chemin
-- Endpoint d'export déplacé : `/v1/medicaments/export` au lieu de `?export=all`
-- Endpoint `/v1/medicaments` simplifié : ne supporte plus les paramètres `cis` et `export` (migrés vers des paths dédiés)
-- Ajout de l'endpoint `/v1/diagnostics` : rapports détaillés sur l'intégrité des données et métriques système
-- Endpoint `/health` simplifié : ne retourne que le statut de santé et les données de base
-- Ajout de la qualité des données : rapports sur les médicaments sans conditions, génériques, présentations, ou composition
+- Endpoint /v1/medicaments : retourne 404 si non trouvé (au lieu de tableau vide)
+- Race conditions corrigées dans le logger rotatif (fuites ressources + concurrence)
+- Validation génériques stricte : groupID 1-9999 avec messages d'erreur clairs
+
+**Refactoring et tests**
+- Modernisation syntaxe, division des fichiers de tests et simplification des calculs
+- Mise à jour de la suite de tests pour utiliser les endpoints v1
+- Migration Go 1.24, ajout smoke tests, consolidation benchmarks
+
+**Qualité des données**
+- Rapports sur les médicaments sans conditions, génériques, présentations, ou composition
+- Gestion des cas limites TSV : statistiques de skip pour lignes mal formatées
 
 ---
 

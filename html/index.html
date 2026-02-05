@@ -550,9 +550,10 @@
       <section class="hero">
         <h1>API des Médicaments Français</h1>
         <p class="hero-subtitle">
-          Une API rapide et fiable pour accéder aux 15,000+ médicaments français.
-          Mises à jour automatiques deux fois par jour, cache intelligent, et
-          protection contre les abus pour garantir une expérience stable.
+          Une API rapide et fiable pour accéder aux 15,000+ médicaments
+          français. Mises à jour automatiques deux fois par jour, cache
+          intelligent, et protection contre les abus pour garantir une
+          expérience stable.
         </p>
         <div class="hero-stats">
           <div class="stat">
@@ -801,8 +802,9 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <p>
               Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
               Validation stricte (3-50 chars alphanumériques) et échappement
-              automatique. <strong>80K+ req/s</strong> (CIS/CIP), <strong>36K req/s</strong> (génériques),
-              latence moyenne <5ms sur les lookups O(1).
+              automatique. <strong>80K+ req/s</strong> (CIS/CIP),
+              <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
+              les lookups O(1).
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -870,7 +872,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <p>
               15,000+ médicaments, 1.6K groupes génériques. Toutes les entités
               BDPM : compositions, présentations, génériques, conditions, voies
-              d'administration. Mémoire optimisée : 30-50MB stable (150MB peak
+              d'administration. Mémoire optimisée : 60-90MB stable (150MB peak
               au démarrage).
             </p>
             <div style="margin-top: 1rem">
@@ -882,7 +884,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                23MB dataset, 30-50MB RAM
+                23MB dataset, 60-90MB RAM
               </code>
             </div>
           </div>
@@ -1296,8 +1298,18 @@ BASE_URL="https://medicaments-api.giygas.dev"
             L'endpoint <code>/v1/diagnostics</code> fournit des métriques
             détaillées sur le système et l'intégrité des données.
           </p>
-          <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; margin-top: 1rem">
-            <h4 style="color: var(--color-text); margin-bottom: 1rem">Réponse Diagnostics</h4>
+          <div
+            style="
+              background: var(--color-surface);
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              padding: 1.5rem;
+              margin-top: 1rem;
+            "
+          >
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Réponse Diagnostics
+            </h4>
             <pre
               style="
                 background: var(--color-bg);
@@ -1358,8 +1370,8 @@ BASE_URL="https://medicaments-api.giygas.dev"
           </h3>
           <p style="color: var(--color-text-muted); margin-bottom: 1rem">
             Ces endpoints sont toujours disponibles mais seront supprimés le
-            <strong>31 juillet 2026</strong>. Veuillez migrer vers les endpoints v1
-            ci-dessus.
+            <strong>31 juillet 2026</strong>. Veuillez migrer vers les endpoints
+            v1 ci-dessus.
           </p>
           <div style="overflow-x: auto">
             <table style="width: 100%; border-collapse: collapse; opacity: 0.7">
@@ -2013,8 +2025,8 @@ Content-Type: application/json
               <li><strong>Longueur :</strong> 3-50 caractères</li>
               <li>
                 <strong>Caractères autorisés :</strong> Lettres (a-z, A-Z),
-                chiffres (0-9), espaces, tirets (-), apostrophes ('),
-                points (.), signe plus (+), et caractères accentués français
+                chiffres (0-9), espaces, tirets (-), apostrophes ('), points
+                (.), signe plus (+), et caractères accentués français
                 (àâäéèêëïîôöùûüÿç)
               </li>
               <li>
@@ -2438,17 +2450,82 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
             ℹ️ À propos du champ orphanCIS
           </h4>
-          <p style="color: var(--color-text-muted); line-height: 1.6; margin-bottom: 1rem">
-            Le champ <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">orphanCIS</code> contient les codes CIS référencés dans un groupe générique mais pour lesquels aucune entrée médicament correspondante n'existe dans la base de données.
+          <p
+            style="
+              color: var(--color-text-muted);
+              line-height: 1.6;
+              margin-bottom: 1rem;
+            "
+          >
+            Le champ
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.85rem;
+              "
+              >orphanCIS</code
+            >
+            contient les codes CIS référencés dans un groupe générique mais pour
+            lesquels aucune entrée médicament correspondante n'existe dans la
+            base de données.
           </p>
           <ul style="color: var(--color-text-muted); padding-left: 1.5rem">
-            <li>Les médicaments avec des données complètes apparaissent dans le tableau <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">medicaments</code></li>
-            <li>Les CIS orphelins apparaissent dans le tableau <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">orphanCIS</code> sans détails supplémentaires</li>
-            <li>Ce champ peut prendre trois valeurs :
+            <li>
+              Les médicaments avec des données complètes apparaissent dans le
+              tableau
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                "
+                >medicaments</code
+              >
+            </li>
+            <li>
+              Les CIS orphelins apparaissent dans le tableau
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                "
+                >orphanCIS</code
+              >
+              sans détails supplémentaires
+            </li>
+            <li>
+              Ce champ peut prendre deux valeurs :
               <ul style="margin-top: 0.5rem; padding-left: 1.5rem">
-                <li>Un tableau d'entiers : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">[61586325, 60473805]</code></li>
-                <li>Un tableau vide : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">[]</code></li>
-                <li>Null : <code style="background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem">null</code> (si le groupe ne contient aucun CIS orphelin)</li>
+                <li>
+                  Un tableau d'entiers :
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.25rem 0.5rem;
+                      border-radius: 4px;
+                      font-size: 0.85rem;
+                    "
+                    >[61586325, 60473805]</code
+                  >
+                </li>
+                <li>
+                  Null :
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.25rem 0.5rem;
+                      border-radius: 4px;
+                      font-size: 0.85rem;
+                    "
+                    >null</code
+                  >
+                  (si le groupe ne contient aucun CIS orphelin)
+                </li>
               </ul>
             </li>
           </ul>
