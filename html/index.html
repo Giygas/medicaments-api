@@ -800,8 +800,8 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔍</div>
             <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
-              Validation stricte (3-50 chars alphanumériques) et échappement
+              Recherche multi-mots (logique ET, max 6 mots) ou CIS avec O(1) lookup.
+              Validation stricte (3-50 chars, 1-6 mots alphanumériques) et échappement
               automatique. <strong>80K+ req/s</strong> (CIS/CIP),
               <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
               les lookups O(1).
@@ -814,9 +814,78 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   border-radius: 4px;
                   font-size: 0.85rem;
                 "
-              >
+                 >
                 GET /v1/medicaments?search=paracetamol
               </code>
+            </div>
+            <div style="margin-top: 1rem">
+              <h4 style="color: var(--color-text); margin-bottom: 1rem">
+                Recherche multi-mots
+              </h4>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                    "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                    "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                    "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicaments-api.giygas.dev/v1/medicaments?search=ibuprofene+arrow+400
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                    "
+                >
+                  📋
+                </button>
+              </div>
             </div>
           </div>
 

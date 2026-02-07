@@ -27,10 +27,10 @@ L'API délivre des performances exceptionnelles grâce à des optimisations cont
 | --------------------------------- | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
 | `/v1/medicaments/export`          | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
 | `/v1/medicaments?page={n}`        | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
-| `/v1/medicaments?search={query}`  | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
+| `/v1/medicaments?search={query}`  | Recherche multi-mots (1-6 mots, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
 | `/v1/medicaments/{cis}`           | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
 | `/v1/medicaments?cip={code}`      | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
-| `/v1/generiques?libelle={nom}`    | Génériques par libellé             | 1h    | 30   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`       |
+| `/v1/generiques?libelle={nom}`    | Génériques multi-mots (1-6 mots, 3-50 chars) | 1h    | 30   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
 | `/v1/generiques?group={id}`       | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
 | `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
 | `/v1/diagnostics`                | Diagnostics système (détails)    | 10s   | 30   | CC         | -                       |
@@ -71,6 +71,7 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 **Règles v1 :**
 
 - **Un seul paramètre** par requête : page, search, cip, libelle, ou group (CIS et export utilisent des paths séparés)
+- **Maximum de 6 mots** : Les recherches multi-mots supportent jusqu'à 6 mots (logique ET)
 - **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
 - **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
   - `Deprecation: true`
@@ -164,6 +165,28 @@ curl https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol
 
 # Groupe générique par ID avec détails complets
 curl https://medicaments-api.giygas.dev/v1/generiques?group=1234
+```
+
+#### Recherche multi-mots
+
+L'API supporte désormais la recherche multi-mots avec logique ET :
+- Tous les mots doivent être présents dans le résultat (logique ET)
+- Maximum de 6 mots par requête (protection DoS)
+- Les mots peuvent être séparés par `+` ou espace dans l'URL
+
+**Exemples :**
+```bash
+# 2 mots - recherche précise
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500"
+curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500"
+
+# 6 mots - recherche très précise
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+mg+comprime+boite+20"
+curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500+mg+comprime+effervescent"
+
+# Erreur - trop de mots (7+ mots)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+mg+comprime+boite+20+extra"
+# Réponse : {"error": "Bad Request", "message": "search query too complex: maximum 6 words allowed", "code": 400}
 ```
 
 #### Présentations (API v1 - nouveau)
@@ -490,6 +513,7 @@ Cette approche basée sur interfaces permet de tester chaque composant indépend
 ### Mesures de sécurité
 
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces
+- **Recherche multi-mots** : Logique ET avec limite de 3 mots (protection DoS contre requêtes complexes)
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
 - **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
   - Headers dans les réponses : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Rate`, `Retry-After`

@@ -92,7 +92,10 @@ paths:
         - name: search
           in: query
           required: false
-          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
+          description: |
+            Terme de recherche multi-mots (1-6 mots requis, logique ET).
+            Les mots sont séparés par + ou espace dans l'URL.
+            Minimum 3 caractères, maximum 50 caractères.
           schema:
             type: string
             minLength: 3
@@ -131,25 +134,25 @@ paths:
                 paginated:
                   summary: Pagination
                   value:
-                    data:
-                      - cis: 61504672
-                        elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                        formePharmaceutique: "comprimé"
-                        voiesAdministration: ["orale"]
-                        statusAutorisation: "Autorisation active"
-                        typeProcedure: "Procédure nationale"
-                        etatComercialisation: "Commercialisée"
-                        dateAMM: "2000-01-01"
-                        titulaire: "MYLAN SAS"
-                        surveillanceRenforcee: "Non"
-                        composition: []
-                        generiques: []
-                        presentation: []
-                        conditions: []
-                    page: 1
-                    pageSize: 10
-                    totalItems: 15000
-                    maxPage: 1500
+                     data:
+                       - cis: 61504672
+                         elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                         formePharmaceutique: "comprimé"
+                         voiesAdministration: ["orale"]
+                         statusAutorisation: "Autorisation active"
+                         typeProcedure: "Procédure nationale"
+                         etatComercialisation: "Commercialisée"
+                         dateAMM: "2000-01-01"
+                         titulaire: "MYLAN SAS"
+                         surveillanceRenforcee: "Non"
+                         composition: []
+                         generiques: []
+                         presentation: []
+                         conditions: []
+                     page: 1
+                     pageSize: 10
+                     totalItems: 15000
+                     maxPage: 1500
                 search:
                   summary: Recherche par nom
                   value:
@@ -185,14 +188,20 @@ paths:
           description: Paramètres invalides
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+               examples:
                 bad-request:
-                  value:
-                    error: "Bad Request"
-                    message: "Only one parameter allowed at a time"
-                    code: 400
+                    value:
+                      error: "Bad Request"
+                      message: "Only one parameter allowed at a time"
+                      code: 400
+                word-limit-exceeded:
+                    summary: Limite de mots dépassée
+                    value:
+                      error: "Bad Request"
+                      message: "search query too complex: maximum 6 words allowed"
+                      code: 400
         "404":
           description: Aucun résultat
           content:
@@ -249,101 +258,51 @@ paths:
                 export:
                   summary: Export complet
                   value:
+                     - cis: 61504672
+                       elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                       formePharmaceutique: "comprimé"
+                       voiesAdministration: ["orale"]
+                       statusAutorisation: "Autorisation active"
+                       typeProcedure: "Procédure nationale"
+                       etatComercialisation: "Commercialisée"
+                       dateAMM: "2000-01-01"
+                       titulaire: "MYLAN SAS"
+                       surveillanceRenforcee: "Non"
+                       composition: []
+                       generiques: []
+                       presentation: []
+                       conditions: []
+                     - cis: 61504672
+                       elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
+                       formePharmaceutique: "comprimé"
+                       voiesAdministration: ["orale"]
+                       statusAutorisation: "Autorisation active"
+                       typeProcedure: "Procédure nationale"
+                       etatComercialisation: "Commercialisée"
+                       dateAMM: "2000-01-01"
+                       titulaire: "MYLAN SAS"
+                       surveillanceRenforcee: "Non"
+                       composition: []
+                       generiques: []
+                       presentation: []
+                       conditions: []
+                multiword:
+                  summary: Recherche multi-mots
+                  value:
                     - cis: 61504672
-                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                      elementPharmaceutique: "PARACETAMOL 500 mg"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
                       statusAutorisation: "Autorisation active"
                       typeProcedure: "Procédure nationale"
                       etatComercialisation: "Commercialisée"
                       dateAMM: "2000-01-01"
-                      titulaire: "MYLAN SAS"
+                      titulaire: "MYLAN"
                       surveillanceRenforcee: "Non"
                       composition: []
                       generiques: []
                       presentation: []
                       conditions: []
-                    - cis: 60904643
-                      elementPharmaceutique: "CODOLIPRANE 500 mg/30 mg, comprimé"
-                      formePharmaceutique: "comprimé"
-                      voiesAdministration: ["orale"]
-                      statusAutorisation: "Autorisation active"
-                      typeProcedure: "Procédure nationale"
-                      etatComercialisation: "Commercialisée"
-                      dateAMM: "10/05/2013"
-                      titulaire: "OPELLA HEALTHCARE FRANCE"
-                      surveillanceRenforcee: "Non"
-                      composition: []
-                      generiques: []
-                      presentation: []
-                      conditions: []
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                internal-error:
-                  value:
-                    error: "Internal Server Error"
-                    message: "Internal server error"
-                    code: 500
-
-  /medicaments/{cis}:
-    get:
-      summary: Obtenir un médicament par code CIS (v1)
-      description: |
-        Récupérer un médicament spécifique par son Code Identifiant de Spécialité (CIS).
-        C'est un lookup O(1) très rapide.
-      tags:
-        - Médicaments (v1)
-      parameters:
-        - name: cis
-          in: path
-          required: true
-          description: Code CIS (Code Identifiant de Spécialité, entier positif)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 999999999
-      responses:
-        "200":
-          description: Réponse réussie
-          headers:
-            ETag:
-              schema:
-                type: string
-              examples:
-                etag-header:
-                  value: '"W/"abc123""'
-            Last-Modified:
-              schema:
-                type: string
-                format: date-time
-              examples:
-                last-modified-header:
-                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
-          content:
-            application/json:
-              examples:
-                medicament:
-                  summary: Médicament trouvé
-                  value:
-                    cis: 61504672
-                    elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                    formePharmaceutique: "comprimé"
-                    voiesAdministration: ["orale"]
-                    statusAutorisation: "Autorisation active"
-                    typeProcedure: "Procédure nationale"
-                    etatComercialisation: "Commercialisée"
-                    dateAMM: "2000-01-01"
-                    titulaire: "MYLAN SAS"
-                    surveillanceRenforcee: "Non"
-                    composition: []
-                    generiques: []
-                    presentation: []
-                    conditions: []
         "400":
           description: Code CIS invalide
           content:
@@ -393,7 +352,10 @@ paths:
         - name: libelle
           in: query
           required: false
-          description: Terme de recherche (3-50 caractères, lettres, chiffres, espaces, et caractères spéciaux autorisés)
+          description: |
+            Terme de recherche multi-mots (1-6 mots requis, logique ET).
+            Les mots sont séparés par + ou espace dans l'URL.
+            Minimum 3 caractères, maximum 50 caractères.
           schema:
             type: string
             minLength: 3
@@ -504,7 +466,7 @@ paths:
                             dosage: "30 mg"
                     orphanCIS: null
         "400":
-          description: Paramètres invalides
+          description: Code CIS invalide
           content:
             application/json:
               schema:
@@ -513,10 +475,10 @@ paths:
                 bad-request:
                   value:
                     error: "Bad Request"
-                    message: "Needs libelle or group param"
+                    message: "Invalid CIS"
                     code: 400
         "404":
-          description: Aucun générique trouvé
+          description: Médicament non trouvé
           content:
             application/json:
               schema:
@@ -525,7 +487,7 @@ paths:
                 not-found:
                   value:
                     error: "Not Found"
-                    message: "No generiques found"
+                    message: "Medicament not found"
                     code: 404
         "500":
           description: Erreur interne du serveur
