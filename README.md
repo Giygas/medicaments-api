@@ -701,7 +701,7 @@ L'API implémente un système de logging structuré avec rotation automatique :
 # Configuration des logs
 LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation (1-52)
 MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (1MB-1GB, défaut: 100MB)
-LOG_LEVEL=info               # debug/info/warn/error - controls both console and file handlers; overrides ENV defaults; ignored in test environment
+LOG_LEVEL=info               # Niveau de log console (debug/info/warn/error) - les fichiers capturent toujours tous les niveaux
 ```
 
 #### Structure des Fichiers
@@ -1052,7 +1052,7 @@ ADDRESS=127.0.0.1            # Adresse d'écoute
 ENV=dev                      # Environnement (dev/production)
 
 # Logging
-LOG_LEVEL=info               # debug/info/warn/error - controls both console and file handlers; overrides ENV defaults; ignored in test environment
+LOG_LEVEL=info               # Niveau de log console (les fichiers sont toujours en DEBUG)
 
 # Limites optionnelles
 MAX_REQUEST_BODY=1048576     # 1MB max corps de requête
