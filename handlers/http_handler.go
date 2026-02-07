@@ -594,11 +594,22 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 		// Normalize: replace + with space for flexible matching
 		sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
 
+		// Split search query into individual words for multi-word search
+		searchWords := strings.Fields(sanitizedLibelle)
+
 		generiques := h.dataStore.GetGeneriques()
 		var results []entities.GeneriqueList
 
 		for _, gen := range generiques {
-			if strings.Contains(gen.LibelleNormalized, sanitizedLibelle) {
+			// Check if ALL search words exist in libelle (AND logic)
+			allMatch := true
+			for _, word := range searchWords {
+				if !strings.Contains(gen.LibelleNormalized, word) {
+					allMatch = false
+					break // Early termination - skip this generique immediately
+				}
+			}
+			if allMatch {
 				results = append(results, gen)
 			}
 		}
@@ -683,11 +694,22 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 		sanitizedElement := strings.ToLower(searchQuery)
 		sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
 
+		// Split search query into individual words for multi-word search
+		searchWords := strings.Fields(sanitizedElement)
+
 		medicaments := h.dataStore.GetMedicaments()
 		var results []entities.Medicament
 
 		for _, med := range medicaments {
-			if strings.Contains(med.DenominationNormalized, sanitizedElement) {
+			// Check if ALL search words exist in denomination (AND logic)
+			allMatch := true
+			for _, word := range searchWords {
+				if !strings.Contains(med.DenominationNormalized, word) {
+					allMatch = false
+					break // Early termination - skip this medicament immediately
+				}
+			}
+			if allMatch {
 				results = append(results, med)
 			}
 		}

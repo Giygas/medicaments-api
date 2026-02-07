@@ -297,6 +297,12 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("input too long: maximum 50 characters")
 	}
 
+	// Word count validation to prevent DoS attacks with many short words
+	words := strings.Fields(input)
+	if len(words) > 6 {
+		return fmt.Errorf("search query too complex: maximum 6 words allowed")
+	}
+
 	// Check for potentially dangerous patterns using string matching (5-10x faster than regex)
 	lowerInput := strings.ToLower(input)
 	for _, pattern := range dangerousPatterns {

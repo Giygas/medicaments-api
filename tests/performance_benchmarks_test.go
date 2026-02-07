@@ -475,6 +475,87 @@ func BenchmarkRealWorldSearch(b *testing.B) {
 	})
 }
 
+// BenchmarkMultiWordSearch benchmarks multi-word search performance
+// with real medicament names and negative cases (worst-case performance).
+// Usage: go test -bench=BenchmarkMultiWordSearch -benchmem
+func BenchmarkMultiWordSearch(b *testing.B) {
+	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
+	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+
+	server, client := setupRealWorldServer()
+	// Don't close server here as it's shared across benchmarks
+
+	// 2-word search (most common multi-word use case)
+	b.Run("TwoWordSearch", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			resp, err := client.Get(server.URL + "/v1/medicaments?search=paracetamol+500")
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	})
+
+	// 3-word search (maximum allowed)
+	b.Run("ThreeWordSearch", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			resp, err := client.Get(server.URL + "/v1/medicaments?search=ibuprofene+400+mg")
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	})
+
+	// Negative case: 2 words with no matches (worst-case - no early termination)
+	b.Run("TwoWordNoMatch", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			resp, err := client.Get(server.URL + "/v1/medicaments?search=xyz+123")
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	})
+
+	// Negative case: 3 words with no matches (worst-case - no early termination)
+	b.Run("ThreeWordNoMatch", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			resp, err := client.Get(server.URL + "/v1/medicaments?search=abc+def+ghi")
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	})
+
+	// Generique multi-word search
+	b.Run("GeneriqueTwoWordSearch", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			resp, err := client.Get(server.URL + "/v1/generiques?libelle=paracetamol+500")
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	})
+}
+
 // BenchmarkSustainedPerformance benchmarks performance under sustained load
 // with concurrent users and mixed endpoint patterns.
 // Usage: go test -bench=BenchmarkSustainedPerformance -benchmem

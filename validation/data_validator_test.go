@@ -649,6 +649,33 @@ func TestValidateInput_TooLong(t *testing.T) {
 	}
 }
 
+func TestValidateInput_TooManyWords(t *testing.T) {
+	validator := NewDataValidator()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"7 words", "paracetamol 500 mg tablet extra test more"},
+		{"8 words", "ibuprofene arrow conseil 400 mg caps test extra"},
+		{"9 words", "a b c d e f g h i"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateInput(tt.input)
+			if err == nil {
+				t.Error("Expected error for too many words")
+			}
+
+			expectedError := "search query too complex: maximum 6 words allowed"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
 func TestValidateInput_DangerousPatterns(t *testing.T) {
 	validator := NewDataValidator()
 

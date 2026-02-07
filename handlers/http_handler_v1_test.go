@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -582,7 +583,7 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 	tests := []struct {
 		name          string
 		queryParams   string
-		checkType     string // "page", "search", "cis", "cip"
+		checkType     string
 		expectedValue any
 	}{
 		{"first page", "?page=1", "page", 10},
@@ -877,6 +878,407 @@ func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 	})
 }
 
+// TestServeMedicamentsV1_MultiWordSearch tests multi-word search functionality
+func TestServeMedicamentsV1_MultiWordSearch(t *testing.T) {
+	// Create test medicaments with realistic multi-word names
+	med1 := entities.Medicament{
+		Cis:                    10000001,
+		Denomination:           "PARACETAMOL 500 mg",
+		DenominationNormalized: strings.ToLower("paracetamol 500 mg"),
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-01-01",
+		Titulaire:              "SANOFI",
+		Presentation:           []entities.Presentation{},
+	}
+
+	med2 := entities.Medicament{
+		Cis:                    10000002,
+		Denomination:           "IBUPROFENE ARROW CONSEIL 400 mg, caps",
+		DenominationNormalized: strings.ToLower("ibuprofene arrow conseil 400 mg, caps"),
+		FormePharmaceutique:    "Gélule",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-02-01",
+		Titulaire:              "ARROW",
+		Presentation:           []entities.Presentation{},
+	}
+
+	med3 := entities.Medicament{
+		Cis:                    10000003,
+		Denomination:           "IBUPROFENE 200 mg, comprimé enrobé",
+		DenominationNormalized: "ibuprofene 200 mg, comprime enrobe",
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-03-01",
+		Titulaire:              "PFIZER",
+		Presentation:           []entities.Presentation{},
+	}
+
+	med4 := entities.Medicament{
+		Cis:                    10000004,
+		Denomination:           "AMOXICILLINE BIOGARAN 1 g",
+		DenominationNormalized: "amoxicilline biogaran 1 g",
+		FormePharmaceutique:    "Comprimé",
+		VoiesAdministration:    []string{"Orale"},
+		StatusAutorisation:     "Autorisation active",
+		TypeProcedure:          "Procédure nationale",
+		EtatComercialisation:   "Commercialisée",
+		DateAMM:                "2020-04-01",
+		Titulaire:              "BIOGARAN",
+		Presentation:           []entities.Presentation{},
+	}
+
+	medicaments := []entities.Medicament{med1, med2, med3, med4}
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		expectedMatch string
+		expectError   bool
+	}{
+		// 2-word searches
+		{"2-word: paracetamol 500", "?search=paracetamol+500", 1, "PARACETAMOL 500 mg", false},
+		{"2-word: ibuprofene 400", "?search=ibuprofene+400", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"2-word: ibuprofene 200", "?search=ibuprofene+200", 1, "IBUPROFENE 200 mg, comprimé enrobé", false},
+		{"2-word: arrow conseil", "?search=arrow+conseil", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"2-word: biogaran 1", "?search=biogaran+1", 1, "AMOXICILLINE BIOGARAN 1 g", false},
+
+		// 3-word searches
+		{"3-word: arrow 400 caps", "?search=arrow+400+caps", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"3-word: conseil ibuprofene 400", "?search=conseil+ibuprofene+400", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"3-word: paracetamol 500 mg", "?search=paracetamol+500+mg", 1, "PARACETAMOL 500 mg", false},
+		{"3-word: ibuprofene arrow 400", "?search=ibuprofene+arrow+400", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+
+		// 4-5 word searches (realistic medication queries)
+		{"4-word: ibuprofene 200 mg enrobé", "?search=ibuprofene+200+mg+comprime", 1, "IBUPROFENE 200 mg, comprimé enrobé", false},
+		{"4-word: arrow conseil 400 mg caps", "?search=arrow+conseil+400+mg+caps", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"5-word: arrow conseil 400 mg caps", "?search=ibuprofene+arrow+conseil+400+mg", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+
+		// 6-word searches (maximum allowed)
+		{"6-word: arrow conseil 400 mg caps", "?search=ibuprofene+arrow+conseil+400+mg+caps", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+		{"6-word: arrow conseil 400 mg caps", "?search=ibuprofene+arrow+conseil+400+mg+caps", 1, "IBUPROFENE ARROW CONSEIL 400 mg, caps", false},
+
+		// Single-word backward compatibility
+		{"1-word: paracetamol", "?search=paracetamol", 1, "PARACETAMOL 500 mg", false},
+		{"1-word: ibuprofene", "?search=ibuprofene", 2, "", false},
+		{"1-word: biogaran", "?search=biogaran", 1, "AMOXICILLINE BIOGARAN 1 g", false},
+
+		// No match cases
+		{"no match: xyz 123", "?search=xyz+123", 0, "", true},
+		{"no match: abc def ghi", "?search=abc+def+ghi", 0, "", true},
+		{"no match: aspirin 100", "?search=aspirin+100", 0, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+			mockValidator := NewMockDataValidatorBuilder().Build()
+			handler := NewHTTPHandler(mockStore, mockValidator)
+
+			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(w, req)
+
+			if tt.expectError {
+				if w.Code != http.StatusNotFound {
+					t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
+				}
+
+				var errorResponse map[string]any
+				if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+					t.Fatalf("Failed to parse error response: %v", err)
+				}
+
+				message, ok := errorResponse["message"].(string)
+				if !ok || !containsSubstring(message, "No medicaments found") {
+					t.Errorf("Expected error message containing 'No medicaments found', got '%s'", message)
+				}
+			} else {
+				if w.Code != http.StatusOK {
+					t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+				}
+
+				var response []entities.Medicament
+				if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+					t.Fatalf("Failed to parse response: %v", err)
+				}
+
+				if len(response) != tt.expectedCount {
+					t.Errorf("Expected %d results, got %d", tt.expectedCount, len(response))
+				}
+
+				if tt.expectedMatch != "" && len(response) > 0 {
+					found := false
+					for _, med := range response {
+						if med.Denomination == tt.expectedMatch {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected to find '%s' in results", tt.expectedMatch)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestServeMedicamentsV1_MultiWordWordCountLimit tests the 6-word limit
+func TestServeMedicamentsV1_MultiWordWordCountLimit(t *testing.T) {
+	medicaments := []entities.Medicament{
+		{
+			Cis:                    10000001,
+			Denomination:           "PARACETAMOL 500 mg",
+			DenominationNormalized: strings.ToLower("paracetamol 500 mg"),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "SANOFI",
+			Presentation:           []entities.Presentation{},
+		},
+		{
+			Cis:                    10000002,
+			Denomination:           "IBUPROFENE ARROW CONSEIL 400 mg, caps",
+			DenominationNormalized: strings.ToLower("ibuprofene arrow conseil 400 mg, caps"),
+			FormePharmaceutique:    "Gélule",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-02-01",
+			Titulaire:              "ARROW",
+			Presentation:           []entities.Presentation{},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		queryParams string
+		expectError string
+	}{
+		{"7-word query (should fail)", "?search=a+b+c+d+e+f+g", "maximum 6 words allowed"},
+		{"8-word query (should fail)", "?search=a+b+c+d+e+f+g+h", "maximum 6 words allowed"},
+		{"9-word query (should fail)", "?search=a+b+c+d+e+f+g+h+i", "maximum 6 words allowed"},
+		{"10-word query (should fail)", "?search=a+b+c+d+e+f+g+h+i+j", "maximum 6 words allowed"},
+		{"6-word query (should pass)", "?search=ibuprofene+arrow+conseil+400+mg+caps", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+			realValidator := validation.NewDataValidator()
+			handler := NewHTTPHandler(mockStore, realValidator)
+
+			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(w, req)
+
+			if tt.expectError != "" {
+				if w.Code != http.StatusBadRequest {
+					t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+				}
+
+				if !strings.Contains(w.Body.String(), tt.expectError) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.expectError, w.Body.String())
+				}
+			} else {
+				if w.Code != http.StatusOK {
+					t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+				}
+			}
+		})
+	}
+}
+
+// TestServeGeneriquesV1_MultiWordSearch tests multi-word search functionality for generiques
+func TestServeGeneriquesV1_MultiWordSearch(t *testing.T) {
+	// Create test generiques with realistic multi-word libelles
+	gen1 := entities.GeneriqueList{
+		GroupID:           1,
+		Libelle:           "PARACETAMOL 500 mg, comprimé",
+		LibelleNormalized: "paracetamol 500 mg, comprime",
+		Medicaments:       []entities.GeneriqueMedicament{},
+	}
+
+	gen2 := entities.GeneriqueList{
+		GroupID:           2,
+		Libelle:           "IBUPROFENE ARROW 400 mg",
+		LibelleNormalized: "ibuprofene arrow 400 mg",
+		Medicaments:       []entities.GeneriqueMedicament{},
+	}
+
+	gen3 := entities.GeneriqueList{
+		GroupID:           3,
+		Libelle:           "AMOXICILLINE 1 g, comprimé dispersible",
+		LibelleNormalized: "amoxicilline 1 g, comprime dispersible",
+		Medicaments:       []entities.GeneriqueMedicament{},
+	}
+
+	generiques := []entities.GeneriqueList{gen1, gen2, gen3}
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		expectedMatch string
+		expectError   bool
+	}{
+		// 2-word searches
+		{"2-word: paracetamol 500", "?libelle=paracetamol+500", 1, "PARACETAMOL 500 mg, comprimé", false},
+		{"2-word: ibuprofene arrow", "?libelle=ibuprofene+arrow", 1, "IBUPROFENE ARROW 400 mg", false},
+		{"2-word: ibuprofene 400", "?libelle=ibuprofene+400", 1, "IBUPROFENE ARROW 400 mg", false},
+		{"2-word: amoxicilline 1", "?libelle=amoxicilline+1", 1, "AMOXICILLINE 1 g, comprimé dispersible", false},
+
+		// 3-word searches
+		{"3-word: paracetamol 500 comprimé", "?libelle=paracetamol+500+comprime", 1, "PARACETAMOL 500 mg, comprimé", false},
+		{"3-word: arrow 400 mg", "?libelle=arrow+400+mg", 1, "IBUPROFENE ARROW 400 mg", false},
+		{"3-word: amoxicilline g dispersible", "?libelle=amoxicilline+g+dispersible", 1, "AMOXICILLINE 1 g, comprimé dispersible", false},
+
+		// 4-5 word searches (realistic generique queries)
+		{"4-word: paracetamol 500 mg", "?libelle=paracetamol+500+mg+comprime", 1, "PARACETAMOL 500 mg, comprimé", false},
+
+		// 6-word searches (maximum allowed)
+		{"6-word: amoxicilline biogaran 1 g", "?libelle=amoxicilline+1+g+comprime+dispersible", 1, "AMOXICILLINE 1 g, comprimé dispersible", false},
+
+		// Single-word backward compatibility
+		{"1-word: paracetamol", "?libelle=paracetamol", 1, "PARACETAMOL 500 mg, comprimé", false},
+		{"1-word: ibuprofene", "?libelle=ibuprofene", 1, "IBUPROFENE ARROW 400 mg", false},
+		{"1-word: amoxicilline", "?libelle=amoxicilline", 1, "AMOXICILLINE 1 g, comprimé dispersible", false},
+
+		// No match cases
+		{"no match: xyz 123", "?libelle=xyz+123", 0, "", true},
+		{"no match: abc def ghi", "?libelle=abc+def+ghi", 0, "", true},
+		{"no match: aspirin 100", "?libelle=aspirin+100", 0, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
+			mockValidator := NewMockDataValidatorBuilder().Build()
+			handler := NewHTTPHandler(mockStore, mockValidator)
+
+			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeGeneriquesV1(w, req)
+
+			if tt.expectError {
+				if w.Code != http.StatusNotFound {
+					t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
+				}
+
+				var errorResponse map[string]any
+				if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+					t.Fatalf("Failed to parse error response: %v", err)
+				}
+
+				message, ok := errorResponse["message"].(string)
+				if !ok || !containsSubstring(message, "No generiques found") {
+					t.Errorf("Expected error message containing 'No generiques found', got '%s'", message)
+				}
+			} else {
+				if w.Code != http.StatusOK {
+					t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+				}
+
+				var response []entities.GeneriqueList
+				if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+					t.Fatalf("Failed to parse response: %v", err)
+				}
+
+				if len(response) != tt.expectedCount {
+					t.Errorf("Expected %d results, got %d", tt.expectedCount, len(response))
+				}
+
+				if tt.expectedMatch != "" && len(response) > 0 {
+					found := false
+					for _, gen := range response {
+						if gen.Libelle == tt.expectedMatch {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected to find '%s' in results", tt.expectedMatch)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestServeGeneriquesV1_MultiWordWordCountLimit tests the 6-word limit for generiques
+func TestServeGeneriquesV1_MultiWordWordCountLimit(t *testing.T) {
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:           1,
+			Libelle:           "PARACETAMOL 500 mg",
+			LibelleNormalized: strings.ToLower("paracetamol 500 mg"),
+			Medicaments:       []entities.GeneriqueMedicament{},
+		},
+		{
+			GroupID:           2,
+			Libelle:           "IBUPROFENE ARROW CONSEIL 400 mg",
+			LibelleNormalized: strings.ToLower("ibuprofene arrow conseil 400 mg"),
+			Medicaments:       []entities.GeneriqueMedicament{},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		queryParams string
+		expectError string
+	}{
+		{"7 words rejected (should fail)", "?libelle=a+b+c+d+e+f+g", "maximum 6 words allowed"},
+		{"8 words rejected (should fail)", "?libelle=a+b+c+d+e+f+g+h", "maximum 6 words allowed"},
+		{"9 words rejected (should fail)", "?libelle=a+b+c+d+e+f+g+h+i", "maximum 6 words allowed"},
+		{"10 words rejected (should fail)", "?libelle=a+b+c+d+e+f+g+h+i+j", "maximum 6 words allowed"},
+		{"6 words accepted (should pass)", "?libelle=ibuprofene+arrow+conseil+400+mg", ""},
+		{"2 words accepted (should pass)", "?libelle=paracetamol+500", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
+			realValidator := validation.NewDataValidator()
+			handler := NewHTTPHandler(mockStore, realValidator)
+
+			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeGeneriquesV1(w, req)
+
+			if tt.expectError != "" {
+				if w.Code != http.StatusBadRequest {
+					t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+				}
+
+				if !strings.Contains(w.Body.String(), tt.expectError) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.expectError, w.Body.String())
+				}
+			} else {
+				if w.Code != http.StatusOK {
+					t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+				}
+			}
+		})
+	}
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
