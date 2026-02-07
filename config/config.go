@@ -16,11 +16,11 @@ type Config struct {
 	Port              string
 	Address           string
 	Env               Environment // Type-safe environment enum
-	LogLevel          string
-	LogRetentionWeeks int   // Number of weeks to keep log files
-	MaxLogFileSize    int64 // Maximum log file size in bytes
-	MaxRequestBody    int64 // Maximum request body size in bytes
-	MaxHeaderSize     int64 // Maximum header size in bytes
+	LogLevel          string      // Console logging level (file logging is always DEBUG)
+	LogRetentionWeeks int         // Number of weeks to keep log files
+	MaxLogFileSize    int64       // Maximum log file size in bytes
+	MaxRequestBody    int64       // Maximum request body size in bytes
+	MaxHeaderSize     int64       // Maximum header size in bytes
 }
 
 // Environment represents the application environment

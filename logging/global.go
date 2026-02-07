@@ -84,16 +84,10 @@ func GetConsoleLogLevel(env config.Environment, logLevelStr string, isVerbose bo
 	}
 }
 
-// GetFileLogLevel returns the appropriate file log level for an environment
-// If logLevelStr is provided and not in test environment, it overrides the default
-// Default is slog.LevelInfo for all environments
-func GetFileLogLevel(env config.Environment, logLevelStr string) slog.Level {
-	// Use LOG_LEVEL override if provided (except in test environment)
-	if logLevelStr != "" && env != config.EnvTest {
-		return parseLogLevel(logLevelStr)
-	}
-
-	return slog.LevelInfo // Default for file logging
+// GetFileLogLevel returns the file log level
+// Files always log at DEBUG level to capture all information for debugging
+func GetFileLogLevel() slog.Level {
+	return slog.LevelDebug
 }
 
 // doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
@@ -111,7 +105,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 
 	// Determine console and file log levels based on environment and LOG_LEVEL
 	consoleLevel := GetConsoleLogLevel(env, logLevelStr, isVerbose)
-	fileLevel := GetFileLogLevel(env, logLevelStr)
+	fileLevel := GetFileLogLevel()
 
 	// Log detected environment for debugging (skip in tests to avoid noise)
 	if env != config.EnvTest {
@@ -123,9 +117,6 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 			"console_level", consoleLevel.String(),
 			"file_level", fileLevel.String(),
 			"log_directory", logDir)
-		if logLevelStr != "" {
-			consoleLogger.Info("LOG_LEVEL override applied", "log_level", logLevelStr)
-		}
 	}
 
 	// Create logs directory if it doesn't exist

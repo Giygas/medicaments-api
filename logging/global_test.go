@@ -61,27 +61,8 @@ func TestGetConsoleLogLevel(t *testing.T) {
 }
 
 func TestGetFileLogLevel(t *testing.T) {
-	tests := []struct {
-		name        string
-		env         config.Environment
-		logLevelStr string
-		expected    slog.Level
-	}{
-		{"dev defaults to info", config.EnvDevelopment, "", slog.LevelInfo},
-		{"test defaults to info", config.EnvTest, "", slog.LevelInfo},
-		{"prod defaults to info", config.EnvProduction, "", slog.LevelInfo},
-		{"staging defaults to info", config.EnvStaging, "", slog.LevelInfo},
-		{"prod with debug override", config.EnvProduction, "debug", slog.LevelDebug},
-		{"dev with error override", config.EnvDevelopment, "error", slog.LevelError},
-		{"test with debug override (ignored)", config.EnvTest, "debug", slog.LevelInfo},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GetFileLogLevel(tt.env, tt.logLevelStr)
-			if got != tt.expected {
-				t.Errorf("GetFileLogLevel(%v, %q) = %v, want %v", tt.env, tt.logLevelStr, got, tt.expected)
-			}
-		})
+	got := GetFileLogLevel()
+	if got != slog.LevelDebug {
+		t.Errorf("GetFileLogLevel() = %v, want %v", got, slog.LevelDebug)
 	}
 }
