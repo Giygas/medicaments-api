@@ -141,7 +141,7 @@ func TestSetupMiddleware(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -188,7 +188,7 @@ func TestSetupRoutes(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -275,7 +275,7 @@ func TestServerLifecycle(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "0", // Use port 0 for automatic port assignment
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "error", // Reduce log noise during tests
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -330,7 +330,7 @@ func TestGetHealthData(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -455,7 +455,7 @@ func TestServerWithRealDependencies(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -480,7 +480,7 @@ func TestServerConfiguration(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 2048576, // 2MB
 		MaxHeaderSize:  512,     // 512 bytes
@@ -512,7 +512,7 @@ func BenchmarkNewServer(b *testing.B) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -531,7 +531,7 @@ func BenchmarkGetHealthData(b *testing.B) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env: config.EnvTest,
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,

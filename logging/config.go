@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -60,27 +62,98 @@ func (rl *RotatingLogger) doRotate(targetWeek string) error {
 		}
 	}
 
-	now := time.Now()
-	needsSizeRotation := rl.maxFileSize > 0 && rl.currentSize.Load() >= rl.maxFileSize
-
-	var logFileName string
-	if needsSizeRotation {
-		logFileName = fmt.Sprintf("app-%s_size_%s.log", targetWeek, now.Format("20060102_150405"))
-	} else {
-		logFileName = fmt.Sprintf("app-%s.log", targetWeek)
+	isSizeRotation := rl.maxFileSize > 0 && rl.currentSize.Load() >= rl.maxFileSize
+	fileName, shouldResetSize, err := rl.findOrCreateLogFile(targetWeek, isSizeRotation)
+	if err != nil {
+		return err
 	}
 
-	logPath := filepath.Join(rl.logDir, logFileName)
+	logPath := filepath.Join(rl.logDir, fileName)
 	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		return fmt.Errorf("failed to create rotated log file %s: %w", logPath, err)
+		return fmt.Errorf("failed to open log file %s: %w", logPath, err)
 	}
 
 	rl.currentFile = file
 	rl.currentWeek = targetWeek
-	rl.currentSize.Store(0)
+
+	if shouldResetSize {
+		rl.currentSize.Store(0)
+	} else {
+		if info, err := os.Stat(logPath); err == nil {
+			rl.currentSize.Store(info.Size())
+		}
+	}
 
 	return nil
+}
+
+// findOrCreateLogFile determines which log file to use for the current week
+func (rl *RotatingLogger) findOrCreateLogFile(targetWeek string, isSizeRotation bool) (string, bool, error) {
+	baseFileName := fmt.Sprintf("app-%s.log", targetWeek)
+	baseFilePath := filepath.Join(rl.logDir, baseFileName)
+
+	if !isSizeRotation {
+		if info, err := os.Stat(baseFilePath); err == nil {
+			if rl.maxFileSize == 0 || info.Size() < rl.maxFileSize {
+				return baseFileName, false, nil
+			}
+		} else {
+			return baseFileName, false, nil
+		}
+	}
+
+	highestNum, lastFilePath, lastSize := rl.findHighestNumberedFile(targetWeek)
+
+	if lastFilePath != "" && lastSize < rl.maxFileSize {
+		return filepath.Base(lastFilePath), false, nil
+	}
+
+	nextNum := highestNum + 1
+	newFileName := fmt.Sprintf("app-%s_%02d.log", targetWeek, nextNum)
+	return newFileName, true, nil
+}
+
+// findHighestNumberedFile searches for numbered log files and returns the highest number
+func (rl *RotatingLogger) findHighestNumberedFile(targetWeek string) (int, string, int64) {
+	pattern := fmt.Sprintf("app-%s_??.log", targetWeek)
+	matches, _ := filepath.Glob(filepath.Join(rl.logDir, pattern))
+
+	highestNum := 0
+	var lastPath string
+	var lastSize int64
+
+	for _, match := range matches {
+		num, size := rl.parseNumberedFile(match)
+		if num > highestNum {
+			highestNum = num
+			lastPath = match
+			lastSize = size
+		}
+	}
+
+	return highestNum, lastPath, lastSize
+}
+
+// parseNumberedFile extracts the sequence number and file size from a numbered log file
+func (rl *RotatingLogger) parseNumberedFile(filePath string) (int, int64) {
+	base := filepath.Base(filePath)
+
+	re := regexp.MustCompile(`app-\d{4}-W\d{2}_(\d{2})\.log$`)
+	matches := re.FindStringSubmatch(base)
+
+	if len(matches) < 2 {
+		return 0, 0
+	}
+
+	num, _ := strconv.Atoi(matches[1])
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return num, 0
+	}
+
+	return num, info.Size()
 }
 
 // Write writes data to the current log file

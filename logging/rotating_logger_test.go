@@ -276,23 +276,23 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 	}
 
 	// Verify size-rotated files have correct naming format
-	hasSizeRotatedFile := false
-	sizeRotatedPattern := regexp.MustCompile(`_size_\d{8}_\d{6}\.log$`)
+	hasNumberedFile := false
+	numberedPattern := regexp.MustCompile(`_\d{2}\.log$`)
 	for _, entry := range entries {
-		if strings.Contains(entry.Name(), "_size_") {
-			hasSizeRotatedFile = true
+		if strings.Contains(entry.Name(), "_01.") || strings.Contains(entry.Name(), "_02.") {
+			hasNumberedFile = true
 			if !strings.HasSuffix(entry.Name(), ".log") {
-				t.Errorf("Size-rotated file missing .log extension: %s", entry.Name())
+				t.Errorf("Numbered file missing .log extension: %s", entry.Name())
 			}
-			// Verify timestamp format (YYYYMMDD_HHMMSS)
-			if !sizeRotatedPattern.MatchString(entry.Name()) {
-				t.Errorf("Size-rotated file has incorrect timestamp format: %s", entry.Name())
+			// Verify number format (two digits)
+			if !numberedPattern.MatchString(entry.Name()) {
+				t.Errorf("Numbered file has incorrect format: %s", entry.Name())
 			}
 		}
 	}
 
-	if !hasSizeRotatedFile {
-		t.Error("Expected at least one size-rotated file due to large write")
+	if !hasNumberedFile {
+		t.Error("Expected at least one numbered file due to large write")
 	}
 
 	// Close logger
@@ -423,12 +423,12 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 	}
 
 	logFiles := 0
-	sizeRotatedFiles := 0
+	numberedFiles := 0
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "app-") && strings.HasSuffix(entry.Name(), ".log") {
 			logFiles++
-			if strings.Contains(entry.Name(), "_size_") {
-				sizeRotatedFiles++
+			if strings.Contains(entry.Name(), "_01.") || strings.Contains(entry.Name(), "_02.") || strings.Contains(entry.Name(), "_03.") {
+				numberedFiles++
 			}
 		}
 	}
@@ -437,8 +437,8 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 		t.Error("Expected at least 1 log file")
 	}
 
-	if sizeRotatedFiles < 1 {
-		t.Log("No size-rotated files created (might not have hit size limit)")
+	if numberedFiles < 1 {
+		t.Log("No numbered files created (might not have hit size limit)")
 	}
 }
 
@@ -658,5 +658,85 @@ func TestResponseWriterWrapper(t *testing.T) {
 	// Test bytes written tracking
 	if wrapper.bytesWritten != len(data) {
 		t.Errorf("Expected bytesWritten %d, got %d", len(data), wrapper.bytesWritten)
+	}
+}
+
+func TestRotatingLoggerExistingFileAtSizeLimit(t *testing.T) {
+	tempDir := t.TempDir()
+
+	maxFileSize := int64(1024)
+	currentWeek := getWeekKey(time.Now())
+	baseFileName := fmt.Sprintf("app-%s.log", currentWeek)
+	baseFilePath := filepath.Join(tempDir, baseFileName)
+
+	if err := os.WriteFile(baseFilePath, []byte(strings.Repeat("x", 2048)), 0666); err != nil {
+		t.Fatalf("Failed to create initial log file: %v", err)
+	}
+
+	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, maxFileSize)
+	defer func() { _ = rl.Close() }()
+
+	rl.mu.Lock()
+	err := rl.doRotate(currentWeek)
+	rl.mu.Unlock()
+	if err != nil {
+		t.Fatalf("Failed to rotate: %v", err)
+	}
+
+	if rl.currentFile.Name() == baseFilePath {
+		t.Errorf("Expected new numbered file, but got: %s", rl.currentFile.Name())
+	}
+
+	if !strings.Contains(rl.currentFile.Name(), "_01.") {
+		t.Errorf("Expected filename to contain '_01' suffix, got: %s", rl.currentFile.Name())
+	}
+
+	if rl.currentSize.Load() != 0 {
+		t.Errorf("Expected currentSize to be 0 for new file, got: %d", rl.currentSize.Load())
+	}
+
+	_, err = rl.Write([]byte("test message"))
+	if err != nil {
+		t.Fatalf("Failed to write to new file: %v", err)
+	}
+}
+
+func TestRotatingLoggerExistingFileBelowSizeLimit(t *testing.T) {
+	tempDir := t.TempDir()
+
+	maxFileSize := int64(1024)
+	currentWeek := getWeekKey(time.Now())
+	baseFileName := fmt.Sprintf("app-%s.log", currentWeek)
+	baseFilePath := filepath.Join(tempDir, baseFileName)
+
+	if err := os.WriteFile(baseFilePath, []byte(strings.Repeat("x", 512)), 0666); err != nil {
+		t.Fatalf("Failed to create initial log file: %v", err)
+	}
+
+	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, maxFileSize)
+	defer func() { _ = rl.Close() }()
+
+	rl.mu.Lock()
+	err := rl.doRotate(currentWeek)
+	rl.mu.Unlock()
+	if err != nil {
+		t.Fatalf("Failed to rotate: %v", err)
+	}
+
+	if rl.currentFile.Name() != baseFilePath {
+		t.Errorf("Expected to reuse existing file, but got: %s", rl.currentFile.Name())
+	}
+
+	if rl.currentSize.Load() != 512 {
+		t.Errorf("Expected currentSize to be 512 (actual file size), got: %d", rl.currentSize.Load())
+	}
+
+	_, err = rl.Write([]byte("x"))
+	if err != nil {
+		t.Fatalf("Failed to write to file: %v", err)
+	}
+
+	if rl.currentSize.Load() != 513 {
+		t.Errorf("Expected currentSize to be 513 after write, got: %d", rl.currentSize.Load())
 	}
 }
