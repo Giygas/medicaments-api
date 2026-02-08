@@ -67,96 +67,61 @@ externalDocs:
   description: Base de données publique des médicaments
   url: https://base-donnees-publique.medicaments.gouv.fr
 servers:
-  - url: https://medicaments-api.giygas.dev/v1/
+  - url: https://medicaments-api.giygas.dev/
+
+security: []
 
 paths:
-  /medicaments:
+  /v1/medicaments:
     get:
       summary: Obtenir des médicaments (v1)
       description: |
         Recherche et récupération de médicaments avec différents paramètres de requête.
         Seul un paramètre est autorisé à la fois.
-        Pour les recherches par CIS ou l'export complet, utilisez les endpoints dédiés :
-        - `/v1/medicaments/{cis}` pour la recherche par CIS
-        - `/v1/medicaments/export` pour l'export complet
       tags:
         - Médicaments (v1)
       parameters:
-        - name: page
-          in: query
-          required: false
-          description: Numéro de page (pagination à 10 éléments par page)
-          schema:
-            type: integer
-            minimum: 1
-        - name: search
-          in: query
-          required: false
-          description: |
-            Terme de recherche multi-mots (1-6 mots requis, logique ET).
-            Les mots sont séparés par + ou espace dans l'URL.
-            Minimum 3 caractères, maximum 50 caractères.
-          schema:
-            type: string
-            minLength: 3
-            maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
-        - name: cip
-          in: query
-          required: false
-          description: Code CIP (CIP7 ou CIP13, entier positif)
-          schema:
-            type: integer
-            minimum: 1
+        - $ref: "#/components/parameters/QueryPage"
+        - $ref: "#/components/parameters/QuerySearch"
+        - $ref: "#/components/parameters/QueryCip"
       responses:
         "200":
           description: Réponse réussie
           content:
             application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/MedicamentArray"
+                    description: Réponse pour recherche par nom ou CIP
+                  - $ref: "#/components/schemas/PaginatedMedicament"
+                    description: Réponse paginée
               examples:
-                export:
-                  summary: Export complet
-                  value:
-                    - cis: 61504672
-                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                      formePharmaceutique: "comprimé"
-                      voiesAdministration: ["orale"]
-                      statusAutorisation: "Autorisation active"
-                      typeProcedure: "Procédure nationale"
-                      etatComercialisation: "Commercialisée"
-                      dateAMM: "2000-01-01"
-                      titulaire: "MYLAN SAS"
-                      surveillanceRenforcee: "Non"
-                      composition: []
-                      generiques: []
-                      presentation: []
-                      conditions: []
                 paginated:
                   summary: Pagination
                   value:
-                     data:
-                       - cis: 61504672
-                         elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                         formePharmaceutique: "comprimé"
-                         voiesAdministration: ["orale"]
-                         statusAutorisation: "Autorisation active"
-                         typeProcedure: "Procédure nationale"
-                         etatComercialisation: "Commercialisée"
-                         dateAMM: "2000-01-01"
-                         titulaire: "MYLAN SAS"
-                         surveillanceRenforcee: "Non"
-                         composition: []
-                         generiques: []
-                         presentation: []
-                         conditions: []
-                     page: 1
-                     pageSize: 10
-                     totalItems: 15000
-                     maxPage: 1500
+                    data:
+                      - cis: "61504672"
+                        elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                        formePharmaceutique: "comprimé"
+                        voiesAdministration: ["orale"]
+                        statusAutorisation: "Autorisation active"
+                        typeProcedure: "Procédure nationale"
+                        etatComercialisation: "Commercialisée"
+                        dateAMM: "2000-01-01"
+                        titulaire: "MYLAN SAS"
+                        surveillanceRenforcee: "Non"
+                        composition: []
+                        generiques: []
+                        presentation: []
+                        conditions: []
+                    page: 1
+                    pageSize: 10
+                    totalItems: 15000
+                    maxPage: 1500
                 search:
                   summary: Recherche par nom
                   value:
-                    - cis: 61504672
+                    - cis: "61504672"
                       elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -170,7 +135,7 @@ paths:
                       generiques: []
                       presentation: []
                       conditions: []
-                    - cis: 60001234
+                    - cis: "60001234"
                       elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -188,20 +153,20 @@ paths:
           description: Paramètres invalides
           content:
             application/json:
-               schema:
-                 $ref: "#/components/schemas/ErrorResponse"
-               examples:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
                 bad-request:
-                    value:
-                      error: "Bad Request"
-                      message: "Only one parameter allowed at a time"
-                      code: 400
+                  value:
+                    error: "Bad Request"
+                    message: "Only one parameter allowed at a time"
+                    code: 400
                 word-limit-exceeded:
-                    summary: Limite de mots dépassée
-                    value:
-                      error: "Bad Request"
-                      message: "search query too complex: maximum 6 words allowed"
-                      code: 400
+                  summary: Limite de mots dépassée
+                  value:
+                    error: "Bad Request"
+                    message: "search query too complex: maximum 6 words allowed"
+                    code: 400
         "404":
           description: Aucun résultat
           content:
@@ -227,7 +192,7 @@ paths:
                     message: "Internal server error"
                     code: 500
 
-  /medicaments/export:
+  /v1/medicaments/export:
     get:
       summary: Exporter tous les médicaments (v1)
       description: |
@@ -254,50 +219,35 @@ paths:
                   value: "Mon, 15 Jan 2026 06:00:00 GMT"
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/MedicamentArray"
               examples:
                 export:
                   summary: Export complet
                   value:
-                     - cis: 61504672
-                       elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                       formePharmaceutique: "comprimé"
-                       voiesAdministration: ["orale"]
-                       statusAutorisation: "Autorisation active"
-                       typeProcedure: "Procédure nationale"
-                       etatComercialisation: "Commercialisée"
-                       dateAMM: "2000-01-01"
-                       titulaire: "MYLAN SAS"
-                       surveillanceRenforcee: "Non"
-                       composition: []
-                       generiques: []
-                       presentation: []
-                       conditions: []
-                     - cis: 61504672
-                       elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
-                       formePharmaceutique: "comprimé"
-                       voiesAdministration: ["orale"]
-                       statusAutorisation: "Autorisation active"
-                       typeProcedure: "Procédure nationale"
-                       etatComercialisation: "Commercialisée"
-                       dateAMM: "2000-01-01"
-                       titulaire: "MYLAN SAS"
-                       surveillanceRenforcee: "Non"
-                       composition: []
-                       generiques: []
-                       presentation: []
-                       conditions: []
-                multiword:
-                  summary: Recherche multi-mots
-                  value:
-                    - cis: 61504672
-                      elementPharmaceutique: "PARACETAMOL 500 mg"
+                    - cis: "61504672"
+                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
                       statusAutorisation: "Autorisation active"
                       typeProcedure: "Procédure nationale"
                       etatComercialisation: "Commercialisée"
                       dateAMM: "2000-01-01"
-                      titulaire: "MYLAN"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforcee: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+                    - cis: "61504672"
+                      elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
                       surveillanceRenforcee: "Non"
                       composition: []
                       generiques: []
@@ -340,131 +290,40 @@ paths:
                     message: "Internal server error"
                     code: 500
 
-  /generiques:
+  /v1/medicaments/{cis}:
     get:
-      summary: Rechercher des groupes génériques (v1)
+      summary: Obtenir un médicament par CIS (v1)
       description: |
-        Recherche et récupération de groupes génériques avec différents paramètres de requête.
-        Seul un paramètre est autorisé à la fois.
+        Récupérer un médicament spécifique par son code CIS (Code Identifiant de Spécialité).
       tags:
-        - Génériques (v1)
+        - Médicaments (v1)
       parameters:
-        - name: libelle
-          in: query
-          required: false
-          description: |
-            Terme de recherche multi-mots (1-6 mots requis, logique ET).
-            Les mots sont séparés par + ou espace dans l'URL.
-            Minimum 3 caractères, maximum 50 caractères.
-          schema:
-            type: string
-            minLength: 3
-            maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
-        - name: group
-          in: query
-          required: false
-          description: ID de groupe (entier positif)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 99999
+        - $ref: "#/components/parameters/PathCis"
       responses:
         "200":
-          description: Réponse réussie
+          description: Médicament trouvé
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Medicament"
               examples:
-                search:
-                  summary: Recherche par libellé
+                medicament:
+                  summary: Médicament trouvé
                   value:
-                    - groupID: 1368
-                      libelle: "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé"
-                      medicaments:
-                        - cis: 61644230
-                          elementPharmaceutique: "PRONTALGINE, comprimé"
-                          formePharmaceutique: "comprimé"
-                          type: "Princeps"
-                          composition:
-                            - elementPharmaceutique: "comprimé"
-                              substance: "CAFÉINE ANHYDRE"
-                              dosage: "50,0 mg"
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PARACÉTAMOL"
-                              dosage: "400,0 mg"
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
-                              dosage: "20,0 mg"
-                        - cis: 63399979
-                          elementPharmaceutique: "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé"
-                          formePharmaceutique: "comprimé"
-                          type: "Générique"
-                          composition:
-                            - elementPharmaceutique: "comprimé"
-                              substance: "CAFÉINE ANHYDRE"
-                              dosage: "50 mg"
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PARACÉTAMOL"
-                              dosage: "400 mg"
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
-                              dosage: "20 mg"
-                      orphanCIS: [61586325]
-                    - groupID: 1643
-                      libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
-                      medicaments:
-                        - cis: 66003374
-                          elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
-                          formePharmaceutique: "comprimé pelliculé"
-                          type: "Princeps"
-                          composition:
-                            - elementPharmaceutique: "comprimé pelliculé"
-                              substance: "PARACÉTAMOL"
-                              dosage: "500 mg"
-                            - elementPharmaceutique: "comprimé pelliculé"
-                              substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                              dosage: "30 mg"
-                        - cis: 69458587
-                          elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
-                          formePharmaceutique: "comprimé"
-                          type: "Générique"
-                          composition:
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PARACÉTAMOL"
-                              dosage: "500,00 mg"
-                            - elementPharmaceutique: "comprimé"
-                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
-                              dosage: "30,00 mg"
-                      orphanCIS: null
-                group:
-                  summary: Recherche par ID de groupe
-                  value:
-                    groupID: 1643
-                    libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
-                    medicaments:
-                      - cis: 66003374
-                        elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
-                        formePharmaceutique: "comprimé pelliculé"
-                        type: "Princeps"
-                        composition:
-                          - elementPharmaceutique: "comprimé pelliculé"
-                            substance: "PARACETAMOL"
-                            dosage: "500 mg"
-                          - elementPharmaceutique: "comprimé pelliculé"
-                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                            dosage: "30 mg"
-                      - cis: 69458587
-                        elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
-                        formePharmaceutique: "comprimé"
-                        type: "Générique"
-                        composition:
-                          - elementPharmaceutique: "comprimé"
-                            substance: "PARACÉTAMOL"
-                            dosage: "500 mg"
-                          - elementPharmaceutique: "comprimé"
-                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
-                            dosage: "30 mg"
-                    orphanCIS: null
+                    cis: "61504672"
+                    elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                    formePharmaceutique: "comprimé"
+                    voiesAdministration: ["orale"]
+                    statusAutorisation: "Autorisation active"
+                    typeProcedure: "Procédure nationale"
+                    etatComercialisation: "Commercialisée"
+                    dateAMM: "2000-01-01"
+                    titulaire: "MYLAN SAS"
+                    surveillanceRenforcee: "Non"
+                    composition: []
+                    generiques: []
+                    presentation: []
+                    conditions: []
         "400":
           description: Code CIS invalide
           content:
@@ -502,29 +361,161 @@ paths:
                     message: "Internal server error"
                     code: 500
 
-  /presentations/{cip}:
+  /v1/generiques:
+    get:
+      summary: Rechercher des groupes génériques (v1)
+      description: |
+        Recherche et récupération de groupes génériques avec différents paramètres de requête.
+        Seul un paramètre est autorisé à la fois.
+      tags:
+        - Génériques (v1)
+      parameters:
+        - $ref: "#/components/parameters/QueryLibelle"
+        - $ref: "#/components/parameters/QueryGroup"
+      responses:
+        "200":
+          description: Réponse réussie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneriqueListResponse"
+              examples:
+                search:
+                  summary: Recherche par libellé
+                  value:
+                    - groupID: 1368
+                      libelle: "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé"
+                      medicaments:
+                        - cis: "61644230"
+                          elementPharmaceutique: "PRONTALGINE, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Princeps"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "CAFÉINE ANHYDRE"
+                              dosage: "50,0 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "400,0 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "20,0 mg"
+                        - cis: "63399979"
+                          elementPharmaceutique: "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Générique"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "CAFÉINE ANHYDRE"
+                              dosage: "50 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "400 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "20 mg"
+                      orphanCIS: [61586325]
+                    - groupID: 1643
+                      libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
+                      medicaments:
+                        - cis: "66003374"
+                          elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
+                          formePharmaceutique: "comprimé pelliculé"
+                          type: "Princeps"
+                          composition:
+                            - elementPharmaceutique: "comprimé pelliculé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "500 mg"
+                            - elementPharmaceutique: "comprimé pelliculé"
+                              substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                              dosage: "30 mg"
+                        - cis: "69458587"
+                          elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
+                          formePharmaceutique: "comprimé"
+                          type: "Générique"
+                          composition:
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PARACÉTAMOL"
+                              dosage: "500,00 mg"
+                            - elementPharmaceutique: "comprimé"
+                              substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
+                              dosage: "30,00 mg"
+                      orphanCIS: null
+                group:
+                  summary: Recherche par ID de groupe
+                  value:
+                    groupID: 1643
+                    libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
+                    medicaments:
+                      - cis: "66003374"
+                        elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
+                        formePharmaceutique: "comprimé pelliculé"
+                        type: "Princeps"
+                        composition:
+                          - elementPharmaceutique: "comprimé pelliculé"
+                            substance: "PARACÉTAMOL"
+                            dosage: "500 mg"
+                          - elementPharmaceutique: "comprimé pelliculé"
+                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                            dosage: "30 mg"
+                      - cis: "69458587"
+                        elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
+                        formePharmaceutique: "comprimé"
+                        type: "Générique"
+                        composition:
+                          - elementPharmaceutique: "comprimé"
+                            substance: "PARACÉTAMOL"
+                            dosage: "500 mg"
+                          - elementPharmaceutique: "comprimé"
+                            substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
+                            dosage: "30 mg"
+                    orphanCIS: null
+        "400":
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "Needs libelle or group param"
+                    code: 400
+        "404":
+          description: Aucun générique trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                not-found:
+                  value:
+                    error: "Not Found"
+                    message: "No generiques found"
+                    code: 404
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
+
+  /v1/presentations/{cip}:
     get:
       summary: Obtenir des présentations (v1)
       description: |
         Recherche de présentations par code CIP (CIP7 ou CIP13).
-
-        **Paramètre disponible :**
-        - `/{cip}` : Code CIP dans le chemin (5 tokens)
-
-        **Exemple :**
-        ```
-        /v1/presentations/3400936403114
-        ```
       tags:
         - Présentations (v1)
       parameters:
-        - name: cip
-          in: path
-          required: true
-          description: Code CIP (CIP7 ou CIP13, entier positif)
-          schema:
-            type: integer
-            minimum: 1
+        - $ref: "#/components/parameters/PathCip"
       responses:
         "200":
           description: Réponse réussie
@@ -535,13 +526,13 @@ paths:
               examples:
                 presentation:
                   value:
-                    cis: 60904643
-                    cip7: 3400936403114
+                    cis: "60904643"
+                    cip7: "3400936403114"
                     libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
                     statusAdministratif: "Présentation active"
                     etatComercialisation: "Commercialisée"
-                    dateDeclaration: "19/01/1965"
-                    cip13: 3400936403114
+                    dateDeclaration: "1965-01-19"
+                    cip13: "3400936403114"
                     agreement: "non"
                     tauxRemboursement: "65%"
                     prix: 3.85
@@ -582,6 +573,128 @@ paths:
                     message: "Internal server error"
                     code: 500
 
+  /v1/diagnostics:
+    get:
+      summary: Obtenir les diagnostics système détaillés (v1)
+      description: |
+        Endpoint de monitoring avancé fournissant des métriques système détaillées et un rapport d'intégrité des données.
+
+        **Informations fournies :**
+        - Métriques système : uptime, mémoire, goroutines
+        - Intégrité des données : médicaments sans conditions, génériques, présentations, compositions
+        - Métriques de données : âge des données, prochaine mise à jour planifiée
+
+        Cache de 10 secondes pour éviter le spam tout en gardant les données fraîches.
+      tags:
+        - Système
+      responses:
+        "200":
+          description: Diagnostics système
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              examples:
+                cache-header:
+                  value: "public, max-age=10"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsResponse"
+              examples:
+                diagnostics:
+                  summary: Diagnostics système complets
+                  value:
+                    timestamp: "2026-01-15T14:30:45Z"
+                    uptime_seconds: 86400
+                    next_update: "2026-01-15T18:00:00Z"
+                    data_age_hours: 2.5
+                    system:
+                      goroutines: 45
+                      memory:
+                        alloc_mb: 130
+                        sys_mb: 150
+                        num_gc: 25
+                    data_integrity:
+                      medicaments_without_conditions:
+                        count: 1250
+                        sample_cis: [60012345, 60023456]
+                      medicaments_without_generiques:
+                        count: 8450
+                        sample_cis: [61504672, 61001234]
+                      medicaments_without_presentations:
+                        count: 3200
+                        sample_cis: [62003456, 62004567]
+                      medicaments_without_compositions:
+                        count: 890
+                        sample_cis: [63005678, 63006789]
+                      generique_only_cis:
+                        count: 45
+                        sample_cis: [64007890, 64008901]
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Internal server error"
+                    code: 500
+
+  /health:
+    get:
+      summary: Point de terminaison de vérification de santé
+      description: |
+        Vérifier l'état de santé de l'API et de la base de données.
+
+        **États possibles :**
+        - `healthy` : API opérationnelle avec données fraîches (< 24h)
+        - `degraded` : API opérationnelle mais données âgées (> 24h)
+        - `unhealthy` : API non opérationnelle (pas de médicaments) - renvoie HTTP 503
+      tags:
+        - Système
+      responses:
+        "200":
+          description: État de santé normal ou dégradé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                healthy:
+                  summary: État de santé normal
+                  value:
+                    status: "healthy"
+                    data:
+                      last_update: "2026-01-15T06:00:00Z"
+                      medicaments: 15420
+                      generiques: 5200
+                      is_updating: false
+                degraded:
+                  summary: État de santé dégradé
+                  value:
+                    status: "degraded"
+                    data:
+                      last_update: "2026-01-14T06:00:00Z"
+                      medicaments: 15420
+                      generiques: 5200
+                      is_updating: false
+        "503":
+          description: Service non disponible (unhealthy)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                service-unavailable:
+                  value:
+                    error: "Service Unavailable"
+                    message: "No medicaments in database"
+                    code: 503
+
   /database:
     get:
       deprecated: true
@@ -614,15 +727,47 @@ paths:
             Link:
               schema:
                 type: string
-              examples:
-                successor-version:
-                  value: '<https://medicaments-api.giygas.dev/v1/medicaments/export>; rel="successor-version"'
+                examples:
+                  successor-version:
+                    value: '<https://medicaments-api.giygas.dev/v1/medicaments/export>; rel="successor-version"'
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/MedicamentResponse"
+                  $ref: "#/components/schemas/Medicament"
+              examples:
+                database:
+                  summary: Liste complète (legacy)
+                  value:
+                    - cis: "61504672"
+                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforcee: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
+                    - cis: "61504672"
+                      elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
+                      formePharmaceutique: "comprimé"
+                      voiesAdministration: ["orale"]
+                      statusAutorisation: "Autorisation active"
+                      typeProcedure: "Procédure nationale"
+                      etatComercialisation: "Commercialisée"
+                      dateAMM: "2000-01-01"
+                      titulaire: "MYLAN SAS"
+                      surveillanceRenforcee: "Non"
+                      composition: []
+                      generiques: []
+                      presentation: []
+                      conditions: []
         "500":
           description: Erreur interne du serveur
           content:
@@ -681,7 +826,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: "#/components/schemas/MedicamentResponse"
+                      $ref: "#/components/schemas/Medicament"
                   page:
                     type: integer
                   pageSize:
@@ -771,7 +916,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/MedicamentResponse"
+                  $ref: "#/components/schemas/Medicament"
         "400":
           description: Terme de recherche invalide
           content:
@@ -850,7 +995,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MedicamentResponse"
+                $ref: "#/components/schemas/Medicament"
         "400":
           description: Code CIS invalide
           content:
@@ -1043,291 +1188,127 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /health:
-    get:
-      summary: Point de terminaison de vérification de santé
-      description: |
-        Vérifier l'état de santé de l'API et de la base de données.
-
-        **États possibles :**
-        - `healthy` : API opérationnelle avec données fraîches (< 24h)
-        - `degraded` : API opérationnelle mais données âgées (> 24h)
-        - `unhealthy` : API non opérationnelle (pas de médicaments) - renvoie HTTP 503
-      tags:
-        - Système
-      responses:
-        "200":
-          description: État de santé normal ou dégradé
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: ["healthy", "degraded", "unhealthy"]
-                    examples: ["healthy"]
-                    description: État de santé global de l'API
-                  data:
-                    type: object
-                    properties:
-                      last_update:
-                        type: string
-                        format: date-time
-                        examples: ["2026-01-15T06:00:00Z"]
-                        description: Date et heure de la dernière mise à jour réussie
-                      medicaments:
-                        type: integer
-                        examples: [15420]
-                        description: Nombre total de médicaments en mémoire
-                      generiques:
-                        type: integer
-                        examples: [5200]
-                        description: Nombre total de groupes génériques
-                      is_updating:
-                        type: boolean
-                        examples: [false]
-                        description: Indique si une mise à jour est en cours
-              examples:
-                healthy:
-                  summary: État de santé normal
-                  value:
-                    status: "healthy"
-                    data:
-                      last_update: "2026-01-15T06:00:00Z"
-                      medicaments: 15420
-                      generiques: 5200
-                      is_updating: false
-                degraded:
-                  summary: État de santé dégradé
-                  value:
-                    status: "degraded"
-                    data:
-                      last_update: "2026-01-14T06:00:00Z"
-                      medicaments: 15420
-                      generiques: 5200
-                      is_updating: false
-        "503":
-          description: Service non disponible (unhealthy)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                service-unavailable:
-                  value:
-                    error: "Service Unavailable"
-                    message: "No medicaments in database"
-                    code: 503
-
-  /v1/diagnostics:
-    get:
-      summary: Obtenir les diagnostics système détaillés (v1)
-      description: |
-        Endpoint de monitoring avancé fournissant des métriques système détaillées et un rapport d'intégrité des données.
-
-        **Informations fournies :**
-        - Métriques système : uptime, mémoire, goroutines
-        - Intégrité des données : médicaments sans conditions, génériques, présentations, compositions
-        - Métriques de données : âge des données, prochaine mise à jour planifiée
-
-        Cache de 10 secondes pour éviter le spam tout en gardant les données fraîches.
-
-        **Coût : 30 tokens** (diagnostics complets avec rapport d'intégrité)
-      tags:
-        - Système
-      responses:
-        "200":
-          description: Diagnostics système
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-              examples:
-                cache-header:
-                  value: "public, max-age=10"
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  timestamp:
-                    type: string
-                    format: date-time
-                    examples: ["2026-01-15T14:30:45Z"]
-                    description: Horodatage de la réponse (ISO 8601)
-                  uptime_seconds:
-                    type: number
-                    format: float
-                    examples: [86400]
-                    description: Temps d'exécution de l'application en secondes
-                  next_update:
-                    type: string
-                    format: date-time
-                    examples: ["2026-01-15T18:00:00Z"]
-                    description: Prochaine mise à jour planifiée (ISO 8601)
-                  data_age_hours:
-                    type: number
-                    format: float
-                    examples: [2.5]
-                    description: Âge des données en heures
-                  system:
-                    type: object
-                    properties:
-                      goroutines:
-                        type: integer
-                        examples: [45]
-                        description: Nombre de goroutines actives
-                      memory:
-                        type: object
-                        properties:
-                          alloc_mb:
-                            type: integer
-                            examples: [130]
-                            description: Mémoire allouée en MB
-                          sys_mb:
-                            type: integer
-                            examples: [150]
-                            description: Mémoire système en MB
-                          num_gc:
-                            type: integer
-                            examples: [25]
-                            description: Nombre de cycles de garbage collection
-                    description: Informations système et performance
-                  data_integrity:
-                    type: object
-                    properties:
-                      medicaments_without_conditions:
-                        type: object
-                        properties:
-                          count:
-                            type: integer
-                            examples: [1250]
-                            description: Nombre de médicaments sans conditions
-                          sample_cis:
-                            type: array
-                            items:
-                              type: integer
-                            examples: [[60012345, 60023456]]
-                            description: Exemples de CIS concernés
-                      medicaments_without_generiques:
-                        type: object
-                        properties:
-                          count:
-                            type: integer
-                            examples: [8450]
-                            description: Nombre de médicaments sans génériques
-                          sample_cis:
-                            type: array
-                            items:
-                              type: integer
-                            examples: [[61504672, 61001234]]
-                            description: Exemples de CIS concernés
-                      medicaments_without_presentations:
-                        type: object
-                        properties:
-                          count:
-                            type: integer
-                            examples: [3200]
-                            description: Nombre de médicaments sans présentations
-                          sample_cis:
-                            type: array
-                            items:
-                              type: integer
-                            examples: [[62003456, 62004567]]
-                            description: Exemples de CIS concernés
-                      medicaments_without_compositions:
-                        type: object
-                        properties:
-                          count:
-                            type: integer
-                            examples: [890]
-                            description: Nombre de médicaments sans composition
-                          sample_cis:
-                            type: array
-                            items:
-                              type: integer
-                            examples: [[63005678, 63006789]]
-                            description: Exemples de CIS concernés
-                      generique_only_cis:
-                        type: object
-                        properties:
-                          count:
-                            type: integer
-                            examples: [45]
-                            description: Nombre de CIS présents uniquement dans les génériques
-                          sample_cis:
-                            type: array
-                            items:
-                              type: integer
-                            examples: [[64007890, 64008901]]
-                            description: Exemples de CIS concernés
-                    description: Rapport d'intégrité des données
-              examples:
-                diagnostics:
-                  summary: Diagnostics système complets
-                  value:
-                    timestamp: "2026-01-15T14:30:45Z"
-                    uptime_seconds: 86400
-                    next_update: "2026-01-15T18:00:00Z"
-                    data_age_hours: 2.5
-                    system:
-                      goroutines: 45
-                      memory:
-                        alloc_mb: 130
-                        sys_mb: 150
-                        num_gc: 25
-                    data_integrity:
-                      medicaments_without_conditions:
-                        count: 1250
-                        sample_cis: [60012345, 60023456]
-                      medicaments_without_generiques:
-                        count: 8450
-                        sample_cis: [61504672, 61001234]
-                      medicaments_without_presentations:
-                        count: 3200
-                        sample_cis: [62003456, 62004567]
-                      medicaments_without_compositions:
-                        count: 890
-                        sample_cis: [63005678, 63006789]
-                      generique_only_cis:
-                        count: 45
-                        sample_cis: [64007890, 64008901]
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                internal-error:
-                  value:
-                    error: "Internal Server Error"
-                    message: "Internal server error"
-                    code: 500
-
   tags:
-  - name: Médicaments (v1)
-    description: Points de terminaison v1 liés aux médicaments
-  - name: Génériques (v1)
-    description: Points de terminaison v1 des groupes de médicaments génériques
-  - name: Présentations (v1)
-    description: Points de terminaison v1 des présentations de médicaments
-  - name: Médicaments (Legacy)
-    description: Points de terminaison legacy liés aux médicaments (dépréciés)
-  - name: Génériques (Legacy)
-    description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
-  - name: Système
-    description: Points de terminaison de santé et d'état du système
+    - name: Médicaments (v1)
+      description: Points de terminaison v1 liés aux médicaments
+    - name: Génériques (v1)
+      description: Points de terminaison v1 des groupes de médicaments génériques
+    - name: Présentations (v1)
+      description: Points de terminaison v1 des présentations de médicaments
+    - name: Médicaments (Legacy)
+      description: Points de terminaison legacy liés aux médicaments (dépréciés)
+    - name: Génériques (Legacy)
+      description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
+    - name: Système
+      description: Points de terminaison de santé et d'état du système
 
 components:
+  parameters:
+    QueryPage:
+      name: page
+      in: query
+      required: false
+      description: Numéro de page (pagination à 10 éléments par page)
+      schema:
+        type: integer
+        minimum: 1
+    QuerySearch:
+      name: search
+      in: query
+      required: false
+      description: |
+        Terme de recherche multi-mots (1-6 mots requis, logique ET).
+        Les mots sont séparés par + ou espace dans l'URL.
+        Minimum 3 caractères, maximum 50 caractères.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 50
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+    QueryCip:
+      name: cip
+      in: query
+      required: false
+      description: Code CIP (CIP7 ou CIP13)
+      schema:
+        type: string
+        pattern: "^[0-9]{7}|[0-9]{13}$"
+    QueryLibelle:
+      name: libelle
+      in: query
+      required: false
+      description: |
+        Terme de recherche multi-mots (1-6 mots requis, logique ET).
+        Les mots sont séparés par + ou espace dans l'URL.
+        Minimum 3 caractères, maximum 50 caractères.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 50
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+    QueryGroup:
+      name: group
+      in: query
+      required: false
+      description: ID de groupe (entier positif)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 99999
+    PathCis:
+      name: cis
+      in: path
+      required: true
+      description: Code CIS
+      schema:
+        type: string
+        pattern: "^[0-9]{1,9}$"
+    PathCip:
+      name: cip
+      in: path
+      required: true
+      description: Code CIP (CIP7 ou CIP13)
+      schema:
+        type: string
+        pattern: "^[0-9]{7}|[0-9]{13}$"
+    PathGroupId:
+      name: groupId
+      in: path
+      required: true
+      description: ID de groupe (entier positif inférieur à 100 000)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 99999
   schemas:
-    MedicamentResponse:
+    PaginatedMedicament:
       type: object
-      title: MedicamentResponse
+      title: PaginatedMedicament
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Medicament"
+          title: Données des médicaments
+        page:
+          type: integer
+          title: Numéro de page
+        pageSize:
+          type: integer
+          title: Taille de page
+        totalItems:
+          type: integer
+          title: Nombre total d'éléments
+        maxPage:
+          type: integer
+          title: Page maximum
+    Medicament:
+      type: object
+      title: Medicament
       properties:
         cis:
-          type: integer
+          type: string
+          pattern: "^[0-9]{1,9}$"
           title: Code CIS
         elementPharmaceutique:
           type: string
@@ -1351,6 +1332,7 @@ components:
           title: Statut de commercialisation
         dateAMM:
           type: string
+          format: date
           title: Date AMM
         titulaire:
           type: string
@@ -1361,48 +1343,17 @@ components:
         composition:
           type: array
           items:
-            type: object
-            properties:
-              cis:
-                type: integer
-                title: Code CIS
-              elementPharmaceutique:
-                type: string
-                title: Élément pharmaceutique
-              codeSubstance:
-                type: integer
-                title: Code de substance
-              denominationSubstance:
-                type: string
-                title: Dénomination de substance
-              dosage:
-                type: string
-                title: Dosage
-              referenceDosage:
-                type: string
-                title: Dosage de référence
-              natureComposant:
-                type: string
-                title: Nature du composant
+            $ref: "#/components/schemas/CompositionItem"
           title: Composition
         generiques:
           type: array
           items:
-            type: object
-            properties:
-              cis:
-                type: integer
-                title: Code CIS
-              group:
-                type: integer
-                title: ID de groupe générique
-              libelle:
-                type: string
-                title: Libellé de groupe générique
-            title: Génériques associés
+            $ref: "#/components/schemas/GeneriqueItem"
+          title: Génériques associés
         presentation:
           type: array
-          $ref: "#/components/schemas/PresentationResponse"
+          items:
+            $ref: "#/components/schemas/PresentationResponse"
           title: Présentations disponibles
         conditions:
           type: array
@@ -1416,10 +1367,12 @@ components:
       title: GeneriqueResponse
       properties:
         cis:
-          type: integer
+          type: string
+          pattern: "^[0-9]{1,9}$"
           title: Code CIS
         group:
-          type: integer
+          type: string
+          pattern: "^[0-9]+$"
           title: ID de groupe générique
         libelle:
           type: string
@@ -1430,10 +1383,12 @@ components:
       title: PresentationResponse
       properties:
         cis:
-          type: integer
+          type: string
+          pattern: "^[0-9]{1,9}$"
           title: Code CIS
         cip7:
-          type: integer
+          type: string
+          pattern: "^[0-9]{7}$"
           title: Code CIP-7
         libelle:
           type: string
@@ -1446,9 +1401,11 @@ components:
           title: Statut de commercialisation
         dateDeclaration:
           type: string
+          format: date
           title: Date de déclaration
         cip13:
-          type: integer
+          type: string
+          pattern: "^[0-9]{13}$"
           title: Code CIP-13
         agreement:
           type: string
@@ -1466,7 +1423,8 @@ components:
       title: GeneriqueListResponse
       properties:
         groupID:
-          type: integer
+          type: string
+          pattern: "^[0-9]+$"
           title: ID de groupe générique
         libelle:
           type: string
@@ -1474,39 +1432,14 @@ components:
         medicaments:
           type: array
           items:
-            title: GeneriqueMedicament
-            properties:
-              cis:
-                type: integer
-                title: Code CIS
-              elementPharmaceutique:
-                type: string
-                title: Nom pharmaceutique
-              formePharmaceutique:
-                type: string
-                title: Forme pharmaceutique
-              type:
-                type: string
-                title: Type de générique
-              composition:
-                type: object
-                title: Composition pour groupement générique
-                properties:
-                  elementPharmaceutique:
-                    type: string
-                    title: Élément pharmaceutique
-                  substance:
-                    type: string
-                    title: Nom de substance
-                  dosage:
-                    type: string
-                    title: Dosage
+            $ref: "#/components/schemas/GeneriqueMedicament"
+          title: Liste des médicaments du groupe
         orphanCIS:
-          type:
-            - array
-            - "null"
+          type: array
           items:
             type: integer
+            pattern: "^[0-9]{1,9}$"
+          nullable: true
           title: CIS orphelins
           description: |
             Liste des codes CIS référencés dans le groupe générique mais sans entrée médicament correspondante dans la base de données.
@@ -1527,3 +1460,201 @@ components:
         code:
           type: integer
           title: Code de statut HTTP
+    MedicamentArray:
+      type: array
+      title: MedicamentArray
+      items:
+        $ref: "#/components/schemas/Medicament"
+    CompositionItem:
+      type: object
+      title: CompositionItem
+      properties:
+        cis:
+          type: string
+          pattern: "^[0-9]{1,9}$"
+          title: Code CIS
+        elementPharmaceutique:
+          type: string
+          title: Élément pharmaceutique
+        codeSubstance:
+          type: string
+          pattern: "^[0-9]+$"
+          title: Code de substance
+        denominationSubstance:
+          type: string
+          title: Dénomination de substance
+        dosage:
+          type: string
+          title: Dosage
+        referenceDosage:
+          type: string
+          title: Dosage de référence
+        natureComposant:
+          type: string
+          title: Nature du composant
+    GeneriqueItem:
+      type: object
+      title: GeneriqueItem
+      properties:
+        cis:
+          type: string
+          pattern: "^[0-9]{1,9}$"
+          title: Code CIS
+        group:
+          type: string
+          pattern: "^[0-9]+$"
+          title: ID de groupe générique
+        libelle:
+          type: string
+          title: Libellé de groupe générique
+    GeneriqueMedicament:
+      type: object
+      title: GeneriqueMedicament
+      properties:
+        cis:
+          type: string
+          pattern: "^[0-9]{1,9}$"
+          title: Code CIS
+        elementPharmaceutique:
+          type: string
+          title: Nom pharmaceutique
+        formePharmaceutique:
+          type: string
+          title: Forme pharmaceutique
+        type:
+          type: string
+          title: Type de générique
+        composition:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneriqueCompositionItem"
+          title: Composition pour groupement générique
+    GeneriqueCompositionItem:
+      type: object
+      title: GeneriqueCompositionItem
+      properties:
+        elementPharmaceutique:
+          type: string
+          title: Élément pharmaceutique
+        substance:
+          type: string
+          title: Nom de substance
+        dosage:
+          type: string
+          title: Dosage
+    HealthResponse:
+      type: object
+      title: HealthResponse
+      properties:
+        status:
+          type: string
+          enum: ["healthy", "degraded", "unhealthy"]
+          examples: ["healthy"]
+          title: État de santé global de l'API
+        data:
+          $ref: "#/components/schemas/HealthDataResponse"
+    HealthDataResponse:
+      type: object
+      title: HealthDataResponse
+      properties:
+        last_update:
+          type: string
+          format: date-time
+          examples: ["2026-01-15T06:00:00Z"]
+          title: Date et heure de la dernière mise à jour réussie
+        medicaments:
+          type: integer
+          examples: [15420]
+          title: Nombre total de médicaments en mémoire
+        generiques:
+          type: integer
+          examples: [5200]
+          title: Nombre total de groupes génériques
+        is_updating:
+          type: boolean
+          examples: [false]
+          title: Indique si une mise à jour est en cours
+    DiagnosticsResponse:
+      type: object
+      title: DiagnosticsResponse
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          examples: ["2026-01-15T14:30:45Z"]
+          title: Horodatage de la réponse (ISO 8601)
+        uptime_seconds:
+          type: number
+          format: float
+          examples: [86400]
+          title: Temps d'exécution de l'application en secondes
+        next_update:
+          type: string
+          format: date-time
+          examples: ["2026-01-15T18:00:00Z"]
+          title: Prochaine mise à jour planifiée (ISO 8601)
+        data_age_hours:
+          type: number
+          format: float
+          examples: [2.5]
+          title: Âge des données en heures
+        system:
+          $ref: "#/components/schemas/SystemMetrics"
+        data_integrity:
+          $ref: "#/components/schemas/DataIntegrityResponse"
+    SystemMetrics:
+      type: object
+      title: SystemMetrics
+      properties:
+        goroutines:
+          type: integer
+          examples: [45]
+          title: Nombre de goroutines actives
+        memory:
+          $ref: "#/components/schemas/MemoryMetrics"
+      description: Informations système et performance
+    MemoryMetrics:
+      type: object
+      title: MemoryMetrics
+      properties:
+        alloc_mb:
+          type: integer
+          examples: [130]
+          title: Mémoire allouée en MB
+        sys_mb:
+          type: integer
+          examples: [150]
+          title: Mémoire système en MB
+        num_gc:
+          type: integer
+          examples: [25]
+          title: Nombre de cycles de garbage collection
+    DataIntegrityResponse:
+      type: object
+      title: DataIntegrityResponse
+      properties:
+        medicaments_without_conditions:
+          $ref: "#/components/schemas/IntegrityMetric"
+        medicaments_without_generiques:
+          $ref: "#/components/schemas/IntegrityMetric"
+        medicaments_without_presentations:
+          $ref: "#/components/schemas/IntegrityMetric"
+        medicaments_without_compositions:
+          $ref: "#/components/schemas/IntegrityMetric"
+        generique_only_cis:
+          $ref: "#/components/schemas/IntegrityMetric"
+      description: Rapport d'intégrité des données
+    IntegrityMetric:
+      type: object
+      title: IntegrityMetric
+      properties:
+        count:
+          type: integer
+          examples: [1250]
+          title: Nombre d'éléments concernés
+        sample_cis:
+          type: array
+          items:
+            type: integer
+          examples: [[60012345, 60023456]]
+          title: Exemples de CIS concernés
