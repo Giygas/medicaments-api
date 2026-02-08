@@ -16,6 +16,7 @@ src/
 src/*
 .env
 .env.staging
+.env.*.local
 .DS_Store
 /medicaments-api
 medicamentsparser/files

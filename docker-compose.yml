@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  medicaments-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medicaments-api-staging
+    ports:
+      - "8030:8000"
+    env_file:
+      - .env.staging
+    volumes:
+      # Persist logs outside container
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - medicaments-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+networks:
+  medicaments-network:
+    driver: bridge
