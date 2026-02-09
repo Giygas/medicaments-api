@@ -17,9 +17,11 @@ import (
 	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/metrics"
 	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // formatUptimeHuman formats duration into a human-readable string
@@ -95,6 +97,9 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RedirectSlashes)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
+
+	s.router.Use(metrics.Metrics)
+
 	// Disable rate limiting in test mode to measure true throughput performance
 	if s.config.Env != config.EnvTest {
 		s.router.Use(RateLimitHandler)
@@ -175,8 +180,29 @@ func (s *Server) Start() error {
 		s.startProfilingServer()
 	}
 
+	fmt.Println("starting metrics?")
+	s.startMetricsServer()
+
 	logging.Info(fmt.Sprintf("Starting server at: %s:%s", s.config.Address, s.config.Port))
 	return s.server.ListenAndServe()
+}
+
+// Start metrics server
+func (s *Server) startMetricsServer() {
+	go func() {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+
+		metricsServer := &http.Server{
+			Addr:    "127.0.0.1:9090",
+			Handler: metricsMux,
+		}
+
+		logging.Info("Metrics: http://127.0.0.1:9090/metrics")
+		if err := metricsServer.ListenAndServe(); err != nil {
+			logging.Error("Metrics server failed", "error", err)
+		}
+	}()
 }
 
 // Shutdown gracefully shuts down the server

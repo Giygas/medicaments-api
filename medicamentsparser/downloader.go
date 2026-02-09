@@ -64,7 +64,7 @@ func downloadAndParseFile(filepath string, url string) error {
 		}
 	}
 
-	logging.Debug("url %s download and parsed into %s without errors", url, filepath)
+	logging.Debug(fmt.Sprintf("%s downloaded and parsed without errors", filepath))
 	return nil
 }
 
