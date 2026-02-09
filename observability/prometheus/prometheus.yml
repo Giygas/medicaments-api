@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'medicaments-staging'
+  retention:
+    time: 720h  # 30 days (24h * 30)
+
+# Configure alerting rules
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"
+
+scrape_configs:
+  # Scrape Alloy remote write endpoint
+  - job_name: 'alloy-remote-write'
+    static_configs:
+      - targets: ['grafana-alloy:12345']
+    honor_labels: true
+    metrics_path: '/metrics'
+
+# Configure remote write (for federation if needed)
+# remote_write:
+#   - url: http://some-other-prometheus:9090/api/v1/write

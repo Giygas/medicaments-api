@@ -12,6 +12,16 @@
   - [What Was Created](#what-was-created)
   - [Project Structure](#project-structure)
   - [Configuration](#configuration)
+- [Observability Stack](#observability-stack)
+  - [Architecture](#observability-architecture)
+  - [Services](#observability-services)
+  - [Access Points](#observability-access-points)
+  - [Log Format](#observability-log-format)
+  - [Metrics Collected](#observability-metrics-collected)
+  - [Default Credentials](#observability-default-credentials)
+  - [Resource Usage](#observability-resource-usage)
+  - [Troubleshooting](#observability-troubleshooting)
+  - [Configuration Files](#observability-configuration-files)
 - [Docker Compose Commands](#docker-compose-commands)
   - [Build and Run](#build-and-run)
   - [View Logs](#view-logs)
@@ -188,12 +198,20 @@ Added `.env.staging` to prevent committing staging configuration.
 ```
 medicaments-api/
 ├── Dockerfile              # Multi-stage Docker build
-├── docker-compose.yml      # Docker Compose orchestration
+├── docker-compose.yml      # Docker Compose orchestration (includes observability stack)
 ├── .dockerignore          # Files excluded from build context
 ├── .env.staging           # Staging environment variables
 ├── docker-staging.sh      # Interactive quick-start script
 ├── logs/                  # Persistent logs directory
-└── html/                  # Documentation files (served by API)
+├── html/                  # Documentation files (served by API)
+├── observability/         # Grafana stack configuration
+│   ├── alloy/              # Alloy config
+│   ├── loki/               # Loki config
+│   ├── prometheus/          # Prometheus config
+│   └── grafana/             # Grafana config
+│       └── provisioning/      # Auto-provisioning
+│           ├── datasources/   # Loki & Prometheus datasources
+│           └── dashboards/     # Dashboard imports
 ```
 
 ### Configuration
@@ -211,6 +229,240 @@ Staging container has the following limits:
 
 - **CPU**: 0.5 cores max, 0.25 cores reserved
 - **Memory**: 512MB max, 256MB reserved
+
+---
+
+## Observability Stack
+
+The staging setup includes a complete observability stack with Grafana, Loki, Prometheus, and Alloy for logs and metrics monitoring.
+
+### Observability Architecture
+
+```
+medicaments-api (logs + metrics)
+         ↓
+grafana-alloy (collector)
+         ↓         ↓
+      loki    prometheus
+         ↓         ↓
+         grafana (visualization)
+```
+
+### Observability Services
+
+#### grafana-alloy
+
+Collects logs and metrics from medicaments-api.
+
+- **Image**: `grafana/alloy:v1.4.0`
+- **Configuration**: `alloy/config.alloy`
+- **Port**: 12345 (Alloy's own metrics)
+- **Functions**:
+  - Read logs from `./logs/` directory
+  - Scrape metrics from `medicaments-api:9090/metrics`
+  - Forward to local Loki and Prometheus
+- **Resource Usage**: ~150MB RAM
+
+#### loki
+
+Log aggregation and storage.
+
+- **Image**: `grafana/loki:2.9.10`
+- **Configuration**: `loki/config.yaml`
+- **Port**: 3100
+- **Retention**: 30 days
+- **Data Volume**: `loki-data`
+- **Resource Usage**: ~100MB RAM + ~100MB disk
+
+#### prometheus
+
+Metric storage and querying.
+
+- **Image**: `prom/prometheus:v2.48.0`
+- **Configuration**: `prometheus/prometheus.yml`
+- **Port**: 9091 (host) → 9090 (container)
+- **Retention**: 15 days (default)
+- **Data Volume**: `prometheus-data`
+- **Resource Usage**: ~150MB RAM + ~200MB disk
+
+#### grafana
+
+Visualization for logs and metrics.
+
+- **Image**: `grafana/grafana:10.2.4`
+- **Port**: 3000
+- **Default Credentials**: admin/admin (change after first login)
+- **Data Volume**: `grafana-data`
+- **Resource Usage**: ~200MB RAM + ~50MB disk
+- **Auto-Provisioning**: Datasources configured automatically
+
+### Observability Access Points
+
+```bash
+# Grafana UI (visualization)
+open http://localhost:3000
+
+# Prometheus UI (metrics browsing)
+open http://localhost:9091
+
+# Loki API (log queries)
+curl http://localhost:3100/loki/api/v1/labels
+
+# Alloy metrics (collector status)
+curl http://localhost:12345/metrics
+
+# medicaments-api metrics (application metrics)
+curl http://localhost:9090/metrics
+```
+
+### Observability Log Format
+
+Your application should output JSON logs with `level` and `path` fields for proper parsing:
+
+```json
+{
+  "time": "2025-02-08T12:00:00Z",
+  "level": "info",
+  "path": "/v1/medicaments?search=paracetamol",
+  "msg": "Request completed",
+  "status": 200,
+  "duration_ms": 15
+}
+```
+
+If logs are plain text, update `alloy/config.alloy` to remove `stage.json` block and use regex parsing.
+
+### Observability Metrics Collected
+
+From your `/metrics` endpoint (via `metrics/metrics.go`):
+
+- **`http_request_total`** - Total HTTP requests
+  - Labels: `method`, `path`, `status`
+  - Type: Counter
+  - Example: `http_request_total{method="GET",path="/v1/medicaments",status="200"}`
+
+- **`http_request_duration_seconds`** - Request latency histogram
+  - Labels: `method`, `path`
+  - Type: Histogram
+  - Buckets: .001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5
+  - Example: `http_request_duration_seconds_sum{method="GET",path="/v1/medicaments"}`
+
+- **`http_request_in_flight`** - Current in-flight requests
+  - Type: Gauge
+  - Example: `http_request_in_flight`
+
+**Note**: Alloy configuration filters out Go runtime metrics, keeping only HTTP metrics.
+
+### Observability Default Credentials
+
+**Grafana**:
+- Username: `admin`
+- Password: `admin`
+- **Important**: Change password after first login (Configuration → Users → Change Password)
+
+**Other Services**:
+- No authentication required (local network only)
+
+### Observability Resource Usage
+
+| Service | RAM | Disk | Retention |
+|----------|------|-------|-----------|
+| medicaments-api | ~50MB | ~20MB | N/A |
+| grafana-alloy | ~150MB | ~10MB | N/A |
+| loki | ~100MB | ~100MB (data) | 30 days |
+| prometheus | ~150MB | ~200MB (data) | 30 days |
+| grafana | ~200MB | ~50MB | N/A |
+| **Total** | **~650MB** | **~380MB** | 30 days (both) |
+
+### Observability Troubleshooting
+
+#### Grafana can't connect to datasources
+
+```bash
+# Check containers are running
+docker-compose ps
+
+# Verify network connectivity
+docker-compose exec grafana wget -O- http://loki:3100/ready
+docker-compose exec grafana wget -O- http://prometheus:9090/-/ready
+
+# Check datasource configuration
+docker-compose logs grafana | grep -i datasource
+```
+
+#### Logs not appearing in Grafana
+
+```bash
+# Check Alloy is reading logs
+docker-compose logs grafana-alloy | grep -i logs
+
+# Verify log files exist
+docker-compose exec grafana-alloy ls -la /var/log/app/
+
+# Check Loki is receiving logs
+docker-compose logs loki | grep -i received
+
+# Test Loki query
+curl -G 'http://localhost:3100/loki/api/v1/query_range' \
+  --data-urlencode 'query={app="medicaments_api"}' \
+  --data-urlencode 'start=1699488000000000000' \
+  --data-urlencode 'end=1699491600000000000'
+```
+
+#### Metrics not appearing in Grafana
+
+```bash
+# Check Alloy is scraping metrics
+docker-compose logs grafana-alloy | grep -i scrape
+
+# Verify metrics endpoint is accessible
+docker-compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
+
+# Check Prometheus is receiving metrics
+docker-compose logs prometheus | grep -i received
+
+# Test Prometheus query
+curl 'http://localhost:9091/api/v1/query?query=http_request_total'
+```
+
+#### High resource usage
+
+```bash
+# Check resource usage for all services
+docker stats medicaments-api grafana-alloy loki prometheus grafana
+
+# Check disk usage for volumes
+docker system df -v
+
+# Reduce retention if needed (edit loki/config.yaml or prometheus/prometheus.yml)
+```
+
+### Observability Cleanup
+
+```bash
+# Stop observability services only
+docker-compose stop grafana-alloy loki prometheus grafana
+
+# Remove observability services (keeps volumes)
+docker-compose rm -f grafana-alloy loki prometheus grafana
+
+# Remove observability services and all data (DELETES EVERYTHING)
+docker-compose down -v
+
+# Remove only observability volumes
+docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medicaments-api_grafana-data
+```
+
+### Observability Configuration Files
+
+| File | Purpose |
+|-------|---------|
+| `observability/alloy/config.alloy` | Alloy configuration (logs + metrics collection) |
+| `observability/loki/config.yaml` | Loki configuration (log storage, 30-day retention) |
+| `observability/prometheus/prometheus.yml` | Prometheus configuration (metric storage, 30-day retention) |
+| `observability/grafana/provisioning/datasources/loki.yml` | Auto-configure Loki datasource |
+| `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource |
+| `observability/grafana/provisioning/dashboards/dashboard.yml` | Auto-import Grafana dashboards |
 
 ---
 

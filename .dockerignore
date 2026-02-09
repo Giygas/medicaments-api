@@ -72,3 +72,9 @@ mem.prof
 tmp/
 temp/
 *.tmp
+
+# Observability stack (config only)
+observability/
+!observability/alloy/config.alloy
+!observability/loki/config.yaml
+!observability/prometheus/prometheus.yml

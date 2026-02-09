@@ -1,0 +1,101 @@
+// Grafana Alloy Configuration for medicaments-api (Local Setup)
+
+// Read logs from Docker volume mount
+local.file_match "medicaments_api_logs" {
+  path_targets = [{
+    __path__ = "/var/log/app/*.log",
+    service = "log_collector",
+    app = "medicaments_api",
+  }]
+}
+
+// Parse logs (assuming JSON format with level and path fields)
+loki.source.file "medicaments_api_logs" {
+  targets    = local.file_match.medicaments_api_logs.targets
+  forward_to = [loki.process.parse_json.receiver]
+}
+
+// Parse JSON and extract labels
+loki.process "parse_json" {
+  forward_to = [loki.write.local_loki.receiver]
+  stage.json {
+    expressions = {
+      level  = "level",
+      path   = "path",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level  = "level",
+      path   = "path",
+    }
+  }
+}
+
+// Write to local Loki
+loki.write "local_loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// Collect system metrics
+prometheus.exporter.unix "local_system" { }
+
+// Scrape app metrics from medicaments-api container
+prometheus.scrape "app_metrics" {
+  targets = [{
+    __address__ = "medicaments-api:9090",
+    job         = "medicaments_api",
+    app = "medicaments_api",
+  }]
+
+  forward_to      = [prometheus.relabel.filter_app_metrics.receiver]
+  scrape_interval = "30s"
+}
+
+// Filter app metrics (keep only HTTP metrics, drop Go internals)
+prometheus.relabel "filter_app_metrics"{
+  rule {
+    source_labels = ["__name__"]
+    // Drop Go runtime metrics, keep HTTP metrics
+    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_info|process_open_fds|process_max_fds|process_virtual_memory_bytes|process_virtual_memory_max_bytes|process_start_time_seconds|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_duration_seconds|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
+    action = "drop"
+  }
+
+  forward_to = [prometheus.remote_write.local_prometheus.receiver]
+}
+
+// Scrape system metrics
+prometheus.scrape "system_metrics" {
+  targets = prometheus.exporter.unix.local_system.targets
+  forward_to = [prometheus.relabel.filter_system_metrics.receiver]
+  scrape_interval = "60s"
+}
+
+// Filter system metrics (add job label, drop unwanted metrics)
+prometheus.relabel "filter_system_metrics" {
+  // Add job label
+  rule {
+    action = "replace"
+    target_label = "job"
+    replacement = "system_scrapper"
+  }
+
+  // Drop Go runtime metrics from system scraper
+  rule {
+    source_labels = ["__name__"]
+    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_info|process_open_fds|process_max_fds|process_virtual_memory_bytes|process_virtual_memory_max_bytes|process_start_time_seconds|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_duration_seconds|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
+    action = "drop"
+  }
+
+  forward_to = [prometheus.remote_write.local_prometheus.receiver]
+}
+
+// Write to local Prometheus
+prometheus.remote_write "local_prometheus" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}

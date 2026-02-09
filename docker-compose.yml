@@ -8,6 +8,7 @@ services:
     container_name: medicaments-api-staging
     ports:
       - "8030:8000"
+      - "9090:9090"
     env_file:
       - .env.staging
     volumes:
@@ -31,6 +32,79 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  grafana-alloy:
+    image: grafana/alloy:v1.4.0
+    container_name: grafana-alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./logs:/var/log/app:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    depends_on:
+      - medicaments-api
+      - loki
+      - prometheus
+
+  loki:
+    image: grafana/loki:2.9.10
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=720h'
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    depends_on:
+      - grafana-alloy
+
+  grafana:
+    image: grafana/grafana:10.2.4
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    depends_on:
+      - loki
+      - prometheus
+
 networks:
   medicaments-network:
     driver: bridge
+
+volumes:
+  loki-data:
+  prometheus-data:
+  grafana-data:
