@@ -18,6 +18,7 @@
         --color-primary: #000091;
         --color-secondary: #6a6af4;
         --color-accent: #e1000f;
+        --color-highlight: #60a5fa;
         --color-bg: #0a0a0f;
         --color-surface: #161620;
         --color-text: #e4e4e7;
@@ -29,6 +30,7 @@
         --color-primary: #000091;
         --color-secondary: #6a6af4;
         --color-accent: #e1000f;
+        --color-highlight: #2563eb;
         --color-bg: #ffffff;
         --color-surface: #f8fafc;
         --color-text: #1e293b;
@@ -167,6 +169,7 @@
         gap: 3rem;
         margin-top: 3rem;
         flex-wrap: wrap;
+        justify-content: space-evenly;
       }
 
       .stat {
@@ -176,7 +179,7 @@
       .stat-number {
         font-size: 2.5rem;
         font-weight: 700;
-        color: var(--color-primary);
+        color: var(--color-highlight);
         display: block;
       }
 
@@ -202,7 +205,6 @@
         font-size: 1.125rem;
         line-height: 1.8;
         color: var(--color-text-muted);
-        max-width: 800px;
       }
 
       .functions-grid {
@@ -440,7 +442,7 @@
         color: var(--color-text);
       }
 
-      @media (max-width: 768px) {
+      @media (max-width: 530px) {
         h1 {
           font-size: 2.5rem;
         }
@@ -456,6 +458,10 @@
         .hero-stats {
           flex-direction: column;
           gap: 2rem;
+        }
+
+        .stat {
+          width: 100%;
         }
 
         nav {
@@ -482,6 +488,22 @@
           justify-content: center;
         }
       }
+
+      @media (min-width: 531px) and (max-width: 768px) {
+        .hero-stats {
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 2rem;
+        }
+
+        .stat {
+          flex-basis: calc(50% - 1rem);
+        }
+
+        nav {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -504,6 +526,7 @@
               <a href="#technologies">Technologies</a>
               <a href="#documentation">Documentation</a>
               <a href="#legal">Mentions légales</a>
+              <a href="#confidentialite">Confidentialité</a>
             </nav>
             <div class="theme-switcher" onclick="toggleTheme()">
               <div
@@ -548,7 +571,7 @@
       </div>
 
       <section class="hero">
-        <h1>API des Médicaments Français</h1>
+        <h1>API pour les Médicaments Français</h1>
         <p class="hero-subtitle">
           Une API rapide et fiable pour accéder aux 15,000+ médicaments
           français. Mises à jour automatiques deux fois par jour, cache
@@ -800,93 +823,12 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔍</div>
             <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherche multi-mots (logique ET, max 6 mots) ou CIS avec O(1) lookup.
-              Validation stricte (3-50 chars, 1-6 mots alphanumériques) et échappement
-              automatique. <strong>80K+ req/s</strong> (CIS/CIP),
+              Recherche multi-mots (logique ET, max 6 mots) ou CIS avec O(1)
+              lookup. Validation stricte (3-50 chars, 1-6 mots alphanumériques)
+              et échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
               <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
               les lookups O(1).
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-                 >
-                GET /v1/medicaments?search=paracetamol
-              </code>
-            </div>
-            <div style="margin-top: 1rem">
-              <h4 style="color: var(--color-text); margin-bottom: 1rem">
-                Recherche multi-mots
-              </h4>
-              <div style="position: relative; margin: 0.5rem 0">
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    display: block;
-                    padding-right: 3rem;
-                    "
-                  onclick="copyToClipboard(this.textContent.trim())"
-                >
-                  curl https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500
-                </code>
-                <button
-                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                  style="
-                    position: absolute;
-                    right: 0.5rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: var(--color-primary);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                    "
-                >
-                  📋
-                </button>
-              </div>
-              <div style="position: relative; margin: 0.5rem 0">
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    display: block;
-                    padding-right: 3rem;
-                    "
-                  onclick="copyToClipboard(this.textContent.trim())"
-                >
-                  curl https://medicaments-api.giygas.dev/v1/medicaments?search=ibuprofene+arrow+400
-                </code>
-                <button
-                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                  style="
-                    position: absolute;
-                    right: 0.5rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: var(--color-primary);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                    "
-                >
-                  📋
-                </button>
-              </div>
-            </div>
           </div>
 
           <div class="function-card">
@@ -898,18 +840,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
               avec ETag/Last-Modified et compression gzip pour un transfert
               efficace.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                GET /v1/medicaments?page={n}
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
@@ -921,18 +851,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
               en 1-2min. Architecture basée sur 6 interfaces avec dependency
               injection.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                Zero-downtime <2s
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
@@ -944,18 +862,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
               d'administration. Mémoire optimisée : 60-90MB stable (150MB peak
               au démarrage).
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                23MB dataset, 60-90MB RAM
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
@@ -966,18 +872,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
               Compression gzip (80% réduction bande passante). Cache hit ratio
               90%+. Invalidation automatique durant les mises à jour.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                90%+ cache hit ratio
-              </code>
-            </div>
           </div>
         </div>
       </section>
@@ -996,7 +890,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
           <!-- v1 Endpoints -->
           <h3
             style="
-              color: var(--color-primary);
+              color: var(--color-highlight);
               margin-bottom: 1rem;
               font-size: 1.4rem;
             "
@@ -1094,7 +988,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       "
                       >GET /v1/medicaments?page={n}</code
                     >
-                    >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
                     Pagination (10/page)
@@ -1131,7 +1024,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         font-size: 0.85rem;
                       "
                       >GET /v1/medicaments?search={query}</code
-                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1207,7 +1099,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       "
                       >GET /v1/medicaments?cip={code}</code
                     >
-                    >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
                     Recherche par CIP
@@ -1245,7 +1136,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       "
                       >GET /v1/generiques?libelle={nom}</code
                     >
-                    >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
                     Génériques par libellé
@@ -1282,7 +1172,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         font-size: 0.85rem;
                       "
                       >GET /v1/generiques?group={id}</code
-                    >
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -1852,7 +1741,7 @@ print(f"Found {len(data)} results")</code></pre>
                     padding: 0.25rem 0.5rem;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    color: var(--color-primary);
+                    color: var(--color-highlight);
                   "
                   >NOUVEAU : GET /v1/medicaments?search=paracetamol</code
                 >
@@ -1876,7 +1765,7 @@ print(f"Found {len(data)} results")</code></pre>
                     padding: 0.25rem 0.5rem;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    color: var(--color-primary);
+                    color: var(--color-highlight);
                   "
                   >NOUVEAU : GET /v1/medicaments/61504672</code
                 >
@@ -1900,7 +1789,7 @@ print(f"Found {len(data)} results")</code></pre>
                     padding: 0.25rem 0.5rem;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    color: var(--color-primary);
+                    color: var(--color-highlight);
                   "
                   >NOUVEAU : GET /v1/generiques?libelle=paracetamol</code
                 >
@@ -1924,7 +1813,7 @@ print(f"Found {len(data)} results")</code></pre>
                     padding: 0.25rem 0.5rem;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    color: var(--color-primary);
+                    color: var(--color-highlight);
                   "
                   >NOUVEAU : GET /v1/medicaments?page=1</code
                 >
@@ -1948,7 +1837,7 @@ print(f"Found {len(data)} results")</code></pre>
                     padding: 0.25rem 0.5rem;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    color: var(--color-primary);
+                    color: var(--color-highlight);
                   "
                   >NOUVEAU : GET /v1/medicaments/export</code
                 >
@@ -2648,7 +2537,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
       <section id="technologies" class="section">
         <h2>Technologies Utilisées</h2>
         <div class="tech-list">
-          <div class="tech-badge">Go 1.21+</div>
+          <div class="tech-badge">Go 1.24+</div>
           <div class="tech-badge">Chi Router v5</div>
           <div class="tech-badge">Interface-based Architecture</div>
           <div class="tech-badge">Dependency Injection</div>
@@ -2774,6 +2663,36 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           </ul>
         </div>
       </section>
+
+      <section id="confidentialite" class="section">
+        <h2>Protection des Données (RGPD)</h2>
+        <div class="legal-grid">
+          <div class="legal-item">
+            <div class="legal-label">Collecte des données</div>
+            <div class="legal-value">
+              Cette API collecte les adresses IP à des fins de sécurité
+              (détection d'abus, prévention de fraudes) sur la base de l'intérêt
+              légitime (Art. 6(1)(f) RGPD).
+            </div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Durée de conservation</div>
+            <div class="legal-value">
+              90 jours (IP complète), puis anonymisation (dernier octet masqué),
+              suppression définitive après 1 an.
+            </div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Vos droits</div>
+            <div class="legal-value">
+              Accès, rectification, effacement. Contact :
+              <a href="mailto:gustavorossich@outlook.com"
+                >gustavorossich@outlook.com</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>
@@ -2789,6 +2708,7 @@ Response: [...]  // Direct array of all medicaments</code></pre>
             >
             <a href="/docs">Documentation</a>
             <a href="#legal">Mentions légales</a>
+            <a href="#confidentialite">Confidentialité RGPD</a>
           </div>
         </div>
       </div>
