@@ -649,8 +649,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
 
 # Authentification : Aucune requise
 # Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
-# Coûts v1 : /health (5), /v1/medicaments/export (200), /v1/medicaments?search={query} (50), /v1/medicaments?page={n} (20), /v1/medicaments/{cis} (10), /v1/medicaments?cip={code} (10), /v1/generiques?libelle={nom} (30), /v1/generiques?group={id} (5), /v1/presentations/{cip} (5), /v1/diagnostics (30)
-# Coûts legacy (dépréciés) : /medicament/{nom} (80), /medicament/id/{cis} (10), /database (200), autres (20)</code></pre>
+</code></pre>
             </div>
 
             <div style="margin-bottom: 1.5rem">
@@ -1481,7 +1480,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >100</span
+                      >80</span
                     >
                   </td>
                 </tr>
@@ -1512,13 +1511,13 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-accent);
+                        background: var(--color-primary);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >100</span
+                      >10</span
                     >
                   </td>
                 </tr>
@@ -1701,6 +1700,71 @@ console.log(`Found ${data.length} medicaments`);</code></pre>
 response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol')
 data = response.json()
 print(f"Found {len(data)} results")</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multi-word Search Examples -->
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            🔍 Recherche multi-mots
+          </h4>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem">
+            Utilisez plusieurs mots pour une recherche plus précise. Séparez les
+            mots avec <code style="color: var(--color-highlight)">+</code> ou un
+            espace. Tous les mots doivent être présents (logique ET). Maximum 6
+            mots.
+          </p>
+          <div style="display: grid; gap: 1rem">
+            <div>
+              <strong style="color: var(--color-text)"
+                >2 mots - Recherche précise</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500"</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >3 mots - Recherche très précise</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=ibuprofene+arrow+400"</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Génériques multi-mots</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500"</code></pre>
             </div>
           </div>
         </div>
@@ -1971,166 +2035,52 @@ Content-Type: application/json
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            ✅ Règles de Validation
+            Règles de Validation
           </h4>
           <div style="margin-bottom: 1.5rem">
-            <strong style="color: var(--color-text)"
-              >Exigences de saisie :</strong
-            >
-            <ul
-              style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--color-text-muted"
-            >
-              <li><strong>Longueur :</strong> 3-50 caractères</li>
-              <li>
-                <strong>Caractères autorisés :</strong> Lettres (a-z, A-Z),
-                chiffres (0-9), espaces, tirets (-), apostrophes ('), points
-                (.), signe plus (+), et caractères accentués français
-                (àâäéèêëïîôöùûüÿç)
-              </li>
-              <li>
-                <strong>Interdits :</strong> Chaînes vides, caractères spéciaux
-                (@, #, $, %, *, ?, etc.)
-              </li>
-              <li>
-                <strong>Sensibilité à la casse :</strong> Recherche insensible à
-                la casse
-              </li>
-            </ul>
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Format :</strong> 3-50 caractères, 1-6 mots
+              alphanumériques séparés par
+              <code style="color: var(--color-highlight)">+</code> ou espace
+            </p>
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Caractères autorisés :</strong> Lettres, chiffres,
+              espaces, tirets (-), apostrophes ('), points (.), signe plus (+),
+              et accents français (àâäéèêëïîôöùûüÿç)
+            </p>
+            <p style="color: var(--color-text-muted)">
+              <strong>Insensible à la casse :</strong> La recherche ne tient pas
+              compte des majuscules/minuscules
+            </p>
           </div>
-          <div style="margin-bottom: 1.5rem">
-            <strong style="color: var(--color-text)">Exemples :</strong>
-            <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem">
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "paracetamol"</code
-                >
-                - Valide
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "Doliprane 500mg"</code
-                >
-                - Valide
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "abc"</code
-                >
-                - Valide (minimum 3 caractères)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "paracétamol"</code
-                >
-                - Valide (avec accent français)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "ibuprofène-400"</code
-                >
-                - Valide (avec tiret)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "paracetamol@xyz"</code
-                >
-                - Invalide (contient @)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ ""</code
-                >
-                - Invalide (vide)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "ab"</code
-                >
-                - Invalide (trop court)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "a"*51</code
-                >
-                - Invalide (trop long)
-              </div>
-            </div>
-          </div>
-          <div>
-            <strong style="color: var(--color-text)"
-              >Réponse d'erreur de validation :</strong
-            >
-            <pre
+          <div style="display: grid; gap: 0.5rem; margin-top: 1rem">
+            <code
               style="
                 background: var(--color-bg);
-                padding: 1rem;
+                padding: 0.5rem 0.75rem;
                 border-radius: 4px;
-                overflow-x: auto;
-                margin-top: 0.5rem;
-                font-size: 0.8rem;
               "
-            ><code>HTTP/1.1 400 Bad Request
-Content-Type: application/json
-
-{
-  "code": 400,
-  "error": "Bad Request",
-  "message": "input contains invalid characters"
-}</code></pre>
+            >
+              paracetamol</code
+            >
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.5rem 0.75rem;
+                border-radius: 4px;
+              "
+            >
+              paracétamol-400</code
+            >
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.5rem 0.75rem;
+                border-radius: 4px;
+              "
+            >
+              Doliprane 500 mg</code
+            >
           </div>
         </div>
 
@@ -2511,24 +2461,11 @@ Response: [...]  // Direct array of all medicaments</code></pre>
             "
           ><code>{
   "status": "healthy",
-  "last_update": "2025-10-05T22:04:32+02:00",
-  "data_age_hours": 1.4483066186805555,
-  "uptime_seconds": 86400.000000375,
   "data": {
-    "api_version": "1.0",
-    "generiques": 1618,
-    "is_updating": false,
+    "last_update": "2025-10-05T22:04:32+02:00",
     "medicaments": 15000,
-    "next_update": "2025-10-06T06:00:00+02:00"
-  },
-  "system": {
-    "goroutines": 10,
-    "memory": {
-      "alloc_mb": 31,
-      "num_gc": 60,
-      "sys_mb": 187,
-      "total_alloc_mb": 264
-    }
+    "generiques": 1618,
+    "is_updating": false
   }
 }</code></pre>
         </div>
