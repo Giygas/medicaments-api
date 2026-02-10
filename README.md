@@ -3,92 +3,19 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
-[![Coverage](https://img.shields.io/badge/coverage-75.5%25-brightgreen)](https://github.com/giygas/medicaments-api)
+[![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
-[![Performance](https://img.shields.io/badge/performance-470K%20alg%2F%20380K%20real-brightgreen)](https://medicaments-api.giygas.dev/health)
+[![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
-
-## 🚀 Performance Exceptionnelle
-
-### ⚡ Performance Algorithmique (Go Benchmarks)
-
-_Performance pure des algorithmes avec la base complète de 15,811 médicaments_
-
-| Endpoint                 | Reqs/sec        | Latence       | Mémoire/op | Allocs/op |
-| ------------------------ | --------------- | ------------- | ---------- | --------- |
-| `/medicament/id/{cis}`   | 357,000-383,000 | **2.6-2.8µs** | 7,224 B    | 37        |
-| `/generiques/group/{id}` | 347,000-472,000 | **2.1-2.9µs** | 6,752 B    | 26        |
-| `/database/{page}`       | 36,000-55,000   | **18-28µs**   | 36,255 B   | 43        |
-| `/health`                | 32,000-39,000   | **26-31µs**   | 8,880 B    | 61        |
-
-### 🌐 Performance Réelle (HTTP)
-
-_Performance en conditions réelles avec stack HTTP complet_
-
-| Endpoint               | Latence moyenne | Reqs/sec            | Taille réponse |
-| ---------------------- | --------------- | ------------------- | -------------- |
-| `/medicament/id/{cis}` | **0.49ms**      | **357,000-383,000** | ~3KB           |
-| `/database/{page}`     | **0.47ms**      | **36,000-55,000**   | ~15KB          |
-| `/medicament/{nom}`    | **0.39ms**      | **280,000-350,000** | ~50KB          |
-| `/health`              | **0.50ms**      | **32,000-39,000**   | ~1KB           |
-
-### 📊 Performance Production (Estimée)
-
-_Performance attendue en production avec réseau et concurrence_
-
-- **Lookups O(1)**: ~350,000-400,000 req/sec
-- **Pagination**: ~40,000-60,000 req/sec
-- **Recherche**: ~280,000-350,000 req/sec
-- **Health checks**: ~32,000-40,000 req/sec
-
----
-
-## 📋 Journal des Modifications (Changelog)
-
-### Décembre 2025
-
-- **Fix encodage des caractères**: Changement de charset de `Windows1252` vers détection automatique `UTF-8/ISO8859-1` dans le downloader
-  - Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
-- **Fix logging shutdown**: Correction des logs pendant l'arrêt du serveur
-  - Les messages "Server shutdown complete" apparaissent maintenant correctement
-
----
-
-## 🎯 Interprétation des Métriques
-
-### 🚀 **Ce que les benchmarks montrent :**
-
-- **Lookup O(1) ultra-rapide** : 2.2-2.7µs = accès direct par clé
-- **Efficacité mémoire** : 2KB/medicament avec toutes les relations
-- **Algorithmes optimisés** : Structures de données performantes
-
-### 🌐 **Ce que la performance HTTP montre :**
-
-- **Expérience utilisateur réelle** : 19ms pour lookup complet
-- **Stack HTTP optimisé** : Middleware, sérialisation, compression
-- **Capacité de production** : Gère des charges réelles
-
-### 💡 **Pourquoi les deux chiffres ?**
-
-- **Benchmarks** = Performance théorique maximale
-- **HTTP** = Performance pratique avec tous les overheads
-- **Ratio ~0.1x** = HTTP plus rapide que benchmarks (keep-alive, optimisations locales)
-
----
-
-## 🏆 Points Forts Techniques
-
-- **⚡ Mises à jour ultra-rapides** : Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes**
-- **🔍 Recherche instantanée** : Lookup O(1) en **~2.2-2.7µs** via maps mémoire optimisées
-- **💾 Mémoire optimisée** : **30-50MB RAM stable** (150MB peak au démarrage)
-- **🗜️ Compression intelligente** : Réduction de **80%** avec gzip
-- **🔄 Zero-downtime** : Mises à jour atomiques sans interruption de service
-- **🧪 Tests complets** : **75.5% couverture** avec tests unitaires, intégration et benchmarks
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
 mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting
 par token bucket avec coûts variables par endpoint.
+
+## Performance
+
+L'API délivre des performances exceptionnelles grâce à des optimisations continues. Les lookups O(1) par code CIS ou CIP atteignent **80K+ requêtes/seconde** en production avec une latence moyenne inférieure à 5ms. Les recherches regex (par nom) atteignent **6,100 req/s** grâce aux noms normalisés pré-calculés. L'architecture basée sur 6 interfaces principales avec parsing concurrent des 5 fichiers TSV BDPM garantit des mises à jour atomiques zero-downtime.
 
 ## Fonctionnalités
 
@@ -96,48 +23,35 @@ par token bucket avec coûts variables par endpoint.
 
 **Nouveaux endpoints v1 (recommandés) :**
 
-| Endpoint                        | Description                           | Cache | Coût | Temps Réponse | Headers    | Validation            |
-| ---------------------------- | ----------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
-| `GET /v1/medicaments?export=all` | Export complet de la base          | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
-| `GET /v1/medicaments?page={n}` | Pagination (10/page)                | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
-| `GET /v1/medicaments?search={query}` | Recherche nom (regex, 3-50 chars)  | 1h    | 50   | ~0.2ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /v1/medicaments?cis={code}` | Recherche CIS (O(1) lookup)       | 12h   | 10   | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /v1/medicaments?cip={code}` | Recherche CIP (O(n) search)        | 12h   | 10   | ~0.1ms        | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
-| `GET /v1/generiques?libelle={nom}` | Génériques par libellé             | 1h    | 30   | ~0.1ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /v1/generiques?group={id}` | Groupe générique par ID              | 12h   | 5    | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
-| `GET /v1/presentations?cip={code}` | Présentations par CIP              | 12h   | 5    | ~0.002ms      | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
-| `GET /health` | Santé système + rate limit headers | -     | 5    | ~0.06ms       | RL         | -                     |
+| Endpoint                          | Description                        | Cache | Coût | Headers    | Validation              |
+| --------------------------------- | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
+| `/v1/medicaments/export`          | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
+| `/v1/medicaments?page={n}`        | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
+| `/v1/medicaments?search={query}`  | Recherche multi-mots (1-6 mots, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
+| `/v1/medicaments/{cis}`           | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
+| `/v1/medicaments?cip={code}`      | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
+| `/v1/generiques?libelle={nom}`    | Génériques multi-mots (1-6 mots, 3-50 chars) | 1h    | 30   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
+| `/v1/generiques?group={id}`       | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
+| `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
+| `/v1/diagnostics`                | Diagnostics système (détails)    | 10s   | 30   | CC         | -                       |
+| `/`                               | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
+| `/docs`                           | Swagger UI interactive             | 1h    | 0    | CC         | -                       |
+| `/health`                         | Santé système simplifiée            | -     | 5    | RL         | -                       |
 
-**Endpoints legacy (dépréciés - suppression août 2026) :**
+**Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
-Ces endpoints sont toujours disponibles mais seront supprimés le 31 août 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
+**Endpoints legacy (dépréciés - suppression juillet 2026) :**
 
-| Endpoint                     | Description                        | Cache | Coût | Temps Réponse | Headers    | Validation            |
-| ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
-| `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
-| `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~0.1s         | ETag/LM/RL | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 80   | ~0.2ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 10   | ~0.002ms      | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~0.1ms        | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~0.002ms      | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
-| `GET /`                      | Accueil (SPA)                      | 1h    | 0    | ~0.02ms       | CC         | -                     |
-| `GET /docs`                  | Swagger UI interactive             | 1h    | 0    | ~0.03ms       | CC         | -                     |
-| `GET /docs/openapi.yaml`     | OpenAPI 3.1 spec                   | 1h    | 0    | ~0.01ms       | CC         | -                     |
+Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
 
-| Endpoint                     | Description                        | Cache | Coût | Temps Réponse | Headers    | Validation            |
-| ---------------------------- | ---------------------------------- | ----- | ---- | ------------- | ---------- | --------------------- |
-| `GET /database`              | Base complète (15K+ médicaments)   | 6h    | 200  | ~2.1s (23MB)  | ETag/LM/RL | -                     |
-| `GET /database/{page}`       | Pagination (10/page)               | 6h    | 20   | ~22ms         | ETag/LM/RL | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)  | 1h    | 100  | ~11ms         | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)        | 12h   | 100  | ~19ms         | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé             | 1h    | 20   | ~15ms         | ETag/CC/RL | `^[a-zA-Z0-9 ]+$`     |
-| `GET /generiques/group/{id}` | Groupe générique par ID            | 12h   | 20   | ~17ms         | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
-| `GET /health`                | Santé système + rate limit headers | -     | 5    | ~25ms         | RL         | -                     |
-| `GET /`                      | Accueil (SPA)                      | 1h    | 0    | ~5ms          | CC         | -                     |
-| `GET /docs`                  | Swagger UI interactive             | 1h    | 0    | ~8ms          | CC         | -                     |
-| `GET /docs/openapi.yaml`     | OpenAPI 3.1 spec                   | 1h    | 0    | ~0.01ms       | CC         | -                     |
-
-**Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-*)
+| Endpoint                     | Description                       | Cache | Coût | Headers    | Validation            |
+| ---------------------------- | --------------------------------- | ----- | ---- | ---------- | --------------------- |
+| `GET /database`              | Base complète (15,000+ médicaments)  | 6h    | 200  | ETag/LM/RL | -                     |
+| `GET /database/{page}`       | Pagination (10/page)              | 6h    | 20   | ETag/LM/RL | page ≥ 1              |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars) | 1h    | 80   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
+| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)       | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
+| `GET /generiques/{libelle}`  | Génériques par libellé            | 1h    | 20   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
+| `GET /generiques/group/{id}` | Groupe générique par ID           | 12h   | 20   | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
 
 ### Guide de Migration vers v1
 
@@ -145,47 +59,37 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 
 **Table de migration :**
 
-| Endpoint Legacy                      | Endpoint v1                                      |
-| ------------------------------------ | ------------------------------------------------- |
-| `GET /medicament/paracetamol`       | `GET /v1/medicaments?search=paracetamol`         |
-| `GET /medicament/id/61504672`        | `GET /v1/medicaments?cis=61504672`              |
-| `GET /database/1`                     | `GET /v1/medicaments?page=1`                    |
-| `GET /database`                        | `GET /v1/medicaments?export=all`                |
-| `GET /generiques/paracetamol`        | `GET /v1/generiques?libelle=paracetamol`        |
-| `GET /generiques/group/1234`         | `GET /v1/generiques?group=1234`               |
+| Endpoint Legacy               | Endpoint v1                              |
+| ----------------------------- | ---------------------------------------- |
+| `GET /medicament/paracetamol` | `GET /v1/medicaments?search=paracetamol` |
+| `GET /medicament/id/61504672` | `GET /v1/medicaments/61504672`           |
+| `GET /database/1`             | `GET /v1/medicaments?page=1`             |
+| `GET /database`               | `GET /v1/medicaments/export`              |
+| `GET /generiques/paracetamol` | `GET /v1/generiques?libelle=paracetamol` |
+| `GET /generiques/group/1234`  | `GET /v1/generiques?group=1234`          |
 
 **Règles v1 :**
 
-- **Un seul paramètre** par requête : export, page, search, cis, cip, libelle, ou group
+- **Un seul paramètre** par requête : page, search, cip, libelle, ou group (CIS et export utilisent des paths séparés)
+- **Maximum de 6 mots** : Les recherches multi-mots supportent jusqu'à 6 mots (logique ET)
 - **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
 - **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
   - `Deprecation: true`
-  - `Sunset: 2026-08-31T23:59:59Z`
-  - `Link: <https://medicamentsapi.giygas.dev/v1/...>; rel="successor-version"`
+  - `Sunset: 2026-07-31T23:59:59Z`
+  - `Link: <https://medicaments-api.giygas.dev/v1/...>; rel="successor-version"`
   - `X-Deprecated: Use /v1/... instead`
   - `Warning: 299 - "Deprecated endpoint ..."`
 
-**Exemples de migration JavaScript :**
+**Exemples de migration :**
 
 ```javascript
-// AVANT (legacy)
-const response = await fetch('https://medicamentsapi.giygas.dev/medicament/paracetamol');
-
-// APRÈS (v1)
-const response = await fetch('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol');
-
+// JavaScript/TypeScript
+const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol');
 const data = await response.json();
-```
 
-**Exemples de migration Python :**
-
-```python
-# AVANT (legacy)
-response = requests.get('https://medicamentsapi.giygas.dev/medicament/paracetamol')
-
-# APRÈS (v1)
-response = requests.get('https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol')
-
+// Python
+import requests
+response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol')
 data = response.json()
 ```
 
@@ -199,7 +103,7 @@ data = response.json()
 GET /v1/medicaments?search={query}
 Response: [...]  // Tableau direct des objets medicament
 
-GET /v1/medicaments?cis={code}
+GET /v1/medicaments/{cis}
 Response: {...}  // Objet médicament unique ou erreur
 
 GET /v1/medicaments?cip={code}
@@ -224,8 +128,8 @@ Response: {
   "data": [...],
   "page": 1,
   "pageSize": 10,
-  "totalItems": 15803,
-  "maxPage": 1581
+  "totalItems": 15000,
+  "maxPage": 1500
 }
 
 GET /v1/medicaments?export=all
@@ -238,46 +142,58 @@ Response: [...]  // Export complet en tableau
 
 ```bash
 # Base de données complète (~20MB)
-curl https://medicamentsapi.giygas.dev/v1/medicaments?export=all
+curl https://medicaments-api.giygas.dev/v1/medicaments/export
 
 # Pagination (10 médicaments par page)
-curl https://medicamentsapi.giygas.dev/v1/medicaments?page=1
+curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
 
 # Recherche par nom (insensible à la casse, regex supporté)
-curl https://medicamentsapi.giygas.dev/v1/medicaments?search=paracetamol
+curl https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
 
 # Recherche par CIS (Code Identifiant de Spécialité)
-curl https://medicamentsapi.giygas.dev/v1/medicaments?cis=61504672
+curl https://medicaments-api.giygas.dev/v1/medicaments/61504672
 
-# Recherche par CIP (Code Identifiant de Présentation)
-curl https://medicamentsapi.giygas.dev/v1/medicaments?cip=3400936403114
+# Recherche par CIP
+curl https://medicaments-api.giygas.dev/v1/medicaments?cip=3400936403114
 ```
 
 #### Génériques (API v1)
 
 ```bash
 # Génériques par libellé
-curl https://medicamentsapi.giygas.dev/v1/generiques?libelle=paracetamol
+curl https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol
 
 # Groupe générique par ID avec détails complets
-curl https://medicamentsapi.giygas.dev/v1/generiques?group=1234
+curl https://medicaments-api.giygas.dev/v1/generiques?group=1234
+```
+
+#### Recherche multi-mots
+
+L'API supporte désormais la recherche multi-mots avec logique ET :
+- Tous les mots doivent être présents dans le résultat (logique ET)
+- Maximum de 6 mots par requête (protection DoS)
+- Les mots peuvent être séparés par `+` ou espace dans l'URL
+
+**Exemples :**
+```bash
+# 2 mots - recherche précise
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500"
+curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500"
+
+# 6 mots - recherche très précise
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+mg+comprime+boite+20"
+curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500+mg+comprime+effervescent"
+
+# Erreur - trop de mots (7+ mots)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+mg+comprime+boite+20+extra"
+# Réponse : {"error": "Bad Request", "message": "search query too complex: maximum 6 words allowed", "code": 400}
 ```
 
 #### Présentations (API v1 - nouveau)
 
 ```bash
 # Présentations par CIP
-curl https://medicamentsapi.giygas.dev/v1/presentations?cip=3400936403114
-```
-
-#### Monitoring et santé
-
-```bash
-# Health check avec métriques système
-curl https://medicaments-api.giygas.dev/health
-
-# Vérification des headers de rate limiting
-curl -I https://medicaments-api.giygas.dev/health
+curl https://medicaments-api.giygas.dev/v1/presentations/3400936403114
 ```
 
 ### Exemples détaillés
@@ -296,7 +212,7 @@ curl -I https://medicaments-api.giygas.dev/health
     "etatComercialisation": "Commercialisée",
     "dateAMM": "10/05/2013",
     "titulaire": "OPELLA HEALTHCARE FRANCE",
-    "surveillanceRenforce": "Non",
+    "surveillanceRenforcee": "Non",
     "composition": [
       {
       "cis": 60904643,
@@ -346,6 +262,59 @@ curl -I https://medicaments-api.giygas.dev/health
 ```json
 [
   {
+    "groupID": 1368,
+    "libelle": "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé",
+    "medicaments": [
+      {
+        "cis": 61644230,
+        "elementPharmaceutique": "PRONTALGINE, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Princeps",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CAFÉINE ANHYDRE",
+            "dosage": "50,0 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "400,0 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "20,0 mg"
+          }
+        ]
+      },
+      {
+        "cis": 63399979,
+        "elementPharmaceutique": "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "CAFÉINE ANHYDRE",
+            "dosage": "50 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PARACÉTAMOL",
+            "dosage": "400 mg"
+          },
+          {
+            "elementPharmaceutique": "comprimé",
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "20 mg"
+          }
+        ]
+      }
+    ],
+    "orphanCIS": [61586325]
+  },
+  {
     "groupID": 1643,
     "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
     "medicaments": [
@@ -356,12 +325,12 @@ curl -I https://medicaments-api.giygas.dev/health
         "type": "Princeps",
         "composition": [
           {
-            "elementPharmaceutique": "comprimé",
+            "elementPharmaceutique": "comprimé pelliculé",
             "substance": "PARACÉTAMOL",
             "dosage": "500 mg"
           },
           {
-            "elementPharmaceutique": "comprimé",
+            "elementPharmaceutique": "comprimé pelliculé",
             "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
             "dosage": "30 mg"
           }
@@ -376,19 +345,29 @@ curl -I https://medicaments-api.giygas.dev/health
           {
             "elementPharmaceutique": "comprimé",
             "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
+            "dosage": "500,00 mg"
           },
           {
             "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
+            "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
+            "dosage": "30,00 mg"
           }
         ]
       }
-    ]
+    ],
+    "orphanCIS": null
   }
 ]
 ```
+
+**À propos du champ `orphanCIS`**
+
+Le champ `orphanCIS` contient les codes CIS référencés dans un groupe générique mais pour lesquels aucune entrée médicament correspondante n'existe dans la base de données.
+- Les médicaments avec des données complètes (composition, forme pharmaceutique, type) apparaissent dans le tableau `medicaments`
+- Les CIS orphelins apparaissent dans le tableau `orphanCIS` sans détails supplémentaires
+- Ce champ peut être :
+  - Un tableau d'entiers : `[61586325, 60473805]`
+  - Null : `null` (si le groupe ne contient aucun CIS orphelin)
 
 ### Programmatique
 
@@ -396,18 +375,18 @@ curl -I https://medicaments-api.giygas.dev/health
 
 ```javascript
 // Client JavaScript/TypeScript pour l'API Médicaments v1
-class MedicamentsAPI {
+class MedicamentsApi {
   private readonly baseUrl = 'https://medicaments-api.giygas.dev';
 
   async searchByName(query: string): Promise<any[]> {
     const response = await fetch(`${this.baseUrl}/v1/medicaments?search=${query}`);
     const data = await response.json();
     console.log(`Found ${data.length} medicaments`);
-    return data; // Array of matching medicaments
+    return data; // Tableau des médicaments correspondants
   }
 
   async getByCis(cis: number): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/v1/medicaments?cis=${cis}`);
+    const response = await fetch(`${this.baseUrl}/v1/medicaments/${cis}`);
     return response.json();
   }
 
@@ -422,7 +401,7 @@ class MedicamentsAPI {
   }
 
   async getDatabase(): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/v1/medicaments?export=all`);
+    const response = await fetch(`${this.baseUrl}/v1/medicaments/export`);
     return response.json();
   }
 
@@ -444,7 +423,7 @@ class MedicamentsAPI {
 
 // Usage simple
 async function main() {
-  const api = new MedicamentsAPI();
+  const api = new MedicamentsApi();
   const results = await api.example();
   console.log('API Results:', results);
 }
@@ -458,7 +437,7 @@ main();
 import requests
 from typing import List, Dict, Any
 
-class MedicamentsAPI:
+class MedicamentsApi:
     BASE_URL = "https://medicaments-api.giygas.dev"
 
     def __init__(self):
@@ -476,7 +455,7 @@ class MedicamentsAPI:
 
     def get_by_cis(self, cis: int) -> Dict[str, Any]:
         """Obtenir un médicament par CIS"""
-        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?cis={cis}")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments/{cis}")
         response.raise_for_status()
         return response.json()
 
@@ -494,7 +473,7 @@ class MedicamentsAPI:
 
     def get_database(self) -> Dict[str, Any]:
         """Exporter toute la base de données"""
-        response = self.session.get(f"{self.BASE_URL}/v1/medicaments?export=all")
+        response = self.session.get(f"{self.BASE_URL}/v1/medicaments/export")
         response.raise_for_status()
         return response.json()
 
@@ -504,186 +483,50 @@ class MedicamentsAPI:
         response.raise_for_status()
         return response.json()
 
-# Usage
-api = MedicamentsAPI()
+    def get_diagnostics(self) -> Dict[str, Any]:
+        """Obtenir les diagnostics système détaillés"""
+        response = self.session.get(f"{self.BASE_URL}/v1/diagnostics")
+        response.raise_for_status()
+        return response.json()
+
+# Utilisation
+api = MedicamentsApi()
 results = api.search_by_name("paracetamol")
 print(f"Found {len(results)} results")
 ```
 
-## 🏗️ Architecture & Stack Technique
-
-### 🎯 Design basé sur 6 interfaces
-
-Architecture propre et maintenable avec injection de dépendances :
-
-- **HTTPHandler**: Routage propre sans assertions de type
-- **HealthChecker**: Monitoring système et métriques
-- **DataValidator**: Validation et assainissement des entrées
-- **Parser**: Pipeline de traitement TSV concurrent
-- **Scheduler**: Gestion automatisée des mises à jour
-- **DataManager**: Opérations de stockage atomiques
-
-### 🛠️ Stack Technique Complet
-
-**Core Technologies**:
-
-- **Go 1.21+**: Opérations atomiques et concurrence native
-- **Chi Router v5**: Routeur HTTP léger avec middleware stack
-- **gocron**: Mises à jour automatiques (6h/18h)
-- **juju/ratelimit**: Token bucket algorithm
-- **slog**: Structured logging avec rotation
-
-**Data Processing**:
-
-- **Encoding**: ISO-8859-1 → UTF-8 pour fichiers TSV
-- **Parsing concurrent**: 5 fichiers TSV en parallèle
-- **Atomic operations**: Zero-downtime updates
-- **Memory optimization**: O(1) lookup maps
-
-**Development & Operations**:
-
-- **godotenv**: Configuration environnement
-- **OpenAPI 3.1**: Documentation interactive
-- **pprof**: Profiling intégré (port 6060)
-- **Tests**: Couverture 70%+ avec benchmarks
+## Architecture
 
 ### Architecture des interfaces
 
-```go
-// Interfaces principales pour une architecture propre
-type DataStore interface {
-    GetMedicaments() []entities.Medicament
-    GetGeneriques() []entities.GeneriqueList
-    GetMedicamentsMap() map[int]entities.Medicament
-    GetGeneriquesMap() map[int]entities.Generique
-    GetLastUpdated() time.Time
-    IsUpdating() bool
-    UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-        medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique)
-    BeginUpdate() bool
-    EndUpdate()
-}
+L'architecture repose sur 6 interfaces principales qui séparent clairement les responsabilités pour une maintenabilité optimale.
 
-type HTTPHandler interface {
-    ServeHTTP(w http.ResponseWriter, r *http.Request)
-    ServeAllMedicaments(w http.ResponseWriter, r *http.Request)
-    ServePagedMedicaments(w http.ResponseWriter, r *http.Request)
-    FindMedicament(w http.ResponseWriter, r *http.Request)
-    FindMedicamentByID(w http.ResponseWriter, r *http.Request)
-    FindGeneriques(w http.ResponseWriter, r *http.Request)
-    FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request)
-    HealthCheck(w http.ResponseWriter, r *http.Request)
-}
+**Les 6 interfaces principales :**
 
-type Parser interface {
-    ParseAllMedicaments() ([]entities.Medicament, error)
-    GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error)
-}
+- **DataStore** : Gère le stockage atomique des données en mémoire avec des opérations thread-safe via `atomic.Value`, garantissant des mises à jour zero-downtime
+- **HTTPHandler** : Orchestre les requêtes et route les appels vers les bons handlers sans assertions de type
+- **Parser** : Télécharge et traite les 5 fichiers TSV BDPM en parallèle, construisant les maps pour lookups O(1) (CIS → médicament, groupe ID → générique)
+- **Scheduler** : Planifie les mises à jour automatiques (6h et 18h) en coordonnant le parsing et le stockage
+- **HealthChecker** : Surveille la fraîcheur des données et collecte les métriques système
+- **DataValidator** : Assainit les entrées utilisateur et valide l'intégrité des données
 
-type Scheduler interface {
-    Start() error
-    Stop()
-}
+Cette approche basée sur interfaces permet de tester chaque composant indépendamment avec des mocks, de remplacer n'importe quelle partie sans impacter le reste, et d'étendre l'API avec de nouveaux endpoints sans modifications profondes.
 
-type HealthChecker interface {
-    HealthCheck() (status string, details map[string]interface{}, err error)
-    CalculateNextUpdate() time.Time
-}
+## Sécurité et robustesse
 
-type DataValidator interface {
-    ValidateMedicament(m *entities.Medicament) error
-    ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
-}
-```
-
-### Implémentation du conteneur de données atomiques
-
-```go
-// DataContainer avec opérations atomiques pour zero-downtime
-type DataContainer struct {
-    medicaments    atomic.Value // []entities.Medicament
-    generiques     atomic.Value // []entities.GeneriqueList
-    medicamentsMap atomic.Value // map[int]entities.Medicament
-    generiquesMap  atomic.Value // map[int]entities.Generique
-    lastUpdated    atomic.Value // time.Time
-    updating       atomic.Bool
-}
-
-func NewDataContainer() *DataContainer {
-    dc := &DataContainer{}
-    dc.medicaments.Store(make([]entities.Medicament, 0))
-    dc.generiques.Store(make([]entities.GeneriqueList, 0))
-    dc.medicamentsMap.Store(make(map[int]entities.Medicament))
-    dc.generiquesMap.Store(make(map[int]entities.Generique))
-    dc.lastUpdated.Store(time.Time{})
-    return dc
-}
-
-func (dc *DataContainer) GetMedicaments() []entities.Medicament {
-    if v := dc.medicaments.Load(); v != nil {
-        if medicaments, ok := v.([]entities.Medicament); ok {
-            return medicaments
-        }
-    }
-    return []entities.Medicament{}
-}
-
-func (dc *DataContainer) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-    medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique) {
-    dc.medicaments.Store(medicaments)
-    dc.medicamentsMap.Store(medicamentsMap)
-    dc.generiques.Store(generiques)
-    dc.generiquesMap.Store(generiquesMap)
-    dc.lastUpdated.Store(time.Now())
-}
-```
-
-### Exemple de routage propre
-
-Le routage utilise l'interface `HTTPHandler` pour garantir la cohérence et éviter les assertions de type :
-
-**Architecture du routage** :
-
-- **Interface-based** : Tous les handlers implémentent `HTTPHandler`
-- **Pas d'assertions** : Évite `handler.(*ConcreteHandler)`
-- **Chi v5** : Router performant avec middleware stack
-- **Paramètres typés** : `{cis}`, `{pageNumber}`, `{libelle}` validés
-
-```go
-// Extrait de la configuration des routes (server/server.go)
-s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
-s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
-s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament)
-s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
-s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
-s.router.Get("/generiques/group/{groupId}", s.httpHandler.FindGeneriquesByGroupID)
-s.router.Get("/health", s.httpHandler.HealthCheck)
-```
-
-## 🔒 Sécurité et robustesse
-
-### 🛡️ Mesures de sécurité
+### Mesures de sécurité
 
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces
+  - **Recherche multi-mots** : Logique ET avec limite de 6 mots (protection DoS contre requêtes complexes)
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
-- **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge)
-- **Coûts variables** : 5-200 tokens selon complexité et ressources
+- **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
+  - Headers dans les réponses : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Rate`, `Retry-After`
 - **Middleware de protection** : Taille des requêtes et headers configurables
 - **Nettoyage automatique** : Clients inactifs supprimés régulièrement
 - **Headers de transparence** : `X-RateLimit-*` pour monitoring client
 - **CORS configuré** : Géré via nginx en production
 
-#### Détails du Rate Limiting
-
-```bash
-# Headers de rate limit dans les réponses
-X-RateLimit-Limit: 1000      # Capacité maximale
-X-RateLimit-Remaining: 850   # Tokens restants
-X-RateLimit-Rate: 3          # Taux de recharge (tokens/sec)
-Retry-After: 60              # Si limite dépassée
-```
-
-### ⚙️ Robustesse et résilience
+### Robustesse et résilience
 
 - **Zero-downtime** : `atomic.Value` et `atomic.Bool` pour basculement
 - **Logging structuré** : `slog` avec rotation de fichiers
@@ -692,60 +535,144 @@ Retry-After: 60              # Si limite dépassée
 - **Graceful shutdown** : Timeout 30s + 2s pour finaliser requêtes
 - **Concurrency safe** : `sync.RWMutex` et opérations atomiques
 
-#### Architecture de résilience
+## Optimisations techniques
 
-```text
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Client Request│───▶│  Rate Limiter    │───▶│  Cache Check    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                        │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Response      │◀───│   Compression    │◀───│   Data Fetch    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+### Exécuter les benchmarks
 
-## ⚡ Architecture de Performance
-
-### 🚀 Optimisations Techniques
-
-- **Parsing concurrent** : Téléchargement et traitement parallèle de 5 fichiers TSV BDPM
-- **Cache HTTP intelligent** : ETag et Last-Modified avec support 304 Not Modified
-- **Compression gzip** : Réduction taille jusqu'à 80% pour réponses JSON
-- **Lookup O(1)** : Maps mémoire CIS-based pour recherche instantanée
-- **Pagination optimisée** : Évite chargement base complète, 10 éléments/page
-- **Atomic swap** : Zero-downtime updates via `atomic.Value` et `atomic.Bool`
-- **Token bucket algorithm** : Rate limiting avec coûts variables (5-200 tokens)
-- **Interface-based routing** : Chi v5 avec middleware stack complet
-
-### 📊 Benchmarks Complets (Apple M2)
-
-| Endpoint               | Reqs/sec        | Latency (µs)  | Allocs/op | Memory (B/op) |
-| ---------------------- | --------------- | ------------- | --------- | ------------- |
-| `/health`              | 32,000-39,000   | 26-31         | 61        | 8,880         |
-| `/medicament/id/{cis}` | 357,000-383,000 | 2.6-2.8       | 37        | 7,224         |
-| `/medicament/{nom}`    | 280,000-350,000 | 2.8-3.6       | 15,893    | 1,043,294     |
-| `/database/{page}`     | 36,000-55,000   | 18-28         | 43        | 36,255        |
-| `/database`            | 20-30           | 40,000-50,000 | 52        | 80,176,333    |
-
-#### Tests de charge (production)
+Les benchmarks mesurent les performances réelles des endpoints API avec des données réalistes (15,811 médicaments) :
 
 ```bash
-# Benchmark avec hey (10K requêtes, 50 concurrents)
-hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504672
+# Lancer tous les benchmarks handlers
+go test -bench=. -benchmem -run=^$ ./handlers
 
-# Résultats typiques :
-# - Requests/sec: 1,200-1,500
-# - Latency moyenne: 35ms
-# - 95th percentile: 85ms
-# - Success rate: 99.95%
-# - Memory usage stable: 45MB
+# Lancer tous les benchmarks tests complets
+go test ./tests/ -bench=. -benchmem -run=^$
+
+# Benchmark spécifique handler
+go test -bench=BenchmarkMedicamentByCIS -benchmem -run=^$ ./handlers
+go test -bench=BenchmarkMedicamentsExport -benchmem -run=^$ ./handlers
+
+# Benchmark complet avec sous-tests
+go test -bench=BenchmarkAlgorithmicPerformance -benchmem -run=^$ ./tests/
+go test -bench=BenchmarkHTTPPerformance -benchmem -run=^$ ./tests/
+
+# Sous-benchmark spécifique (exemple)
+go test -bench=BenchmarkAlgorithmicPerformance/CISLookup -benchmem -run=^$ ./tests/
+
+# Avec comptage multiple (plus fiable)
+go test -bench=. -benchmem -count=3 -run=^$ ./handlers
+
+# Benchmark avec profil CPU
+go test -bench=. -benchmem -cpuprofile=cpu.prof -run=^$ ./handlers
+go tool pprof cpu.prof
+
+# Vérification des claims de documentation
+go test ./tests/ -run TestDocumentationClaimsVerification -v
 ```
 
-### 🧠 Architecture Mémoire & Data Structures
+**Benchmarks v1 disponibles** :
 
-**Memory Layout optimisé** :
+| Benchmark                        | Endpoint v1                  | Type de lookup |
+| -------------------------------- | ---------------------------- | -------------- |
+| `BenchmarkMedicamentsExport`     | `/v1/medicaments?export=all` | Full export    |
+| `BenchmarkMedicamentsPagination` | `/v1/medicaments?page={n}`   | Pagination     |
+| `BenchmarkMedicamentsSearch`     | `/v1/medicaments?search={q}` | Regex search   |
+| `BenchmarkMedicamentByCIS`       | `/v1/medicaments/{cis}`      | O(1) lookup    |
+| `BenchmarkMedicamentByCIP`       | `/v1/medicaments?cip={code}` | O(2) lookups   |
+| `BenchmarkGeneriquesSearch`      | `/v1/generiques?libelle={n}` | Regex search   |
+| `BenchmarkGeneriqueByGroup`      | `/v1/generiques?group={id}`  | O(1) lookup    |
+| `BenchmarkPresentationByCIP`     | `/v1/presentations/{cip}`    | O(1) lookup    |
+| `BenchmarkAlgorithmicPerformance` | Test complet algorithmique       | Complet        |
+| `BenchmarkHTTPPerformance`        | Test complet HTTP              | Complet        |
+| `BenchmarkRealWorldSearch`       | Tests de recherche réels       | Complet        |
+| `BenchmarkSustainedPerformance`  | Tests de charge soutenus      | Complet        |
 
-```
+**Notes sur les benchmarks complets** :
+
+- `BenchmarkAlgorithmicPerformance` : Tests complets de performance algorithmique incluant CISLookup, GenericGroupLookup, Pagination, Search, et PresentationsLookup
+- `BenchmarkHTTPPerformance` : Tests complets de performance HTTP incluant CISLookup, GenericGroupLookup, GenericSearch, et HealthCheck avec stack complète
+- `BenchmarkRealWorldSearch` : Tests de recherche réels incluant CommonMedication, BrandName, ShortQuery, et autres scénarios
+- `BenchmarkSustainedPerformance` : Tests de charge soutenus incluant ConcurrentLoad, MixedEndpoints, et MemoryUnderLoad
+
+### Tests Spécialisés
+
+| Test                                   | Description                           | Commande                                                          |
+| -------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| TestDocumentationClaimsVerification    | Vérification des claims documentation | `go test ./tests/ -run TestDocumentationClaimsVerification -v`    |
+| TestIntegrationFullDataParsingPipeline | Pipeline complet d'intégration        | `go test ./tests/ -run TestIntegrationFullDataParsingPipeline -v` |
+
+**Interprétation des résultats** :
+
+- `Reqs/sec` : Nombre de requêtes par seconde
+- `Latence` : Temps moyen par opération
+- `Mémoire/op` : Mémoire allouée par opération
+- `Allocs/op` : Nombre d'allocations mémoire par opération
+**Note** : Les benchmarks v1 mesurent le temps de sérialisation uniquement (sans réseau). L'export complet prend ~1.26ms pour sérialiser 15,811 médicaments, mais le transfert réseau prend plusieurs secondes pour ~20MB de données.
+
+### Benchmarks algorithmiques (Handler performance)
+
+| Endpoint                         | Reqs/sec | Latence      | Allocs/op |
+| -------------------------------- | -------- | ------------ | --------- |
+| `/v1/medicaments/{cis}`         | 400,000  | 3.0µs        | 38        |
+| `/v1/generiques?group={id}`      | 200,000  | 5.0µs        | 37        |
+| `/v1/generiques?libelle={nom}`   | 18,000   | 60µs         | 94        |
+| `/v1/presentations/{cip}`        | 430,000  | 2.0µs        | 63        |
+| `/v1/medicaments?cip={code}`     | 375,000  | 5.0µs        | 54        |
+| `/v1/medicaments?page={n}`       | 40,000   | 30µs         | 38        |
+| `/v1/medicaments?search={query}` | 1,600    | 600µs        | 94        |
+
+**Note** : Benchmarks algorithmiques mesurent la logique pure du handler sans surcharge réseau (go test -bench).
+
+### Performance en production
+
+Les résultats ci-dessous incluent l'overhead HTTP complet (middleware, logging, sérialisation, réseau) :
+
+| Endpoint                         | HTTP Req/sec | Latence (avg) |
+| -------------------------------- | ------------ | -------------- |
+| `/v1/medicaments/{cis}`         | 78,000       | ~4ms          |
+| `/v1/presentations/{cip}`        | 77,000       | ~4ms          |
+| `/v1/medicaments?cip={code}`    | 75,000       | ~5ms          |
+| `/v1/generiques?libelle={nom}`   | 36,000       | ~9ms          |
+| `/v1/medicaments?page={n}`       | 41,000       | ~7ms          |
+| `/v1/medicaments?search={query}` | 6,100        | ~50ms         |
+
+**Testing conditions**: 300 concurrent workers, 3-second duration, HTTP/1.1 with persistent connections, full middleware stack
+
+**Note** : Tests de performance utilisent une tolérance de 25% pour tenir compte des variations d'environnement.
+
+### Optimisations récentes
+
+Les améliorations v1.1 ont été apportées à l'API pour augmenter considérablement le débit HTTP tout en maintenant une stabilité exceptionnelle.
+
+**Noms normalisés pré-calculés**
+
+Élimine les opérations de chaîne répétées (ToLower(), ReplaceAll()) pendant les recherches en calculant les versions normalisées une seule fois lors du parsing des données BDPM. La normalisation se produit une fois par médicament au lieu d'être exécutée à chaque requête de recherche.
+
+Avantages :
+- Réduction drastique des allocations mémoire par recherche (16,000 → 94)
+- Lookups par chaîne directement au lieu de calculer à la volée
+- Amélioration de la latence de recherche par un facteur important
+
+**Logging environment-aware**
+
+Réduit l'overhead I/O console en production en n'activant pas le logging debug/info en environnement de production et de test. Seuls les messages WARN et ERROR sont loggés dans ces environnements.
+
+Avantages :
+- Réduction de ~40% de l'overhead de logging en production
+- Maintient les logs complets en développement
+- Meilleure visibilité des problèmes réels (WARN/ERROR)
+
+**Résultats combinés**
+
+Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-3x sur la plupart des endpoints :
+
+- **Lookups O(1) (CIS, CIP)** : Amélioration significative du débit
+- **Recherches regex** : Performance accrue grâce aux chaînes pré-normalisées
+- **Stabilité maintenue** : Aucune régression sur les endpoints existants
+
+### Architecture mémoire
+
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     Memory Layout                           │
 ├─────────────────────────────────────────────────────────────┤
@@ -753,41 +680,14 @@ hey -n 10000 -c 50 -m GET https://medicaments-api.giygas.dev/medicament/id/61504
 │ generiques        │ ~6MB  │ Slice des generiques            │
 │ medicamentsMap    │ ~15MB │ O(1) lookup par CIS             │
 │ generiquesMap     │ ~4MB  │ O(1) lookup par groupe ID       │
-│ Total             │ 30-50MB│ RAM usage stable (Go optimisé) │
-│ Startup           │ ~50MB │ Pic initial après chargement     │
+ │ Total             │ 60-90MB│ RAM usage stable (Go optimisé)  │
+│ Startup           │ ~150MB│ Pic initial après chargement     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**DataContainer - Structure atomique** :
+## Logging et Monitoring
 
-```go
-type DataContainer struct {
-    medicaments    atomic.Value // []entities.Medicament
-    generiques     atomic.Value // []entities.GeneriqueList
-    medicamentsMap atomic.Value // map[int]entities.Medicament
-    generiquesMap  atomic.Value // map[int]entities.Generique
-    lastUpdated    atomic.Value // time.Time
-    updating       atomic.Bool
-}
-```
-
-**Rate Limiting - Token Bucket** :
-
-- **Structure** : Map IP → Bucket avec `sync.RWMutex`
-- **Capacité** : 1000 tokens/IP, recharge 3 tokens/seconde
-- **Coûts variables** : 5-200 tokens par endpoint
-- **Cleanup** : Suppression automatique des buckets inactifs
-
-**Pipeline Concurrent** :
-
-- **Téléchargement** : 5 fichiers TSV BDPM en parallèle
-- **Parsing** : Chaque fichier dans sa propre goroutine
-- **Synchronisation** : Channels typés + WaitGroup
-- **Validation** : Intégrité des données avant conversion
-
-## 📝 Logging et Monitoring
-
-### 🔄 Rotation Automatique des Logs
+### Rotation Automatique des Logs
 
 L'API implémente un système de logging structuré avec rotation automatique :
 
@@ -805,7 +705,7 @@ L'API implémente un système de logging structuré avec rotation automatique :
 # Configuration des logs
 LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation (1-52)
 MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (1MB-1GB, défaut: 100MB)
-LOG_LEVEL=info               # Niveau de log (debug/info/warn/error)
+LOG_LEVEL=info               # Niveau de log console (debug/info/warn/error) - les fichiers capturent toujours tous les niveaux
 ```
 
 #### Structure des Fichiers
@@ -814,7 +714,7 @@ LOG_LEVEL=info               # Niveau de log (debug/info/warn/error)
 logs/
 ├── app-2025-W41.log              # Semaine en cours
 ├── app-2025-W40.log              # Semaine précédente
-├── app-2025-W39.log              # 2 semaines ago
+├── app-2025-W39.log              # 2 semaines précédentes
 └── app-2025-W38_size_20251007_143022.log  # Rotation par taille
 ```
 
@@ -828,55 +728,105 @@ logs/
 }
 ```
 
-### 📊 Monitoring Intégré
+### Monitoring Intégré
 
-#### Health Endpoint
+### Endpoint de santé
 
-```bash
-GET /health
-```
-
-Réponse avec métriques complètes :
+L'endpoint `/health` fournit une réponse simplifiée pour vérifier l'état de l'API :
 
 ```json
 {
   "status": "healthy",
-  "last_update": "2025-10-07T17:30:03+02:00",
-  "data_age_hours": 0.0009391726388888889,
-  "uptime_seconds": 86400.00000025,
   "data": {
-    "api_version": "1.0",
-    "generiques": 38,
-    "is_updating": false,
-    "medicaments": 15803,
-    "next_update": "2025-10-07T18:00:00+02:00"
-  },
+    "last_update": "2026-01-15T06:00:00Z",
+    "medicaments": 15420,
+    "generiques": 5200,
+    "is_updating": false
+  }
+}
+```
+
+#### États de santé
+
+- **`healthy`** : API opérationnelle avec données fraîches (< 24h)
+- **`degraded`** : API opérationnelle mais données âgées (> 24h)
+- **`unhealthy`** : API non opérationnelle (pas de médicaments en mémoire) - renvoie HTTP 503
+
+#### Métriques Clés
+
+- **`status`** : État de santé (healthy/degraded/unhealthy)
+- **`last_update`** : Dernière mise à jour réussie des données (ISO 8601)
+- **`medicaments`** : Nombre de médicaments en mémoire
+- **`generiques`** : Nombre de groupes génériques
+- **`is_updating`** : Indique si une mise à jour est en cours
+
+### Endpoint de diagnostics v1
+
+L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitoring avancé :
+
+```json
+{
+  "timestamp": "2026-01-15T14:30:45Z",
+  "uptime_seconds": 86400,
+  "next_update": "2026-01-15T18:00:00Z",
+  "data_age_hours": 2.5,
   "system": {
-    "goroutines": 16,
+    "goroutines": 45,
     "memory": {
-      "alloc_mb": 40,
-      "num_gc": 16,
-      "sys_mb": 62,
-      "total_alloc_mb": 125
+      "alloc_mb": 130,
+      "sys_mb": 150,
+      "num_gc": 25
+    }
+  },
+  "data_integrity": {
+    "medicaments_without_conditions": {
+      "count": 1250,
+      "sample_cis": [60012345, 60023456]
+    },
+    "medicaments_without_generiques": {
+      "count": 8450,
+      "sample_cis": [61504672, 61001234]
+    },
+    "medicaments_without_presentations": {
+      "count": 3200,
+      "sample_cis": [62003456, 62004567]
+    },
+    "medicaments_without_compositions": {
+      "count": 890,
+      "sample_cis": [63005678, 63006789]
+    },
+    "generique_only_cis": {
+      "count": 45,
+      "sample_cis": [64007890, 64008901]
     }
   }
 }
 ```
 
-#### Métriques Clés
+#### Métriques Clés - Diagnostics
 
-- **`status`** : État de santé (healthy/degraded/unhealthy)
-- **`last_update`** : Dernière mise à jour réussie des données
+- **`timestamp`** : Horodatage de la réponse (ISO 8601)
+- **`uptime_seconds`** : Temps d'exécution de l'application en secondes
+- **`next_update`** : Prochaine mise à jour planifiée (ISO 8601)
 - **`data_age_hours`** : Âge des données en heures
-- **`uptime_seconds`** : Temps d'exécution de l'application
-- **`medicaments`** : Nombre de médicaments en mémoire
-- **`generiques`** : Nombre de groupes génériques
-- **`is_updating`** : Indique si une mise à jour est en cours
-- **`next_update`** : Prochaine mise à jour planifiée
 - **`goroutines`** : Nombre de goroutines actives
-- **`memory`** : Statistiques mémoire détaillées (alloc, sys, total_alloc, num_gc)
+- **`memory`** : Statistiques mémoire détaillées (alloc_mb, sys_mb, num_gc)
+- **`data_integrity`** : Rapport de qualité des données avec catégories :
+  - `medicaments_without_conditions` : Médicaments sans conditions de prescription
+  - `medicaments_without_generiques` : Médicaments sans association générique
+  - `medicaments_without_presentations` : Médicaments sans présentations
+  - `medicaments_without_compositions` : Médicaments sans composition
+  - `generique_only_cis` : CIS présents uniquement dans les génériques
 
-### 🔄 Flux de Données & Pipeline
+#### Notes sur l'intégrité des données
+
+- Les comptages représentent le nombre d'entrées affectées par chaque catégorie
+- `sample_cis` contient des exemples de CIS pour chaque catégorie (limité à 2 exemples)
+- Ces informations aident à identifier les incohérences potentielles dans les données BDPM
+
+## Architecture système
+
+### Flux de données
 
 ```text
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -890,7 +840,7 @@ Réponse avec métriques complètes :
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-### 🛡️ Middleware Stack Complet
+### Middleware Stack Complet
 
 Stack Chi v5 optimisée pour la sécurité et la performance :
 
@@ -903,31 +853,18 @@ Stack Chi v5 optimisée pour la sécurité et la performance :
 7. **RequestSize** - Limites taille corps/headers (configurable)
 8. **RateLimiting** - Token bucket avec coûts variables par endpoint
 
-### 🌐 Cache HTTP Intelligent
+### Cache HTTP Intelligent
 
-- **Documentation statique** : 1 heure (index.html, docs.html, OpenAPI)
-- **Favicon** : 1 an (rarement modifié)
-- **Réponses API** : Gérées par middleware `RespondWithJSON` avec Last-Modified
-- **Compression gzip** : Réduction de 80% de la taille des réponses
+L'API implémente un système de cache HTTP efficace : les ressources statiques (documentation, OpenAPI, favicon) ont des headers `Cache-Control` avec des durées adaptées (1 heure pour la documentation, 1 an pour le favicon), tandis que les réponses API utilisent `Last-Modified` et `ETag` pour gérer le cache conditionnel (réponses 304 Not Modified sur requêtes répétées). La compression gzip est appliquée automatiquement, réduisant la taille des réponses JSON jusqu'à 80%.
 
-### 🧩 Composants Core
-
-- **Downloader** : Téléchargement 5 fichiers TSV BDPM avec retry auto
-- **Parser Engine** : TSV → JSON avec validation et lookup maps O(1)
-- **Data Container** : Stockage thread-safe avec `atomic.Value`
-- **API Layer** : Chi router v5 avec middleware stack complet
-- **Scheduler** : Mises à jour automatiques avec gocron (6h/18h)
-- **Rate Limiter** : Token bucket avec cleanup automatique
-
-## 📚 Documentation
+## Documentation
 
 ### Accès à la documentation
 
 - **Swagger UI** : [https://medicaments-api.giygas.dev/docs](https://medicaments-api.giygas.dev/docs)
 - **OpenAPI spec** : [https://medicaments-api.giygas.dev/docs/openapi.yaml](https://medicaments-api.giygas.dev/docs/openapi.yaml)
-- **Health check** : [https://medicaments-api.giygas.dev/health](https://medicaments-api.giygas.dev/health)
 
-### 📊 Modèle de données
+### Modèle de données
 
 L'API expose les données BDPM complètes avec les entités suivantes :
 
@@ -962,37 +899,66 @@ L'API expose les données BDPM complètes avec les entités suivantes :
 Toutes les entités sont liées par le **CIS** (Code Identifiant de Spécialité)
 pour garantir la cohérence des données.
 
-### 🔍 Schéma de relations
+### Schéma de relations
 
 ```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Medicament    │───▶│  Composition    │───▶│   Substance     │
 │     (CIS)       │    │   (CIS)         │    │   (Code)        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
+          │                       │                       │
+          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │  Presentation   │    │   Generique     │    │   Condition     │
 │   (CIS/CIP)     │    │   (CIS/Group)   │    │    (CIS)        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-### 📦 Dépendances Principales
+## Stack Technique
+
+### Core Technologies
+
+- **Encoding** : Support Windows-1252 → UTF-8 pour les fichiers TSV sources
+- **Framework web** : Chi v5 avec middleware stack complet
+- **Scheduling** : gocron pour les mises à jour automatiques (6h/18h)
+- **Logging** : Structured logging avec slog et rotation de fichiers
+- **Rate limiting** : juju/ratelimit (token bucket algorithm)
+
+### Data Processing
+
+- **Encoding** : Support Windows-1252/UTF-8/ISO8859-1 → UTF-8 pour les fichiers TSV sources
+- **Parsing** : Traitement concurrent de 5 fichiers TSV
+- **Validation** : Validation stricte des données avec types forts
+- **Memory** : Atomic operations pour zero-downtime updates
+
+### Development & Operations
+
+- **Configuration** : Validation d'environnement avec godotenv
+- **Tests** : Tests unitaires avec couverture de code et benchmarks
+- **Documentation** : OpenAPI 3.1 avec Swagger UI interactive
+- **Profiling** : pprof intégré pour le développement (port 6060)
+- **Monitoring** : Health checks et métriques intégrées
+
+### Dépendances principales
 
 ```go
 module github.com/giygas/medicaments-api
 
 require (
-    github.com/go-chi/chi/v5 v5.2.3      // Router HTTP
-    github.com/go-co-op/gocron v1.32.1   // Scheduler
-    github.com/juju/ratelimit v1.0.2     // Rate limiting
+    github.com/go-chi/chi/v5 v5.2.3      // Routeur HTTP
+    github.com/go-co-op/gocron v1.32.1   // Planificateur
+    github.com/juju/ratelimit v1.0.2     // Limitation de taux
     github.com/joho/godotenv v1.5.1      // Configuration
-    golang.org/x/text v0.12.0            // Encoding support
-    go.uber.org/atomic v1.11.0           // Atomic operations
+    golang.org/x/text v0.12.0            // Support d'encodage
+    go.uber.org/atomic v1.11.0           // Opérations atomiques
 )
 ```
 
-### 🎯 Principes de Conception
+## Architecture et design patterns
+
+### Principes de conception
+
+L'architecture privilégie la simplicité, l'efficacité et la résilience :
 
 - **Atomic operations** : Mises à jour sans temps d'arrêt
 - **Stateless architecture** : Facilite la montée en charge horizontale
@@ -1001,7 +967,9 @@ require (
 
 ## 🚀 Développement Local
 
-### 📋 Prérequis
+## Configuration développement local
+
+### Prérequis
 
 - **Go 1.21+** avec support des modules
 - **2GB RAM** recommandé pour le développement
@@ -1045,60 +1013,14 @@ go vet ./...
 golangci-lint run  # si installé
 ```
 
-### 🌐 Serveur de Développement
-
-- **Serveur local**: `http://localhost:8000`
-- **Profiling pprof**: `http://localhost:6060` (quand ENV=dev)
-- **Documentation interactive**: `http://localhost:8000/docs`
-- **Health endpoint**: `http://localhost:8000/health`
-
-## 🧪 Exécuter les Benchmarks
+#### Analyse statique
 
 ```bash
-# Lancer tous les benchmarks
-go test ./tests/ -bench=. -benchmem -run=^$
+# Analyse statique du code Go - détecte les problèmes potentiels
+go vet ./...
 
-# Rapport de performance résumé (recommandé)
-go test ./tests/ -bench=BenchmarkSummary -run=^$ -v
-
-# Benchmark spécifique
-go test ./tests/ -bench=BenchmarkDatabase -benchmem -run=^$
-
-# Avec comptage multiple (plus fiable)
-go test ./tests/ -bench=. -benchmem -count=3 -run=^$
-
-# Benchmark avec profil CPU
-go test ./tests/ -bench=. -benchmem -cpuprofile=cpu.prof -run=^$
-go tool pprof cpu.prof
-
-# Profil mémoire des benchmarks
-go test ./tests/ -bench=. -benchmem -memprofile=mem.prof
-go tool pprof mem.prof
-
-# Comparer performances avant/après modifications
-benchstat old.txt new.txt
-
-# Vérification des claims de documentation
-go test ./tests/ -run TestDocumentationClaimsVerification -v
-
-# Test rapide de parsing
-go test ./tests/ -run TestParsingTime -v
-```
-
-### 📊 Benchmarks Disponibles
-
-| Benchmark                   | Description                 | Commande                                            |
-| --------------------------- | --------------------------- | --------------------------------------------------- |
-| `BenchmarkSummary`          | Rapport complet             | `go test ./tests/ -bench=BenchmarkSummary -v`       |
-| `BenchmarkDatabase`         | Endpoint `/database`        | `go test ./tests/ -bench=BenchmarkDatabase`         |
-| `BenchmarkDatabasePage`     | Endpoint `/database/{page}` | `go test ./tests/ -bench=BenchmarkDatabasePage`     |
-| `BenchmarkMedicamentSearch` | Recherche par nom           | `go test ./tests/ -bench=BenchmarkMedicamentSearch` |
-| `BenchmarkMedicamentByID`   | Recherche par CIS           | `go test ./tests/ -bench=BenchmarkMedicamentByID`   |
-| `BenchmarkGeneriquesSearch` | Génériques par libellé      | `go test ./tests/ -bench=BenchmarkGeneriquesSearch` |
-| `BenchmarkGeneriquesByID`   | Génériques par ID           | `go test ./tests/ -bench=BenchmarkGeneriquesByID`   |
-| `BenchmarkHealth`           | Endpoint `/health`          | `go test ./tests/ -bench=BenchmarkHealth`           |
-
-### 🧪 Tests Spécialisés
+# Formatage du code (standardisation)
+gofmt -w .
 
 | Test                                     | Description                           | Commande                                                          |
 | ---------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
@@ -1107,7 +1029,13 @@ go test ./tests/ -run TestParsingTime -v
 | `TestIntegrationFullDataParsingPipeline` | Pipeline complet d'intégration        | `go test ./tests/ -run TestIntegrationFullDataParsingPipeline -v` |
 | `TestRealWorldConcurrentLoad`            | Test de charge réel                   | `go test ./tests/ -run TestRealWorldConcurrentLoad -v`            |
 
-### ⚙️ Configuration d'Environnement
+**Outils disponibles :**
+
+- **go vet** : Vérifie les constructions suspectes, détecte le code inaccessible et les erreurs logiques, identifie les mauvaises utilisations des fonctions built-in, vérifie la conformité des interfaces, analyse les formats d'impression et les arguments
+- **gofmt** : Formatage automatique du code Go pour standardisation
+- **golangci-lint** : Linter plus approfondie (optionnel, à installer séparément)
+
+### Configuration d'environnement
 
 ```bash
 # Configuration serveur
@@ -1116,16 +1044,22 @@ ADDRESS=127.0.0.1            # Adresse d'écoute
 ENV=dev                      # Environnement (dev/production)
 
 # Logging
-LOG_LEVEL=info               # debug/info/warn/error
-LOG_RETENTION_WEEKS=4        # Nombre de semaines de conservation
-MAX_LOG_FILE_SIZE=104857600  # Taille max avant rotation (100MB)
+LOG_LEVEL=info               # Niveau de log console (les fichiers sont toujours en DEBUG)
 
 # Limites optionnelles
 MAX_REQUEST_BODY=1048576     # 1MB max corps de requête
 MAX_HEADER_SIZE=1048576      # 1MB max taille headers
 ```
 
-## ⚠️ Limitations et conditions d'utilisation
+### Fonctionnalités du serveur de développement
+
+- **Serveur local**: `http://localhost:8000`
+- **Profiling pprof**: `http://localhost:6060` (quand ENV=dev)
+- **Rechargement auto**: Utiliser `air` ou similaire pour hot reloading
+- **Documentation interactive**: `http://localhost:8000/docs`
+- **Health endpoint**: `http://localhost:8000/health`
+
+## Limitations et conditions d'utilisation
 
 ### Limitations techniques
 
@@ -1133,7 +1067,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 
 - **Rate limiting** : 1000 tokens/IP, recharge 3 tokens/seconde
 - **Coûts variables** : 5-200 tokens/requête selon endpoint
-- **Data size** : ~20MB avec 30-50MB RAM stable (150MB startup)
+- **Data size** : ~20MB avec 60-90MB RAM stable (150MB startup)
 - **Pas de SLA** : Service "as-is" sans garantie de disponibilité
 - **Dépendance externe** : Mises à jour selon disponibilité source BDPM
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces
@@ -1145,7 +1079,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 - **Attribution requise** : Mention de la source obligatoire
 - **Pas d'altération** : Interdiction de modifier les données originales
 
-## 📞 Support et contact
+## Support et contact
 
 ### Obtenir de l'aide
 
@@ -1153,7 +1087,7 @@ Ce service est gratuit et fonctionne avec des ressources limitées :
 - **Issues** : [GitHub Issues](https://github.com/giygas/medicaments-api/issues)
 - **Health check** : [https://medicaments-api.giygas.dev/health](https://medicaments-api.giygas.dev/health)
 
-## 📄 Licence et conformité
+## Licence et conformité
 
 ### Licence du logiciel
 
@@ -1187,11 +1121,52 @@ Source : https://base-donnees-publique.medicaments.gouv.fr
 
 ---
 
-## 🙏 Remerciements
+## Changelog
+
+Décembre 2025
+- Fix encodage des caractères: Changement de charset de Windows1252 vers détection automatique UTF-8/ISO8859-1 dans le downloader
+- Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
+- Fix logging shutdown: Correction des logs pendant l'arrêt du serveur
+
+Février 2026
+
+**Nouvelles fonctionnalités**
+- Endpoints v1 avec headers de dépréciation, caching ETag et coûts de token mis à jour
+- Routes RESTful : `/v1/medicaments/{cis}`, `/v1/presentations/{cip}`, `/v1/medicaments/export`
+- Maps de lookup CIP7/CIP13 avec détection de doublons
+- Endpoint `/v1/diagnostics` : rapports d'intégrité des données et métriques système
+- Champ orphanCIS dans les réponses génériques : codes CIS sans entrée médicament correspondante
+- Endpoint `/health` simplifié : statut de santé et données de base uniquement
+- Support du signe + dans les recherches : "paracetamol+cafeine" fonctionne comme "paracetamol cafeine"
+- LOG_LEVEL fonctionnel : contrôle le niveau de log console/fichiers (fallback par environnement)
+
+**Performance**
+- Amélioration de 6-10x des recherches : noms normalisés pré-calculés réduisant allocations de 170x
+- Validation des entrées optimisée 5-10x : pré-compilation regex, remplacement par string.Contains()
+- Logging optimisé : skip /health et /metrics, réduction volume logs
+
+**Corrections**
+- Correction du logging lors de l'arrêt du serveur
+- Endpoint /v1/medicaments : retourne 404 si non trouvé (au lieu de tableau vide)
+- Race conditions corrigées dans le logger rotatif (fuites ressources + concurrence)
+- Validation génériques stricte : groupID 1-9999 avec messages d'erreur clairs
+
+**Refactoring et tests**
+- Modernisation syntaxe, division des fichiers de tests et simplification des calculs
+- Mise à jour de la suite de tests pour utiliser les endpoints v1
+- Migration Go 1.24, ajout smoke tests, consolidation benchmarks
+
+**Qualité des données**
+- Rapports sur les médicaments sans conditions, génériques, présentations, ou composition
+- Gestion des cas limites TSV : statistiques de skip pour lignes mal formatées
+
+---
+
+## Remerciements
 
 ### À la communauté médicale française
 
-Ce projet est développé avec ❤️ pour les professionnels de santé, chercheurs,
+Ce projet est développé avec passion pour les professionnels de santé, chercheurs,
 et développeurs qui ont besoin d'accéder aux données sur les médicaments
 disponibles en France.
 
