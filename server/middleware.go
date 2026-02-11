@@ -36,30 +36,38 @@ func RealIPMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// BlockDirectAccessMiddleware blocks direct access to the server
-func BlockDirectAccessMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if request is coming from nginx (trusted proxy)
-		if r.Header.Get("X-Real-IP") == "" && r.Header.Get("X-Forwarded-For") == "" {
-			// No proxy headers, likely direct access - check if it's localhost for development
-			host, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				// If we can't parse the host:port, try to use the whole RemoteAddr as host
-				host = r.RemoteAddr
-			}
-
-			// Allow localhost access for development
-			if host == "127.0.0.1" || host == "::1" || host == "localhost" {
+// BlockDirectAccessMiddleware blocks direct access to server unless allowed
+func BlockDirectAccessMiddleware(allowDirectAccess bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip direct access check if ALLOW_DIRECT_ACCESS is enabled
+			if allowDirectAccess {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"))
-			http.Error(w, "Direct access not allowed", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+			// Check if request is coming from nginx (trusted proxy)
+			if r.Header.Get("X-Real-IP") == "" && r.Header.Get("X-Forwarded-For") == "" {
+				// No proxy headers, likely direct access - check if it's localhost for development
+				host, _, err := net.SplitHostPort(r.RemoteAddr)
+				if err != nil {
+					// If we can't parse the host:port, try to use the whole RemoteAddr as host
+					host = r.RemoteAddr
+				}
+
+				// Allow localhost access for development
+				if host == "127.0.0.1" || host == "::1" || host == "localhost" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"))
+				http.Error(w, "Direct access not allowed", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RequestSizeMiddleware limits the size of request headers and body

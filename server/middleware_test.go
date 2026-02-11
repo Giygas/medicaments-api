@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -109,5 +110,33 @@ func TestHasSingleParam(t *testing.T) {
 					tt.expected, tt.query, tt.allowedParams, result)
 			}
 		})
+	}
+}
+
+func TestBlockDirectAccessMiddleware_WithAllowDirectAccess(t *testing.T) {
+	// Create handler that sets a flag
+	handlerCalled := false
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Create middleware with AllowDirectAccess=true
+	middleware := BlockDirectAccessMiddleware(true)(testHandler)
+
+	// Create request without proxy headers (would normally be blocked)
+	req := httptest.NewRequest("GET", "/health", nil)
+	req.RemoteAddr = "192.168.1.100:12345"
+
+	// Execute request
+	recorder := httptest.NewRecorder()
+	middleware.ServeHTTP(recorder, req)
+
+	// Should pass through without blocking
+	if !handlerCalled {
+		t.Error("Handler should be called when AllowDirectAccess=true")
+	}
+	if recorder.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got: %d", recorder.Code)
 	}
 }

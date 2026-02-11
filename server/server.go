@@ -76,7 +76,7 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 // setupMiddleware configures all middleware
 func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RequestID)
-	s.router.Use(BlockDirectAccessMiddleware) // Put BEFORE RealIPMiddleware to see original RemoteAddr
+	s.router.Use(BlockDirectAccessMiddleware(s.config.AllowDirectAccess)) // Put BEFORE RealIPMiddleware to see original RemoteAddr
 	s.router.Use(RealIPMiddleware)
 	s.router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
 	s.router.Use(middleware.RedirectSlashes)

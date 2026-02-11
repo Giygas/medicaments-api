@@ -112,7 +112,11 @@ func loadEnvironment() error {
 
 		// Try again after changing directory
 		if err := godotenv.Load(); err != nil {
-			logging.Warn("Could not load .env file", "error", err)
+			// Check if environment variables are already set (e.g., by Docker)
+			if os.Getenv("PORT") == "" && os.Getenv("ENV") == "" {
+				// Only warn if env vars aren't already configured
+				logging.Warn("Could not load .env file", "error", err)
+			}
 		}
 	}
 
