@@ -15,6 +15,7 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
@@ -181,7 +182,8 @@ func setupRealWorldServer() (*httptest.Server, *http.Client) {
 
 		container := setupRealWorldData()
 		validator := validation.NewDataValidator()
-		httpHandler := handlers.NewHTTPHandler(container, validator)
+		healthChecker := health.NewHealthChecker(container)
+		httpHandler := handlers.NewHTTPHandler(container, validator, healthChecker)
 
 		// Create router with v1 routes (similar to documentation_claims_verification_test.go)
 		router := chi.NewRouter()
@@ -209,7 +211,8 @@ func BenchmarkAlgorithmicPerformance(b *testing.B) {
 
 	container := setupAlgorithmicContainer()
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(container, validator)
+	healthChecker := health.NewHealthChecker(container)
+	httpHandler := handlers.NewHTTPHandler(container, validator, healthChecker)
 
 	b.Run("CISLookup", func(b *testing.B) {
 		b.ResetTimer()
@@ -642,7 +645,8 @@ func BenchmarkSustainedPerformance(b *testing.B) {
 func RunAlgorithmicBenchmark(endpoint string, iterations int) BenchmarkResult {
 	container := setupAlgorithmicContainer()
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(container, validator)
+	healthChecker := health.NewHealthChecker(container)
+	httpHandler := handlers.NewHTTPHandler(container, validator, healthChecker)
 
 	var memBefore, memAfter runtime.MemStats
 	runtime.GC()

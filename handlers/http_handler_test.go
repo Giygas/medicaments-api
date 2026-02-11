@@ -20,30 +20,40 @@ import (
 // TestNewHTTPHandler tests handler creation
 func TestNewHTTPHandler(t *testing.T) {
 	tests := []struct {
-		name      string
-		dataStore interfaces.DataStore
-		validator interfaces.DataValidator
+		name          string
+		dataStore     interfaces.DataStore
+		validator     interfaces.DataValidator
+		healthChecker interfaces.HealthChecker
 	}{
 		{
-			name:      "valid dependencies",
-			dataStore: NewMockDataStoreBuilder().Build(),
-			validator: NewMockDataValidatorBuilder().Build(),
+			name:          "valid dependencies",
+			dataStore:     NewMockDataStoreBuilder().Build(),
+			validator:     NewMockDataValidatorBuilder().Build(),
+			healthChecker: NewMockHealthCheckerBuilder().Build(),
 		},
 		{
-			name:      "nil data store",
-			dataStore: nil,
-			validator: NewMockDataValidatorBuilder().Build(),
+			name:          "nil data store",
+			dataStore:     nil,
+			validator:     NewMockDataValidatorBuilder().Build(),
+			healthChecker: NewMockHealthCheckerBuilder().Build(),
 		},
 		{
-			name:      "nil validator",
-			dataStore: NewMockDataStoreBuilder().Build(),
-			validator: nil,
+			name:          "nil validator",
+			dataStore:     NewMockDataStoreBuilder().Build(),
+			validator:     nil,
+			healthChecker: NewMockHealthCheckerBuilder().Build(),
+		},
+		{
+			name:          "nil health checker",
+			dataStore:     NewMockDataStoreBuilder().Build(),
+			validator:     NewMockDataValidatorBuilder().Build(),
+			healthChecker: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewHTTPHandler(tt.dataStore, tt.validator)
+			handler := NewHTTPHandler(tt.dataStore, tt.validator, tt.healthChecker)
 
 			if handler == nil {
 				t.Fatal("Handler should not be nil")
@@ -59,7 +69,8 @@ func TestNewHTTPHandler(t *testing.T) {
 func TestRespondWithJSON(t *testing.T) {
 	mockStore := NewMockDataStoreBuilder().Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator).(*HTTPHandlerImpl)
+	mockHealthChecker := NewMockHealthCheckerBuilder().Build()
+	handler := NewHTTPHandler(mockStore, mockValidator, mockHealthChecker).(*HTTPHandlerImpl)
 
 	tests := []struct {
 		name           string
@@ -116,7 +127,7 @@ func TestRespondWithJSON(t *testing.T) {
 func TestRespondWithError(t *testing.T) {
 	mockStore := NewMockDataStoreBuilder().Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator).(*HTTPHandlerImpl)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build()).(*HTTPHandlerImpl)
 
 	tests := []struct {
 		name           string
@@ -193,7 +204,7 @@ func TestExportMedicaments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := &MockDataStore{medicaments: tt.medicaments}
 			mockValidator := &MockDataValidator{}
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			req := httptest.NewRequest("GET", "/database", nil)
 			rr := httptest.NewRecorder()
@@ -294,7 +305,7 @@ func TestServePagedMedicaments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := &MockDataStore{medicaments: tt.medicaments}
 			mockValidator := &MockDataValidator{}
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -384,7 +395,7 @@ func TestFindMedicament(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := &MockDataStore{medicaments: tt.medicaments}
 			mockValidator := &MockDataValidator{}
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -475,7 +486,7 @@ func TestFindMedicamentByCIS(t *testing.T) {
 			// Manually set the medicaments map for this specific test
 			mockStore.medicamentsMap = tt.medicamentsMap
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -537,7 +548,7 @@ func TestFindGeneriques(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := NewMockDataStoreBuilder().WithGeneriques(tt.generiques).Build()
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -616,7 +627,7 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			// Manually set the generiques map for this specific test
 			mockStore.generiquesMap = tt.generiquesMap
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -753,7 +764,7 @@ func TestFindMedicamentByCIP(t *testing.T) {
 				WithPresentationsCIP13Map(presentationsCIP13Map).
 				Build()
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			// Create a chi router with the route
 			router := chi.NewRouter()
@@ -857,14 +868,26 @@ func TestHealthCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]any{
+				"last_update":    tt.lastUpdated.Format(time.RFC3339),
+				"data_age_hours": time.Since(tt.lastUpdated).Hours(),
+				"medicaments":    len(tt.medicaments),
+				"generiques":     len(tt.generiques),
+				"is_updating":    tt.updating,
+			}
+			mockHealthChecker := NewMockHealthCheckerBuilder().
+				WithStatus(tt.expectedStatus).
+				WithData(data).
+				WithHTTPStatus(tt.expectedCode).
+				Build()
+			mockValidator := NewMockDataValidatorBuilder().Build()
 			mockStore := NewMockDataStoreBuilder().
 				WithMedicaments(tt.medicaments).
 				WithGeneriques(tt.generiques).
 				WithLastUpdated(tt.lastUpdated).
 				WithUpdating(tt.updating).
 				Build()
-			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, mockHealthChecker)
 
 			req := httptest.NewRequest("GET", "/health", nil)
 			rr := httptest.NewRecorder()
@@ -873,6 +896,10 @@ func TestHealthCheck(t *testing.T) {
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
+			}
+
+			if !mockHealthChecker.WasHealthCalled() {
+				t.Error("HealthChecker.HealthCheckHTTP() should have been called")
 			}
 
 			// Verify response structure

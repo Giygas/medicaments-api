@@ -8,6 +8,7 @@ import (
 
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
@@ -78,7 +79,8 @@ func TestApplicationStartupSmoke(t *testing.T) {
 
 	// 2. Create validator and handler
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
+	healthChecker := health.NewHealthChecker(dataContainer)
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
 
 	// 3. Test health endpoint
 	t.Log("Testing health endpoint...")

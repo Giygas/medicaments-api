@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/giygas/medicaments-api/config"
@@ -23,29 +21,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-// formatUptimeHuman formats duration into a human-readable string
-func formatUptimeHuman(d time.Duration) string {
-	days := int(d.Hours()) / 24
-	hours := int(d.Hours()) % 24
-	minutes := int(d.Minutes()) % 60
-	seconds := int(d.Seconds()) % 60
-
-	var parts []string
-
-	if days > 0 {
-		parts = append(parts, fmt.Sprintf("%dd", days))
-	}
-	if hours > 0 || days > 0 {
-		parts = append(parts, fmt.Sprintf("%dh", hours))
-	}
-	if minutes > 0 || hours > 0 || days > 0 {
-		parts = append(parts, fmt.Sprintf("%dm", minutes))
-	}
-	parts = append(parts, fmt.Sprintf("%ds", seconds))
-
-	return strings.Join(parts, " ")
-}
 
 // Server represents the HTTP server
 type Server struct {
@@ -64,8 +39,8 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 
 	// Dependencies
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
 	healthChecker := health.NewHealthChecker(dataContainer)
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
 
 	server := &Server{
 		server: &http.Server{
@@ -233,59 +208,4 @@ func (s *Server) startProfilingServer() {
 			logging.Warn("Profiling server failed: ", err)
 		}
 	}()
-}
-
-// HealthData represents health check response data
-type HealthData struct {
-	Status          string `json:"status"`
-	Uptime          string `json:"uptime"`
-	MemoryUsage     int    `json:"memory_usage_mb"`
-	LastUpdate      string `json:"last_update"`
-	NextUpdate      string `json:"next_update"`
-	IsUpdating      bool   `json:"is_updating"`
-	MedicamentCount int    `json:"medicament_count"`
-	GeneriqueCount  int    `json:"generique_count"`
-}
-
-// GetHealthData returns current health statistics
-func (s *Server) GetHealthData() HealthData {
-	// Get memory statistics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	memoryUsageMB := int(m.Alloc / 1024 / 1024)
-
-	// Calculate uptime
-	uptime := time.Since(s.startTime)
-
-	// Get health data from interface-based health checker
-	status, details, err := s.healthChecker.HealthCheck()
-	if err != nil {
-		status = "unhealthy"
-	}
-
-	// Extract data from details
-	data := details["data"].(map[string]any)
-
-	// Helper function to convert interface{} to int, handling both int and float64
-	toInt := func(v any) int {
-		switch val := v.(type) {
-		case int:
-			return val
-		case float64:
-			return int(val)
-		default:
-			return 0
-		}
-	}
-
-	return HealthData{
-		Status:          status,
-		Uptime:          formatUptimeHuman(uptime),
-		MemoryUsage:     memoryUsageMB,
-		LastUpdate:      details["last_update"].(string),
-		NextUpdate:      data["next_update"].(string),
-		IsUpdating:      data["is_updating"].(bool),
-		MedicamentCount: toInt(data["medicaments"]),
-		GeneriqueCount:  toInt(data["generiques"]),
-	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
@@ -66,7 +67,8 @@ func TestDocumentationClaimsVerification(t *testing.T) {
 func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, validator interfaces.DataValidator) {
 	fmt.Println("\n--- ALGORITHMIC PERFORMANCE VERIFICATION ---")
 
-	httpHandler := handlers.NewHTTPHandler(container, validator)
+	healthChecker := health.NewHealthChecker(container)
+	httpHandler := handlers.NewHTTPHandler(container, validator, healthChecker)
 
 	claims := []struct {
 		name       string

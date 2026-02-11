@@ -19,15 +19,17 @@ import (
 
 // HTTPHandlerImpl implements the interfaces.HTTPHandler interface
 type HTTPHandlerImpl struct {
-	dataStore interfaces.DataStore
-	validator interfaces.DataValidator
+	dataStore     interfaces.DataStore
+	validator     interfaces.DataValidator
+	healthChecker interfaces.HealthChecker
 }
 
 // NewHTTPHandler creates a new HTTP handler with injected dependencies
-func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator) interfaces.HTTPHandler {
+func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator, healthChecker interfaces.HealthChecker) interfaces.HTTPHandler {
 	return &HTTPHandlerImpl{
-		dataStore: dataStore,
-		validator: validator,
+		dataStore:     dataStore,
+		validator:     validator,
+		healthChecker: healthChecker,
 	}
 }
 
@@ -116,29 +118,6 @@ func (h *HTTPHandlerImpl) RespondWithJSONAndETag(w http.ResponseWriter, r *http.
 	if _, err := w.Write(data); err != nil {
 		logging.Error("Failed to write response", "error", err)
 	}
-}
-
-// calculateNextUpdate calculates the next scheduled update time
-func (h *HTTPHandlerImpl) calculateNextUpdate() time.Time {
-	now := time.Now()
-
-	// Get today's 6:00 AM and 6:00 PM times
-	sixAM := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, now.Location())
-	sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
-
-	// If current time is before 6:00 AM, next update is 6:00 AM today
-	if now.Before(sixAM) {
-		return sixAM
-	}
-
-	// If current time is between 6:00 AM and 6:00 PM, next update is 6:00 PM today
-	if now.Before(sixPM) {
-		return sixPM
-	}
-
-	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
-	tomorrow := now.AddDate(0, 0, 1)
-	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
 }
 
 func (h *HTTPHandlerImpl) AddDeprecationHeaders(w http.ResponseWriter, r *http.Request, newPath string) {
@@ -406,54 +385,11 @@ func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http
 
 // HealthCheck returns server health information
 func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
-
-	// Get data statistics with error handling
-	medicaments := h.dataStore.GetMedicaments()
-	generiques := h.dataStore.GetGeneriques()
-	lastUpdate := h.dataStore.GetLastUpdated()
-	isUpdating := h.dataStore.IsUpdating()
-
-	dataAge := time.Since(lastUpdate)
-
-	// Determine health status
-	var healthStatus string
-	var httpStatus int
-
-	switch {
-	case len(medicaments) == 0 || len(generiques) == 0:
-		// No data = service unavailable
-		healthStatus = "unhealthy"
-		httpStatus = http.StatusServiceUnavailable
-
-	case dataAge > 48*time.Hour:
-		// Severely stale data = unhealthy
-		healthStatus = "unhealthy"
-		httpStatus = http.StatusServiceUnavailable
-
-	case dataAge > 24*time.Hour:
-		// Moderately stale data = degraded (but still returns 503 for alerting)
-		healthStatus = "degraded"
-		httpStatus = http.StatusServiceUnavailable // Changed from 200
-
-	case isUpdating && dataAge > 6*time.Hour:
-		// Stuck in updating state
-		healthStatus = "degraded"
-		httpStatus = http.StatusServiceUnavailable
-
-	default:
-		healthStatus = "healthy"
-		httpStatus = http.StatusOK
-	}
+	status, data, httpStatus := h.healthChecker.HealthCheck()
 
 	response := HealthResponseImpl{
-		Status: healthStatus,
-		Data: map[string]any{
-			"last_update":    lastUpdate.Format(time.RFC3339),
-			"data_age_hours": dataAge.Hours(),
-			"medicaments":    len(medicaments),
-			"generiques":     len(generiques),
-			"is_updating":    isUpdating,
-		},
+		Status: status,
+		Data:   data,
 	}
 
 	h.RespondWithJSON(w, httpStatus, response)
@@ -519,7 +455,7 @@ func (h *HTTPHandlerImpl) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Requ
 	response := DiagnosticsResponseImpl{
 		Timestamp:     time.Now().Format(time.RFC3339),
 		UptimeSeconds: uptime.Seconds(),
-		NextUpdate:    h.calculateNextUpdate().Format(time.RFC3339),
+		NextUpdate:    h.healthChecker.CalculateNextUpdate().Format(time.RFC3339),
 		DataAgeHours:  dataAge.Hours(),
 		System: map[string]any{
 			"goroutines": runtime.NumGoroutine(),

@@ -14,6 +14,7 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
@@ -311,7 +312,8 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 
 	// Create HTTP handler
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
+	healthChecker := health.NewHealthChecker(dataContainer)
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
 
 	// Add routes using v1 handlers
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)

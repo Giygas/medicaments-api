@@ -10,27 +10,10 @@ import (
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
-	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
-	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-// MockHealthChecker implements interfaces.HealthChecker for testing
-type MockHealthChecker struct {
-	status  string
-	details map[string]any
-	err     error
-}
-
-func (m *MockHealthChecker) HealthCheck() (string, map[string]any, error) {
-	return m.status, m.details, m.err
-}
-
-func (m *MockHealthChecker) CalculateNextUpdate() time.Time {
-	return time.Now().Add(6 * time.Hour)
-}
 
 // TestNewServer tests server creation with various configurations
 func TestNewServer(t *testing.T) {
@@ -322,134 +305,6 @@ func TestServerLifecycle(t *testing.T) {
 	}
 }
 
-// TestGetHealthData tests health data generation
-func TestGetHealthData(t *testing.T) {
-	// Initialize logging for tests
-	logging.InitLogger("")
-
-	cfg := &config.Config{
-		Port:           "8080",
-		Address:        "localhost",
-		Env:            config.EnvTest,
-		LogLevel:       "info",
-		MaxRequestBody: 1048576,
-		MaxHeaderSize:  1048576,
-	}
-
-	// Create data container with test data
-	dc := data.NewDataContainer()
-
-	// Add some test medicaments
-	testMedicaments := []entities.Medicament{
-		{Cis: 1, Denomination: "Test Med 1"},
-		{Cis: 2, Denomination: "Test Med 2"},
-	}
-	dc.UpdateData(testMedicaments, []entities.GeneriqueList{},
-		map[int]entities.Medicament{1: testMedicaments[0], 2: testMedicaments[1]},
-		map[int]entities.GeneriqueList{},
-		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
-			DuplicateCIS:                       []int{},
-			DuplicateGroupIDs:                  []int{},
-			MedicamentsWithoutConditions:       0,
-			MedicamentsWithoutGeneriques:       0,
-			MedicamentsWithoutPresentations:    0,
-			MedicamentsWithoutCompositions:     0,
-			GeneriqueOnlyCIS:                   0,
-			MedicamentsWithoutConditionsCIS:    []int{},
-			MedicamentsWithoutGeneriquesCIS:    []int{},
-			MedicamentsWithoutPresentationsCIS: []int{},
-			MedicamentsWithoutCompositionsCIS:  []int{},
-			GeneriqueOnlyCISList:               []int{},
-		})
-
-	server := NewServer(cfg, dc)
-
-	healthData := server.GetHealthData()
-
-	// Verify health data structure
-	if healthData.Status == "" {
-		t.Error("Status should not be empty")
-	}
-
-	if healthData.Uptime == "" {
-		t.Error("Uptime should not be empty")
-	}
-
-	if healthData.MemoryUsage < 0 {
-		t.Error("Memory usage should be non-negative")
-	}
-
-	if healthData.LastUpdate == "" {
-		t.Error("Last update should not be empty")
-	}
-
-	if healthData.NextUpdate == "" {
-		t.Error("Next update should not be empty")
-	}
-
-	if healthData.MedicamentCount != 2 {
-		t.Errorf("Should count test medicaments, got %d", healthData.MedicamentCount)
-	}
-
-	if healthData.GeneriqueCount < 0 {
-		t.Error("Generique count should be non-negative")
-	}
-}
-
-// TestFormatUptimeHuman tests uptime formatting
-func TestFormatUptimeHuman(t *testing.T) {
-	tests := []struct {
-		name     string
-		duration time.Duration
-		expected string
-	}{
-		{
-			name:     "zero duration",
-			duration: 0,
-			expected: "0s",
-		},
-		{
-			name:     "seconds only",
-			duration: 45 * time.Second,
-			expected: "45s",
-		},
-		{
-			name:     "minutes and seconds",
-			duration: 2*time.Minute + 30*time.Second,
-			expected: "2m 30s",
-		},
-		{
-			name:     "hours, minutes, and seconds",
-			duration: 1*time.Hour + 2*time.Minute + 30*time.Second,
-			expected: "1h 2m 30s",
-		},
-		{
-			name:     "days, hours, minutes, and seconds",
-			duration: 2*24*time.Hour + 1*time.Hour + 2*time.Minute + 30*time.Second,
-			expected: "2d 1h 2m 30s",
-		},
-		{
-			name:     "exactly one day",
-			duration: 24 * time.Hour,
-			expected: "1d 0h 0m 0s",
-		},
-		{
-			name:     "exactly one hour",
-			duration: time.Hour,
-			expected: "1h 0m 0s",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatUptimeHuman(tt.duration)
-			if result != tt.expected {
-				t.Errorf("Expected %s, got %s", tt.expected, result)
-			}
-		})
-	}
-}
-
 // TestServerWithRealDependencies tests server with real dependencies
 func TestServerWithRealDependencies(t *testing.T) {
 	cfg := &config.Config{
@@ -523,25 +378,5 @@ func BenchmarkNewServer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = NewServer(cfg, dc)
-	}
-}
-
-// BenchmarkGetHealthData benchmarks health data generation
-func BenchmarkGetHealthData(b *testing.B) {
-	cfg := &config.Config{
-		Port:           "8080",
-		Address:        "localhost",
-		Env:            config.EnvTest,
-		LogLevel:       "info",
-		MaxRequestBody: 1048576,
-		MaxHeaderSize:  1048576,
-	}
-
-	dc := data.NewDataContainer()
-	server := NewServer(cfg, dc)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = server.GetHealthData()
 	}
 }

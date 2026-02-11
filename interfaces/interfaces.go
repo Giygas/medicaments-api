@@ -98,7 +98,7 @@ type HTTPHandler interface {
 // It provides system health monitoring and reporting.
 type HealthChecker interface {
 	// HealthCheck returns current system health status
-	HealthCheck() (status string, details map[string]any, err error)
+	HealthCheck() (status string, data map[string]any, httpStatus int)
 
 	// CalculateNextUpdate returns the next scheduled update time
 	CalculateNextUpdate() time.Time

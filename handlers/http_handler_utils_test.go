@@ -334,9 +334,6 @@ func (h *HTTPTestHelper) AssertHealthResponse(resp *httptest.ResponseRecorder, e
 	if _, ok := response["data"]; !ok {
 		h.t.Error("Response should have data field")
 	}
-	if _, ok := response["system"]; !ok {
-		h.t.Error("Response should have system field")
-	}
 }
 
 // ============================================================================
@@ -538,4 +535,67 @@ func (m *MockDataValidator) ValidateCIS(input string) (int, error) {
 		return -1, fmt.Errorf("input is not a number")
 	}
 	return val, nil
+}
+
+// MockHealthCheckerBuilder provides fluent interface for building mock health checkers
+type MockHealthCheckerBuilder struct {
+	mock *MockHealthChecker
+}
+
+func NewMockHealthCheckerBuilder() *MockHealthCheckerBuilder {
+	return &MockHealthCheckerBuilder{
+		mock: &MockHealthChecker{
+			status:       "healthy",
+			data:         map[string]any{},
+			httpStatus:   http.StatusOK,
+			nextUpdate:   time.Now().Add(1 * time.Hour),
+			healthCalled: false,
+		},
+	}
+}
+
+func (b *MockHealthCheckerBuilder) WithStatus(status string) *MockHealthCheckerBuilder {
+	b.mock.status = status
+	return b
+}
+
+func (b *MockHealthCheckerBuilder) WithData(data map[string]any) *MockHealthCheckerBuilder {
+	b.mock.data = data
+	return b
+}
+
+func (b *MockHealthCheckerBuilder) WithHTTPStatus(status int) *MockHealthCheckerBuilder {
+	b.mock.httpStatus = status
+	return b
+}
+
+func (b *MockHealthCheckerBuilder) WithNextUpdate(nextUpdate time.Time) *MockHealthCheckerBuilder {
+	b.mock.nextUpdate = nextUpdate
+	return b
+}
+
+func (b *MockHealthCheckerBuilder) Build() *MockHealthChecker {
+	return b.mock
+}
+
+// MockHealthChecker implements interfaces.HealthChecker for testing
+type MockHealthChecker struct {
+	status       string
+	data         map[string]any
+	httpStatus   int
+	nextUpdate   time.Time
+	healthCalled bool
+}
+
+func (m *MockHealthChecker) HealthCheck() (string, map[string]any, int) {
+	m.healthCalled = true
+	return m.status, m.data, m.httpStatus
+}
+
+func (m *MockHealthChecker) CalculateNextUpdate() time.Time {
+	return m.nextUpdate
+}
+
+func (m *MockHealthChecker) WasHealthCalled() bool {
+	return m.healthCalled
 }

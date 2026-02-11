@@ -26,7 +26,7 @@ func BenchmarkMedicamentsExport(b *testing.B) {
 
 	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -46,7 +46,7 @@ func BenchmarkMedicamentsPagination(b *testing.B) {
 
 	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -60,7 +60,7 @@ func BenchmarkMedicamentsPagination(b *testing.B) {
 func BenchmarkMedicamentsSearch(b *testing.B) {
 	mockStore := NewMockDataStoreBuilder().WithMedicaments(NewTestDataFactory().CreateMedicaments(1000)).Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -75,7 +75,7 @@ func BenchmarkMedicamentByCIS(b *testing.B) {
 	medicaments := NewTestDataFactory().CreateMedicaments(1000)
 	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -107,7 +107,7 @@ func BenchmarkMedicamentByCIP(b *testing.B) {
 		WithPresentationsCIP7Map(presentationsCIP7Map).
 		Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -139,7 +139,7 @@ func BenchmarkGeneriquesSearch(b *testing.B) {
 		WithGeneriquesMap(generiquesMap).
 		Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -171,7 +171,7 @@ func BenchmarkGeneriqueByGroup(b *testing.B) {
 		WithGeneriquesMap(generiquesMap).
 		Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -199,7 +199,7 @@ func BenchmarkPresentationByCIP(b *testing.B) {
 		WithPresentationsCIP7Map(presentationsCIP7Map).
 		Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -222,21 +222,6 @@ func (m *MockHTTPHandler) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Requ
 	_, _ = w.Write([]byte(m.responseBody))
 }
 
-// MockHealthChecker implements HealthChecker interface for testing
-type MockHealthChecker struct {
-	status  string
-	details map[string]any
-	err     error
-}
-
-func (m *MockHealthChecker) HealthCheck() (string, map[string]any, error) {
-	return m.status, m.details, m.err
-}
-
-func (m *MockHealthChecker) CalculateNextUpdate() time.Time {
-	return time.Now().Add(1 * time.Hour)
-}
-
 // MockDataValidator implements DataValidator interface for testing
 type MockDataValidator struct {
 	shouldFail bool
@@ -392,29 +377,6 @@ func TestHTTPHandlerInterface(t *testing.T) {
 	}
 }
 
-func TestHealthCheckerInterface(t *testing.T) {
-	checker := &MockHealthChecker{
-		status: "healthy",
-		details: map[string]any{
-			"uptime": "1h",
-			"memory": "50MB",
-		},
-	}
-
-	status, details, err := checker.HealthCheck()
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	if status != "healthy" {
-		t.Errorf("Expected status 'healthy', got '%s'", status)
-	}
-
-	if details["uptime"] != "1h" {
-		t.Errorf("Expected uptime '1h', got '%v'", details["uptime"])
-	}
-}
-
 func TestDataValidatorInterface(t *testing.T) {
 	validator := &MockDataValidator{shouldFail: false}
 
@@ -474,6 +436,5 @@ func TestCompileTimeChecks(t *testing.T) {
 	var _ Parser = (*MockParser)(nil)
 	var _ Scheduler = (*MockScheduler)(nil)
 	var _ HTTPHandler = (*MockHTTPHandler)(nil)
-	var _ HealthChecker = (*MockHealthChecker)(nil)
 	var _ DataValidator = (*MockDataValidator)(nil)
 }

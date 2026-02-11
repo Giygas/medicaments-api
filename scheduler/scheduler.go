@@ -75,7 +75,7 @@ func (s *Scheduler) updateData() error {
 	}
 	defer s.dataStore.EndUpdate()
 
-	logging.Info("Starting database update at:", time.Now())
+	logging.Info(fmt.Sprintf("Starting database update at: %s", time.Now().Format(time.RFC3339)))
 	start := time.Now()
 
 	// Parse data using injected parser
@@ -146,27 +146,4 @@ func (s *Scheduler) startHealthMonitoring() {
 			}
 		}
 	}()
-}
-
-// CalculateNextUpdate calculates the next scheduled update time based on the cron schedule (06:00;18:00)
-func CalculateNextUpdate() time.Time {
-	now := time.Now()
-
-	// Get today's 6:00 AM and 6:00 PM times
-	sixAM := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, now.Location())
-	sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
-
-	// If current time is before 6:00 AM, next update is 6:00 AM today
-	if now.Before(sixAM) {
-		return sixAM
-	}
-
-	// If current time is between 6:00 AM and 6:00 PM, next update is 6:00 PM today
-	if now.Before(sixPM) {
-		return sixPM
-	}
-
-	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
-	tomorrow := now.AddDate(0, 0, 1)
-	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
 }

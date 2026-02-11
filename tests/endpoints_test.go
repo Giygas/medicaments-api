@@ -12,6 +12,7 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/server"
@@ -112,7 +113,8 @@ func TestEndpoints(t *testing.T) {
 	router := chi.NewRouter()
 	// Note: rateLimitHandler is now part of server middleware
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
+	healthChecker := health.NewHealthChecker(testDataContainer)
+	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
@@ -226,7 +228,8 @@ func TestRateLimiter(t *testing.T) {
 	// Apply rate limiting middleware
 	router.Use(server.RateLimitHandler)
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
+	healthChecker := health.NewHealthChecker(testDataContainer)
+	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 
 	// Simulate requests from same IP
@@ -398,7 +401,8 @@ func TestCompressionOptimization(t *testing.T) {
 
 		// Create handler and test actual endpoint compression
 		validator := validation.NewDataValidator()
-		httpHandler := handlers.NewHTTPHandler(testDataContainer, validator)
+		healthChecker := health.NewHealthChecker(testDataContainer)
+		httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
 		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 

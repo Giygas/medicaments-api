@@ -7,6 +7,7 @@ import (
 
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
@@ -110,7 +111,8 @@ func TestETagFunctionality(t *testing.T) {
 		})
 
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
+	healthChecker := health.NewHealthChecker(dataContainer)
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
 
 	// Test FindMedicamentByCIP with ETag (this endpoint supports ETag)
 	cipHandler := httpHandler.FindMedicamentByCIP

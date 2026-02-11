@@ -72,6 +72,7 @@ func TestServePresentationsV1_Success(t *testing.T) {
 					WithPresentationsCIP13Map(tt.cip13Map).
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			router := chi.NewRouter()
@@ -136,6 +137,7 @@ func TestServePresentationsV1_Errors(t *testing.T) {
 			handler := NewHTTPHandler(
 				NewMockDataStoreBuilder().Build(),
 				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			router := chi.NewRouter()
@@ -182,6 +184,7 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 			WithPresentationsCIP7Map(map[int]entities.Presentation{1234567: presentation}).
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
 	).(*HTTPHandlerImpl)
 
 	router := chi.NewRouter()
@@ -280,6 +283,7 @@ func TestServeGeneriqueByGroupIDV1(t *testing.T) {
 					WithGeneriquesMap(generiquesMap).
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			router := chi.NewRouter()
@@ -353,6 +357,7 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 					WithGeneriques(genericList).
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
@@ -426,6 +431,7 @@ func TestServeGeneriquesV1_Errors(t *testing.T) {
 					WithGeneriques(genericList).
 					Build(),
 				validator,
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
@@ -557,6 +563,7 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 					WithPresentationsCIP13Map(presentationsCIP13Map).
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
 			).(*HTTPHandlerImpl)
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
@@ -717,6 +724,7 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 					WithMedicaments(medicaments).
 					Build(),
 				validator,
+				NewMockHealthCheckerBuilder().Build(),
 			)
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
@@ -785,6 +793,7 @@ func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 			WithMedicaments(medicaments).
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
 	).(*HTTPHandlerImpl)
 
 	// Test Search ETag caching
@@ -938,7 +947,7 @@ func TestServeMedicamentsV1_MultiWordSearch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
 			w := httptest.NewRecorder()
@@ -1036,7 +1045,7 @@ func TestServeMedicamentsV1_MultiWordWordCountLimit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
 			realValidator := validation.NewDataValidator()
-			handler := NewHTTPHandler(mockStore, realValidator)
+			handler := NewHTTPHandler(mockStore, realValidator, NewMockHealthCheckerBuilder().Build())
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
 			w := httptest.NewRecorder()
@@ -1124,7 +1133,7 @@ func TestServeGeneriquesV1_MultiWordSearch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
 			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator)
+			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
 			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
 			w := httptest.NewRecorder()
@@ -1209,7 +1218,7 @@ func TestServeGeneriquesV1_MultiWordWordCountLimit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
 			realValidator := validation.NewDataValidator()
-			handler := NewHTTPHandler(mockStore, realValidator)
+			handler := NewHTTPHandler(mockStore, realValidator, NewMockHealthCheckerBuilder().Build())
 
 			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
 			w := httptest.NewRecorder()
