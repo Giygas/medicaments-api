@@ -1294,3 +1294,708 @@ func BenchmarkValidateDataIntegrity(b *testing.B) {
 		}
 	}
 }
+
+func TestReportDataQuality_CleanData(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{
+			Cis:          10000001,
+			Denomination: "Medicament 1",
+			Conditions:   []string{"Condition 1"},
+			Composition:  []entities.Composition{{ElementPharmaceutique: "Water"}},
+			Presentation: []entities.Presentation{{Cip7: 1234567}},
+		},
+		{
+			Cis:          10000002,
+			Denomination: "Medicament 2",
+			Conditions:   []string{"Condition 2"},
+			Composition:  []entities.Composition{{ElementPharmaceutique: "Paracetamol"}},
+			Presentation: []entities.Presentation{{Cip7: 2345678}},
+		},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Medicament 1"},
+				{Cis: 10000002, Denomination: "Medicament 2"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Medicament 2"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if len(report.DuplicateCIS) != 0 {
+		t.Errorf("Expected no duplicate CIS, got %v", report.DuplicateCIS)
+	}
+	if len(report.DuplicateGroupIDs) != 0 {
+		t.Errorf("Expected no duplicate group IDs, got %v", report.DuplicateGroupIDs)
+	}
+	if report.MedicamentsWithoutConditions != 0 {
+		t.Errorf("Expected 0 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if report.MedicamentsWithoutGeneriques != 0 {
+		t.Errorf("Expected 0 medicaments without generiques, got %d", report.MedicamentsWithoutGeneriques)
+	}
+	if report.MedicamentsWithoutPresentations != 0 {
+		t.Errorf("Expected 0 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
+	}
+	if report.MedicamentsWithoutCompositions != 0 {
+		t.Errorf("Expected 0 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
+	}
+	if report.GeneriqueOnlyCIS != 0 {
+		t.Errorf("Expected 0 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
+	}
+}
+
+func TestReportDataQuality_DuplicateCIS(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Medicament 1"},
+		{Cis: 10000002, Denomination: "Medicament 2"},
+		{Cis: 10000001, Denomination: "Medicament 1 Duplicate"},
+		{Cis: 10000003, Denomination: "Medicament 3"},
+		{Cis: 10000002, Denomination: "Medicament 2 Duplicate"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Medicament 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if len(report.DuplicateCIS) != 2 {
+		t.Errorf("Expected 2 duplicate CIS, got %d: %v", len(report.DuplicateCIS), report.DuplicateCIS)
+	}
+	if !containsCIS(report.DuplicateCIS, 10000001) {
+		t.Errorf("Expected duplicate CIS 10000001, got %v", report.DuplicateCIS)
+	}
+	if !containsCIS(report.DuplicateCIS, 10000002) {
+		t.Errorf("Expected duplicate CIS 10000002, got %v", report.DuplicateCIS)
+	}
+}
+
+func TestReportDataQuality_DuplicateGroupIDs(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Medicament 1"},
+		{Cis: 10000002, Denomination: "Medicament 2"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Medicament 1"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Medicament 2"},
+			},
+		},
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1 Duplicate",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Medicament 1"},
+			},
+		},
+		{
+			GroupID:   3,
+			Libelle:   "Generique 3",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Medicament 2"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if len(report.DuplicateGroupIDs) != 1 {
+		t.Errorf("Expected 1 duplicate group ID, got %d: %v", len(report.DuplicateGroupIDs), report.DuplicateGroupIDs)
+	}
+	if !containsCIS(report.DuplicateGroupIDs, 1) {
+		t.Errorf("Expected duplicate group ID 1, got %v", report.DuplicateGroupIDs)
+	}
+}
+
+func TestReportDataQuality_MedicamentsWithoutConditions(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Conditions: []string{"Cond 1"}},
+		{Cis: 10000002, Denomination: "Med 2", Conditions: []string{}},
+		{Cis: 10000003, Denomination: "Med 3", Conditions: []string{}},
+		{Cis: 10000004, Denomination: "Med 4", Conditions: []string{"Cond 4"}},
+		{Cis: 10000005, Denomination: "Med 5", Conditions: []string{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+				{Cis: 10000002, Denomination: "Med 2"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutConditions != 3 {
+		t.Errorf("Expected 3 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if len(report.MedicamentsWithoutConditionsCIS) != 3 {
+		t.Errorf("Expected 3 CIS in list, got %d: %v", len(report.MedicamentsWithoutConditionsCIS), report.MedicamentsWithoutConditionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutConditionsCIS, 10000002) {
+		t.Errorf("Expected CIS 10000002 in list, got %v", report.MedicamentsWithoutConditionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutConditionsCIS, 10000003) {
+		t.Errorf("Expected CIS 10000003 in list, got %v", report.MedicamentsWithoutConditionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutConditionsCIS, 10000005) {
+		t.Errorf("Expected CIS 10000005 in list, got %v", report.MedicamentsWithoutConditionsCIS)
+	}
+}
+
+func TestReportDataQuality_MedicamentsWithoutGeneriques(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1"},
+		{Cis: 10000002, Denomination: "Med 2"},
+		{Cis: 10000003, Denomination: "Med 3"},
+		{Cis: 10000004, Denomination: "Med 4"},
+		{Cis: 10000005, Denomination: "Med 5"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Med 2"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000004, Denomination: "Med 4"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutGeneriques != 3 {
+		t.Errorf("Expected 3 medicaments without generiques, got %d", report.MedicamentsWithoutGeneriques)
+	}
+	if len(report.MedicamentsWithoutGeneriquesCIS) != 3 {
+		t.Errorf("Expected 3 CIS in list, got %d: %v", len(report.MedicamentsWithoutGeneriquesCIS), report.MedicamentsWithoutGeneriquesCIS)
+	}
+}
+
+func TestReportDataQuality_MedicamentsWithoutPresentations(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Presentation: []entities.Presentation{{Cip7: 1234567}}},
+		{Cis: 10000002, Denomination: "Med 2", Presentation: []entities.Presentation{}},
+		{Cis: 10000003, Denomination: "Med 3", Presentation: []entities.Presentation{}},
+		{Cis: 10000004, Denomination: "Med 4", Presentation: []entities.Presentation{{Cip7: 2345678}}},
+		{Cis: 10000005, Denomination: "Med 5", Presentation: []entities.Presentation{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutPresentations != 3 {
+		t.Errorf("Expected 3 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
+	}
+	if len(report.MedicamentsWithoutPresentationsCIS) != 3 {
+		t.Errorf("Expected 3 CIS in list, got %d: %v", len(report.MedicamentsWithoutPresentationsCIS), report.MedicamentsWithoutPresentationsCIS)
+	}
+}
+
+func TestReportDataQuality_MedicamentsWithoutCompositions(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Composition: []entities.Composition{{ElementPharmaceutique: "Water"}}},
+		{Cis: 10000002, Denomination: "Med 2", Composition: []entities.Composition{}},
+		{Cis: 10000003, Denomination: "Med 3", Composition: []entities.Composition{}},
+		{Cis: 10000004, Denomination: "Med 4", Composition: []entities.Composition{}},
+		{Cis: 10000005, Denomination: "Med 5", Composition: []entities.Composition{}},
+		{Cis: 10000006, Denomination: "Med 6", Composition: []entities.Composition{}},
+		{Cis: 10000007, Denomination: "Med 7", Composition: []entities.Composition{}},
+		{Cis: 10000008, Denomination: "Med 8", Composition: []entities.Composition{}},
+		{Cis: 10000009, Denomination: "Med 9", Composition: []entities.Composition{}},
+		{Cis: 10000010, Denomination: "Med 10", Composition: []entities.Composition{}},
+		{Cis: 10000011, Denomination: "Med 11", Composition: []entities.Composition{}},
+		{Cis: 10000012, Denomination: "Med 12", Composition: []entities.Composition{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutCompositions != 11 {
+		t.Errorf("Expected 11 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
+	}
+	if len(report.MedicamentsWithoutCompositionsCIS) != 11 {
+		t.Errorf("Expected 11 CIS in list (ALL should be stored), got %d: %v", len(report.MedicamentsWithoutCompositionsCIS), report.MedicamentsWithoutCompositionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutCompositionsCIS, 10000012) {
+		t.Errorf("Expected CIS 10000012 in list (all CIS should be stored), got %v", report.MedicamentsWithoutCompositionsCIS)
+	}
+}
+
+func TestReportDataQuality_GeneriqueOnlyCIS(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1"},
+		{Cis: 10000002, Denomination: "Med 2"},
+		{Cis: 10000003, Denomination: "Med 3"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{10000004, 10000005, 10000006},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{10000007, 10000008, 10000009, 10000010},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Med 2"},
+			},
+		},
+		{
+			GroupID:   3,
+			Libelle:   "Generique 3",
+			OrphanCIS: []int{10000011},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000003, Denomination: "Med 3"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.GeneriqueOnlyCIS != 8 {
+		t.Errorf("Expected 8 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
+	}
+	if len(report.GeneriqueOnlyCISList) != 8 {
+		t.Errorf("Expected 8 CIS in list, got %d: %v", len(report.GeneriqueOnlyCISList), report.GeneriqueOnlyCISList)
+	}
+	if !containsCIS(report.GeneriqueOnlyCISList, 10000011) {
+		t.Errorf("Expected CIS 10000011 in list, got %v", report.GeneriqueOnlyCISList)
+	}
+}
+
+func TestReportDataQuality_MultipleIssues(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Conditions: []string{"Cond 1"}, Composition: []entities.Composition{{ElementPharmaceutique: "A"}}, Presentation: []entities.Presentation{{Cip7: 1234567}}},
+		{Cis: 10000002, Denomination: "Med 2", Conditions: []string{}, Composition: []entities.Composition{}, Presentation: []entities.Presentation{}},
+		{Cis: 10000001, Denomination: "Med 1 Duplicate", Conditions: []string{"Cond 1"}, Composition: []entities.Composition{{ElementPharmaceutique: "A"}}, Presentation: []entities.Presentation{{Cip7: 1234567}}},
+		{Cis: 10000003, Denomination: "Med 3", Conditions: []string{}, Composition: []entities.Composition{{ElementPharmaceutique: "C"}}, Presentation: []entities.Presentation{}},
+		{Cis: 10000004, Denomination: "Med 4", Conditions: []string{"Cond 4"}, Composition: []entities.Composition{}, Presentation: []entities.Presentation{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{10000005, 10000006},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{10000007},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Med 2"},
+			},
+		},
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1 Duplicate",
+			OrphanCIS: []int{10000008},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if len(report.DuplicateCIS) != 1 {
+		t.Errorf("Expected 1 duplicate CIS, got %d: %v", len(report.DuplicateCIS), report.DuplicateCIS)
+	}
+	if len(report.DuplicateGroupIDs) != 1 {
+		t.Errorf("Expected 1 duplicate group ID, got %d: %v", len(report.DuplicateGroupIDs), report.DuplicateGroupIDs)
+	}
+	if report.MedicamentsWithoutConditions != 2 {
+		t.Errorf("Expected 2 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if report.MedicamentsWithoutGeneriques != 2 {
+		t.Errorf("Expected 2 medicaments without generiques, got %d", report.MedicamentsWithoutGeneriques)
+	}
+	if report.MedicamentsWithoutPresentations != 3 {
+		t.Errorf("Expected 3 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
+	}
+	if report.MedicamentsWithoutCompositions != 2 {
+		t.Errorf("Expected 2 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
+	}
+	if report.GeneriqueOnlyCIS != 4 {
+		t.Errorf("Expected 4 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
+	}
+}
+
+func TestReportDataQuality_EmptyInputs(t *testing.T) {
+	validator := NewDataValidator()
+
+	report := validator.ReportDataQuality([]entities.Medicament{}, []entities.GeneriqueList{})
+
+	if len(report.DuplicateCIS) != 0 {
+		t.Errorf("Expected no duplicate CIS, got %v", report.DuplicateCIS)
+	}
+	if len(report.DuplicateGroupIDs) != 0 {
+		t.Errorf("Expected no duplicate group IDs, got %v", report.DuplicateGroupIDs)
+	}
+	if report.MedicamentsWithoutConditions != 0 {
+		t.Errorf("Expected 0 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if report.MedicamentsWithoutGeneriques != 0 {
+		t.Errorf("Expected 0 medicaments without generiques, got %d", report.MedicamentsWithoutGeneriques)
+	}
+	if report.MedicamentsWithoutPresentations != 0 {
+		t.Errorf("Expected 0 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
+	}
+	if report.MedicamentsWithoutCompositions != 0 {
+		t.Errorf("Expected 0 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
+	}
+	if report.GeneriqueOnlyCIS != 0 {
+		t.Errorf("Expected 0 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
+	}
+}
+
+func TestReportDataQuality_BoundaryTenItems(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Conditions: []string{}},
+		{Cis: 10000002, Denomination: "Med 2", Conditions: []string{}},
+		{Cis: 10000003, Denomination: "Med 3", Conditions: []string{}},
+		{Cis: 10000004, Denomination: "Med 4", Conditions: []string{}},
+		{Cis: 10000005, Denomination: "Med 5", Conditions: []string{}},
+		{Cis: 10000006, Denomination: "Med 6", Conditions: []string{}},
+		{Cis: 10000007, Denomination: "Med 7", Conditions: []string{}},
+		{Cis: 10000008, Denomination: "Med 8", Conditions: []string{}},
+		{Cis: 10000009, Denomination: "Med 9", Conditions: []string{}},
+		{Cis: 10000010, Denomination: "Med 10", Conditions: []string{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutConditions != 10 {
+		t.Errorf("Expected 10 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if len(report.MedicamentsWithoutConditionsCIS) != 10 {
+		t.Errorf("Expected 10 CIS in list (at boundary), got %d: %v", len(report.MedicamentsWithoutConditionsCIS), report.MedicamentsWithoutConditionsCIS)
+	}
+}
+
+func TestReportDataQuality_MoreThanTenItems(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Conditions: []string{}},
+		{Cis: 10000002, Denomination: "Med 2", Conditions: []string{}},
+		{Cis: 10000003, Denomination: "Med 3", Conditions: []string{}},
+		{Cis: 10000004, Denomination: "Med 4", Conditions: []string{}},
+		{Cis: 10000005, Denomination: "Med 5", Conditions: []string{}},
+		{Cis: 10000006, Denomination: "Med 6", Conditions: []string{}},
+		{Cis: 10000007, Denomination: "Med 7", Conditions: []string{}},
+		{Cis: 10000008, Denomination: "Med 8", Conditions: []string{}},
+		{Cis: 10000009, Denomination: "Med 9", Conditions: []string{}},
+		{Cis: 10000010, Denomination: "Med 10", Conditions: []string{}},
+		{Cis: 10000011, Denomination: "Med 11", Conditions: []string{}},
+		{Cis: 10000012, Denomination: "Med 12", Conditions: []string{}},
+		{Cis: 10000013, Denomination: "Med 13", Conditions: []string{}},
+		{Cis: 10000014, Denomination: "Med 14", Conditions: []string{}},
+		{Cis: 10000015, Denomination: "Med 15", Conditions: []string{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutConditions != 15 {
+		t.Errorf("Expected 15 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
+	}
+	if len(report.MedicamentsWithoutConditionsCIS) != 10 {
+		t.Errorf("Expected only 10 CIS in list (limit exceeded), got %d: %v", len(report.MedicamentsWithoutConditionsCIS), report.MedicamentsWithoutConditionsCIS)
+	}
+	if containsCIS(report.MedicamentsWithoutConditionsCIS, 10000015) {
+		t.Errorf("Should not contain CIS 10000015 (should only have first 10), got %v", report.MedicamentsWithoutConditionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutConditionsCIS, 10000010) {
+		t.Errorf("Should contain CIS 10000010 (10th item), got %v", report.MedicamentsWithoutConditionsCIS)
+	}
+}
+
+func TestReportDataQuality_MoreThanTenItemsPresentations(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Presentation: []entities.Presentation{}},
+		{Cis: 10000002, Denomination: "Med 2", Presentation: []entities.Presentation{}},
+		{Cis: 10000003, Denomination: "Med 3", Presentation: []entities.Presentation{}},
+		{Cis: 10000004, Denomination: "Med 4", Presentation: []entities.Presentation{}},
+		{Cis: 10000005, Denomination: "Med 5", Presentation: []entities.Presentation{}},
+		{Cis: 10000006, Denomination: "Med 6", Presentation: []entities.Presentation{}},
+		{Cis: 10000007, Denomination: "Med 7", Presentation: []entities.Presentation{}},
+		{Cis: 10000008, Denomination: "Med 8", Presentation: []entities.Presentation{}},
+		{Cis: 10000009, Denomination: "Med 9", Presentation: []entities.Presentation{}},
+		{Cis: 10000010, Denomination: "Med 10", Presentation: []entities.Presentation{}},
+		{Cis: 10000011, Denomination: "Med 11", Presentation: []entities.Presentation{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutPresentations != 11 {
+		t.Errorf("Expected 11 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
+	}
+	if len(report.MedicamentsWithoutPresentationsCIS) != 10 {
+		t.Errorf("Expected only 10 CIS in list (limit exceeded), got %d: %v", len(report.MedicamentsWithoutPresentationsCIS), report.MedicamentsWithoutPresentationsCIS)
+	}
+}
+
+func TestReportDataQuality_MoreThanTenItemsGeneriqueOnlyCIS(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{10000002, 10000003, 10000004, 10000005, 10000006, 10000007, 10000008, 10000009, 10000010, 10000011, 10000012},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.GeneriqueOnlyCIS != 11 {
+		t.Errorf("Expected 11 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
+	}
+	if len(report.GeneriqueOnlyCISList) != 10 {
+		t.Errorf("Expected only 10 CIS in list (limit exceeded), got %d: %v", len(report.GeneriqueOnlyCISList), report.GeneriqueOnlyCISList)
+	}
+}
+
+func TestReportDataQuality_CompositionsNoLimit(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1", Composition: []entities.Composition{{ElementPharmaceutique: "A"}}},
+		{Cis: 10000002, Denomination: "Med 2", Composition: []entities.Composition{}},
+		{Cis: 10000003, Denomination: "Med 3", Composition: []entities.Composition{}},
+		{Cis: 10000004, Denomination: "Med 4", Composition: []entities.Composition{}},
+		{Cis: 10000005, Denomination: "Med 5", Composition: []entities.Composition{}},
+		{Cis: 10000006, Denomination: "Med 6", Composition: []entities.Composition{}},
+		{Cis: 10000007, Denomination: "Med 7", Composition: []entities.Composition{}},
+		{Cis: 10000008, Denomination: "Med 8", Composition: []entities.Composition{}},
+		{Cis: 10000009, Denomination: "Med 9", Composition: []entities.Composition{}},
+		{Cis: 10000010, Denomination: "Med 10", Composition: []entities.Composition{}},
+		{Cis: 10000011, Denomination: "Med 11", Composition: []entities.Composition{}},
+		{Cis: 10000012, Denomination: "Med 12", Composition: []entities.Composition{}},
+		{Cis: 10000013, Denomination: "Med 13", Composition: []entities.Composition{}},
+		{Cis: 10000014, Denomination: "Med 14", Composition: []entities.Composition{}},
+		{Cis: 10000015, Denomination: "Med 15", Composition: []entities.Composition{}},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutCompositions != 14 {
+		t.Errorf("Expected 14 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
+	}
+	if len(report.MedicamentsWithoutCompositionsCIS) != 14 {
+		t.Errorf("Expected 14 CIS in list (NO LIMIT for compositions), got %d: %v", len(report.MedicamentsWithoutCompositionsCIS), report.MedicamentsWithoutCompositionsCIS)
+	}
+	if !containsCIS(report.MedicamentsWithoutCompositionsCIS, 10000015) {
+		t.Errorf("Expected CIS 10000015 in list (all CIS should be stored), got %v", report.MedicamentsWithoutCompositionsCIS)
+	}
+}
+
+func TestReportDataQuality_MedicamentsWithoutGeneriques_MultipleGeneriquesSameCIS(t *testing.T) {
+	validator := NewDataValidator()
+
+	medicaments := []entities.Medicament{
+		{Cis: 10000001, Denomination: "Med 1"},
+		{Cis: 10000002, Denomination: "Med 2"},
+		{Cis: 10000003, Denomination: "Med 3"},
+		{Cis: 10000004, Denomination: "Med 4"},
+	}
+
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:   1,
+			Libelle:   "Generique 1",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+			},
+		},
+		{
+			GroupID:   2,
+			Libelle:   "Generique 2",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000002, Denomination: "Med 2"},
+			},
+		},
+		{
+			GroupID:   3,
+			Libelle:   "Generique 3",
+			OrphanCIS: []int{},
+			Medicaments: []entities.GeneriqueMedicament{
+				{Cis: 10000001, Denomination: "Med 1"},
+				{Cis: 10000003, Denomination: "Med 3"},
+			},
+		},
+	}
+
+	report := validator.ReportDataQuality(medicaments, generiques)
+
+	if report.MedicamentsWithoutGeneriques != 1 {
+		t.Errorf("Expected 1 medicament without generiques (CIS 10000004), got %d", report.MedicamentsWithoutGeneriques)
+	}
+	if !containsCIS(report.MedicamentsWithoutGeneriquesCIS, 10000004) {
+		t.Errorf("Expected CIS 10000004 in list, got %v", report.MedicamentsWithoutGeneriquesCIS)
+	}
+	if containsCIS(report.MedicamentsWithoutGeneriquesCIS, 10000001) {
+		t.Errorf("Should not contain CIS 10000001 (in multiple generiques), got %v", report.MedicamentsWithoutGeneriquesCIS)
+	}
+}
+
+func containsCIS(cisList []int, cis int) bool {
+	for _, c := range cisList {
+		if c == cis {
+			return true
+		}
+	}
+	return false
+}
