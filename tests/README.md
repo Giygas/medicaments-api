@@ -8,7 +8,7 @@ This directory contains specialized tests for the medicaments-api, organized by 
 
 | File | Purpose | Commands |
 |------|---------|----------|
-| `performance_benchmarks_test.go` | Core performance benchmarks with production logging | `go test ./tests -bench=. -benchmem`<br>`go test ./tests -run=^BenchmarkAlgorithmic -v`<br>`go test ./tests -run=^BenchmarkHTTP -v`<br>`go test ./tests -run=^BenchmarkRealWorld -v`<br>`go test ./tests -run=^BenchmarkSustained -v` |
+| `performance_benchmarks_test.go` | Core performance benchmarks with production logging | `go test ./tests -bench=. -benchmem`<br>`go test ./tests -bench=BenchmarkAlgorithmicPerformance -v`<br>`go test ./tests -bench=BenchmarkHTTPPerformance -v`<br>`go test ./tests -bench=BenchmarkRealWorldSearch -v`<br>`go test ./tests -bench=BenchmarkSustainedPerformance -v` |
 | `documentation_claims_verification_test.go` | Validates all documentation claims against real data | `go test ./tests -run TestDocumentationClaimsVerification -v` |
 
 ### **Verification & Validation Tests**
@@ -54,16 +54,16 @@ go test -v ./...
 go test ./tests -bench=. -benchmem
 
 # Algorithmic benchmarks (handler-level)
-go test ./tests -run=^BenchmarkAlgorithmic -benchmem -v
+go test ./tests -bench=BenchmarkAlgorithmicPerformance -benchmem -v
 
 # HTTP benchmarks (network-level)
-go test ./tests -run=^BenchmarkHTTP -benchmem -v
+go test ./tests -bench=BenchmarkHTTPPerformance -benchmem -v
 
 # Real-world search benchmarks
-go test ./tests -run=^BenchmarkRealWorld -benchmem -v
+go test ./tests -bench=BenchmarkRealWorldSearch -benchmem -v
 
 # Sustained performance benchmarks
-go test ./tests -run=^BenchmarkSustained -benchmem -v
+go test ./tests -bench=BenchmarkSustainedPerformance -benchmem -v
 ```
 
 ### **Documentation Verification**
@@ -81,9 +81,6 @@ go test ./tests -run TestIntegrationErrorHandling -v
 
 # Cross-file consistency
 go test ./tests -run TestIntegrationCrossFileConsistency -v
-
-# Memory usage test
-go test ./tests -run TestIntegrationMemoryUsage -v
 ```
 
 ### **Endpoint & Middleware Tests**
@@ -106,7 +103,6 @@ go test ./tests -run TestETagFunctionality -v
 ```bash
 # Quick validation
 go test ./tests -run TestApplicationStartupSmoke -v
-go test ./tests -run TestMain -v
 ```
 
 ## 📊 Performance Summary
