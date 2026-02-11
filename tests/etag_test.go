@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -116,16 +115,14 @@ func TestETagFunctionality(t *testing.T) {
 	// Test FindMedicamentByCIP with ETag (this endpoint supports ETag)
 	cipHandler := httpHandler.FindMedicamentByCIP
 
+	// Create a chi router to properly set path values
+	router := chi.NewRouter()
+	router.Get("/medicament/cip/{cip}", cipHandler)
+
 	// First request - should return 200 with ETag
 	req1 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
-
-	// Set up chi context to simulate URL parameter
-	chiCtx1 := chi.NewRouteContext()
-	chiCtx1.URLParams.Add("cip", "1234567")
-	req1 = req1.WithContext(context.WithValue(req1.Context(), chi.RouteCtxKey, chiCtx1))
-
 	w1 := httptest.NewRecorder()
-	cipHandler(w1, req1)
+	router.ServeHTTP(w1, req1)
 
 	resp1 := w1.Result()
 	etag1 := resp1.Header.Get("ETag")
@@ -141,14 +138,8 @@ func TestETagFunctionality(t *testing.T) {
 	// Second request with If-None-Match - should return 304
 	req2 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
 	req2.Header.Set("If-None-Match", etag1)
-
-	// Set up chi context again
-	chiCtx2 := chi.NewRouteContext()
-	chiCtx2.URLParams.Add("cip", "1234567")
-	req2 = req2.WithContext(context.WithValue(req2.Context(), chi.RouteCtxKey, chiCtx2))
-
 	w2 := httptest.NewRecorder()
-	cipHandler(w2, req2)
+	router.ServeHTTP(w2, req2)
 
 	resp2 := w2.Result()
 
@@ -165,14 +156,8 @@ func TestETagFunctionality(t *testing.T) {
 	// Test with different ETag - should return 200
 	req3 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
 	req3.Header.Set("If-None-Match", `"different-etag"`)
-
-	// Set up chi context again
-	chiCtx3 := chi.NewRouteContext()
-	chiCtx3.URLParams.Add("cip", "1234567")
-	req3 = req3.WithContext(context.WithValue(req3.Context(), chi.RouteCtxKey, chiCtx3))
-
 	w3 := httptest.NewRecorder()
-	cipHandler(w3, req3)
+	router.ServeHTTP(w3, req3)
 
 	resp3 := w3.Result()
 

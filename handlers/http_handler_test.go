@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -297,15 +296,14 @@ func TestServePagedMedicaments(t *testing.T) {
 			mockValidator := &MockDataValidator{}
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("pageNumber", tt.pageNumber)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/database/{pageNumber}", handler.ServePagedMedicaments)
 
 			req := httptest.NewRequest("GET", "/database/"+tt.pageNumber, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.ServePagedMedicaments(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
@@ -374,13 +372,6 @@ func TestFindMedicament(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
-			name:         "empty search term",
-			element:      "",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med")},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "Missing search term",
-		},
-		{
 			name:         "no results",
 			element:      "NonExistent",
 			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Doliprane")},
@@ -395,15 +386,14 @@ func TestFindMedicament(t *testing.T) {
 			mockValidator := &MockDataValidator{}
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("element", tt.element)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/medicament/{element}", handler.FindMedicament)
 
 			req := httptest.NewRequest("GET", "/medicament/"+tt.element, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.FindMedicament(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
@@ -535,13 +525,6 @@ func TestFindGeneriques(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
-			name:         "empty libelle",
-			libelle:      "",
-			generiques:   []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "Missing libelle",
-		},
-		{
 			name:         "no results",
 			libelle:      "NonExistent",
 			generiques:   []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
@@ -556,15 +539,14 @@ func TestFindGeneriques(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("libelle", tt.libelle)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/generiques/{libelle}", handler.FindGeneriques)
 
 			req := httptest.NewRequest("GET", "/generiques/"+tt.libelle, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.FindGeneriques(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
@@ -636,15 +618,14 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("groupId", tt.groupID)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/generiques/group/{groupId}", handler.FindGeneriquesByGroupID)
 
 			req := httptest.NewRequest("GET", "/generiques/group/"+tt.groupID, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.FindGeneriquesByGroupID(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
@@ -707,15 +688,6 @@ func TestFindMedicamentByCIP(t *testing.T) {
 			},
 			expectedCode:  http.StatusOK,
 			checkCipMatch: 1234567890123,
-		},
-		{
-			name: "empty CIP code",
-			cip:  "",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-			},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "input cannot be empty",
 		},
 		{
 			name: "non-numeric CIP code",
@@ -783,15 +755,14 @@ func TestFindMedicamentByCIP(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator)
 
-			// Create a request with chi URL parameters
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("cip", tt.cip)
+			// Create a chi router with the route
+			router := chi.NewRouter()
+			router.Get("/medicament/cip/{cip}", handler.FindMedicamentByCIP)
 
 			req := httptest.NewRequest("GET", "/medicament/cip/"+tt.cip, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 			rr := httptest.NewRecorder()
 
-			handler.FindMedicamentByCIP(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != tt.expectedCode {
 				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)

@@ -15,7 +15,6 @@ import (
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
-	"github.com/go-chi/chi/v5"
 )
 
 // HTTPHandlerImpl implements the interfaces.HTTPHandler interface
@@ -186,8 +185,7 @@ func (h *HTTPHandlerImpl) ExportMedicaments(w http.ResponseWriter, r *http.Reque
 
 // ServePagedMedicaments returns paginated medicaments
 func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
-
-	pageNumber := chi.URLParam(r, "pageNumber")
+	pageNumber := r.PathValue("pageNumber")
 	page, err := strconv.Atoi(pageNumber)
 	if err != nil || page < 1 {
 		logging.Warn("Unusual user input", "pageNumber", pageNumber)
@@ -230,7 +228,7 @@ func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.R
 
 // FindMedicament searches for medicaments by name or CIP using query parameters
 func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request) {
-	element := chi.URLParam(r, "element")
+	element := r.PathValue("element")
 	if element == "" {
 		h.RespondWithError(w, http.StatusBadRequest, "Missing search term")
 		return
@@ -298,7 +296,7 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIS(w http.ResponseWriter, r *http.Req
 
 // FindMedicamentByCIP finds a medicament by its presentation cip7 or cip13
 func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
-	cipStr := chi.URLParam(r, "cip")
+	cipStr := r.PathValue("cip")
 
 	cip, err := h.validator.ValidateCIP(cipStr)
 
@@ -336,7 +334,7 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Req
 
 // FindGeneriques searches for generiques by libelle (case-insensitive partial match)
 func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request) {
-	libelle := chi.URLParam(r, "libelle")
+	libelle := r.PathValue("libelle")
 	if libelle == "" {
 		h.RespondWithError(w, http.StatusBadRequest, "Missing libelle")
 		return
@@ -376,7 +374,7 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 
 // FindGeneriquesByGroupID finds generiques by group ID
 func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
-	groupIDStr := chi.URLParam(r, "groupId")
+	groupIDStr := r.PathValue("groupId")
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
 		h.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
