@@ -75,7 +75,7 @@ func (s *Scheduler) updateData() error {
 	}
 	defer s.dataStore.EndUpdate()
 
-	fmt.Println("Starting database update at:", time.Now())
+	logging.Info("Starting database update at:", time.Now())
 	start := time.Now()
 
 	// Parse data using injected parser

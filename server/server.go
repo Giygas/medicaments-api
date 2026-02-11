@@ -180,7 +180,6 @@ func (s *Server) Start() error {
 		s.startProfilingServer()
 	}
 
-	fmt.Println("starting metrics?")
 	s.startMetricsServer()
 
 	logging.Info(fmt.Sprintf("Starting server at: %s:%s", s.config.Address, s.config.Port))
@@ -228,9 +227,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // startProfilingServer starts the pprof profiling server in development mode
 func (s *Server) startProfilingServer() {
 	go func() {
-		fmt.Println("Profiling server started at http://localhost:6060/debug/pprof/")
+		logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
 		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
-			fmt.Println("Profiling server failed: ", err)
+			logging.Warn("Profiling server failed: ", err)
 		}
 	}()
 }

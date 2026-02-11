@@ -17,6 +17,11 @@ import (
 	"github.com/juju/ratelimit"
 )
 
+var (
+	medicamentsParams = []string{"search", "page", "cip"}
+	generiquesParams  = []string{"libelle", "group"}
+)
+
 // RealIPMiddleware extracts the real IP from X-Forwarded-For header
 func RealIPMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +217,7 @@ func getTokenCost(r *http.Request) int64 {
 
 		case "/v1/medicaments":
 			// Ensure only one parameter is present
-			if !HasSingleParam(q, []string{"search", "page", "cip"}) {
+			if !HasSingleParam(q, medicamentsParams) {
 				return 5 // Default for invalid multi-param requests
 			}
 
@@ -230,7 +235,7 @@ func getTokenCost(r *http.Request) int64 {
 
 		case "/v1/generiques":
 			// Ensure only one parameter is present
-			if !HasSingleParam(q, []string{"libelle", "group"}) {
+			if !HasSingleParam(q, generiquesParams) {
 				return 5 // Default for invalid multi-param requests
 			}
 
@@ -243,9 +248,6 @@ func getTokenCost(r *http.Request) int64 {
 			return 5 // Default for /v1/generiques without recognized params
 		case "/v1/health", "/health":
 			// Health endpoint has no parameters
-			if len(q) > 0 {
-				return 5 // Default if params present
-			}
 			return 5
 		case "/v1/diagnostics":
 			// Diagnostics endpoint - moderate cost (caching prevents recomputation)

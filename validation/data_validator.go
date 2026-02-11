@@ -383,10 +383,16 @@ func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
 
 // hasExcessiveRepetition checks for potential DoS patterns with excessive character repetition
 func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
-	// Check for the same character repeated more than 10 times consecutively
-	for i := 0; i < len(input)-10; i++ {
+	const maxConsecutive = 10 // more than this triggers detection
+
+	if len(input) <= maxConsecutive {
+		return false
+	}
+
+	// Check for more than maxConsecutive identical consecutive characters
+	for i := 0; i <= len(input)-maxConsecutive-1; i++ {
 		allSame := true
-		for j := 1; j <= 10; j++ {
+		for j := 1; j <= maxConsecutive; j++ {
 			if input[i] != input[i+j] {
 				allSame = false
 				break
