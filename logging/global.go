@@ -98,9 +98,18 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	}
 
 	// Determine if running tests (for verbose mode)
+	// Use recover to handle calls to testing.Verbose() before flags are parsed
 	isVerbose := false
 	if flag := flag.CommandLine.Lookup("test.v"); flag != nil {
-		isVerbose = testing.Verbose()
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// testing.Verbose() called before Parse() - default to false (ERROR-only in tests)
+					isVerbose = false
+				}
+			}()
+			isVerbose = testing.Verbose()
+		}()
 	}
 
 	// Determine console and file log levels based on environment and LOG_LEVEL

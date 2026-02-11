@@ -5,8 +5,19 @@ import (
 	"os"
 	"testing"
 
+	"github.com/giygas/medicaments-api/config"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
+
+// init initializes the logger for all tests in this package
+// Uses InitLoggerWithEnvironment to initialize with test environment settings
+// This ensures console logs are ERROR-only and no log files are created
+func init() {
+	// Initialize with test environment - console will only show ERROR level
+	// Empty logDir prevents creating log files during unit tests
+	logging.InitLoggerWithEnvironment("", config.EnvTest, "", 4, 100*1024*1024)
+}
 
 // TestParseAllMedicaments tests the main parsing function with mock data
 func TestParseAllMedicaments(t *testing.T) {
