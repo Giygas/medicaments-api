@@ -71,6 +71,20 @@ servers:
 
 security: []
 
+tags:
+  - name: Médicaments (v1)
+    description: Points de terminaison v1 liés aux médicaments
+  - name: Génériques (v1)
+    description: Points de terminaison v1 des groupes de médicaments génériques
+  - name: Présentations (v1)
+    description: Points de terminaison v1 des présentations de médicaments
+  - name: Médicaments (Legacy)
+    description: Points de terminaison legacy liés aux médicaments (dépréciés)
+  - name: Génériques (Legacy)
+    description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
+  - name: Système
+    description: Points de terminaison de santé et d'état du système
+
 paths:
   /v1/medicaments:
     get:
@@ -92,9 +106,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/MedicamentArray"
-                    description: Réponse pour recherche par nom ou CIP
                   - $ref: "#/components/schemas/PaginatedMedicament"
-                    description: Réponse paginée
               examples:
                 paginated:
                   summary: Pagination
@@ -161,6 +173,12 @@ paths:
                     error: "Bad Request"
                     message: "Only one parameter allowed at a time"
                     code: 400
+                accents-not-supported:
+                  summary: Accents non supportés
+                  value:
+                    error: "Bad Request"
+                    message: "Accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')"
+                    code: 400
                 word-limit-exceeded:
                   summary: Limite de mots dépassée
                   value:
@@ -209,7 +227,7 @@ paths:
                 type: string
               examples:
                 etag-header:
-                  value: '"W/"abc123""'
+                  value: 'W/"abc123"'
             Last-Modified:
               schema:
                 type: string
@@ -371,6 +389,7 @@ paths:
         - Génériques (v1)
       parameters:
         - $ref: "#/components/parameters/QueryLibelle"
+        - $ref: "#/components/parameters/QueryGroup"
       responses:
         "200":
           description: Réponse réussie
@@ -379,7 +398,6 @@ paths:
               schema:
                 type: array
                 items:
-                  title: GeneriqueListResponse
                   $ref: "#/components/schemas/GeneriqueListResponse"
               examples:
                 search:
@@ -450,7 +468,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                 bad-request:
+                bad-request:
                   value:
                     error: "Bad Request"
                     message: "Needs libelle param"
@@ -500,7 +518,7 @@ paths:
                 presentation:
                   value:
                     cis: "60904643"
-                    cip7: "3400936403114"
+                    cip7: "2756239"
                     libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
                     statusAdministratif: "Présentation active"
                     etatComercialisation: "Commercialisée"
@@ -545,7 +563,7 @@ paths:
                     error: "Internal Server Error"
                     message: "Internal server error"
                     code: 500
- 
+
   /v1/generiques/{groupID}:
     get:
       summary: Obtenir un groupe générique par ID (v1)
@@ -565,7 +583,7 @@ paths:
                 type: string
               examples:
                 etag-header:
-                  value: '"W/"abc123""'
+                  value: 'W/"abc123"'
             Last-Modified:
               schema:
                 type: string
@@ -626,7 +644,7 @@ paths:
                     error: "Internal Server Error"
                     message: "Internal server error"
                     code: 500
- 
+
   /v1/diagnostics:
     get:
       summary: Obtenir les diagnostics système détaillés (v1)
@@ -822,9 +840,21 @@ paths:
             Link:
               schema:
                 type: string
-                examples:
-                  successor-version:
-                    value: '<https://medicaments-api.giygas.dev/v1/medicaments/export>; rel="successor-version"'
+              examples:
+                successor-version:
+                  value: '<https://medicaments-api.giygas.dev/v1/medicaments/export>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/medicaments/export instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -913,6 +943,18 @@ paths:
               examples:
                 successor-version:
                   value: '<https://medicaments-api.giygas.dev/v1/medicaments?page=1>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/medicaments?page={n} instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -982,7 +1024,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1006,6 +1048,18 @@ paths:
               examples:
                 successor-version:
                   value: '<https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/medicaments?search={query} instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -1087,6 +1141,18 @@ paths:
               examples:
                 successor-version:
                   value: '<https://medicaments-api.giygas.dev/v1/medicaments/61504672>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/medicaments/{cis} instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -1143,7 +1209,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1167,6 +1233,18 @@ paths:
               examples:
                 successor-version:
                   value: '<https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/generiques?libelle={nom} instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -1248,6 +1326,18 @@ paths:
               examples:
                 successor-version:
                   value: '<https://medicaments-api.giygas.dev/v1/generiques?group=1234>; rel="successor-version"'
+            X-Deprecated:
+              schema:
+                type: string
+              examples:
+                x-deprecated-header:
+                  value: "Use /v1/generiques?group={id} instead"
+            Warning:
+              schema:
+                type: string
+              examples:
+                warning-header:
+                  value: '299 - "Deprecated endpoint"'
           content:
             application/json:
               schema:
@@ -1283,20 +1373,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  tags:
-    - name: Médicaments (v1)
-      description: Points de terminaison v1 liés aux médicaments
-    - name: Génériques (v1)
-      description: Points de terminaison v1 des groupes de médicaments génériques
-    - name: Présentations (v1)
-      description: Points de terminaison v1 des présentations de médicaments
-    - name: Médicaments (Legacy)
-      description: Points de terminaison legacy liés aux médicaments (dépréciés)
-    - name: Génériques (Legacy)
-      description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
-    - name: Système
-      description: Points de terminaison de santé et d'état du système
-
 components:
   parameters:
     QueryPage:
@@ -1319,7 +1395,7 @@ components:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
     QueryCip:
       name: cip
       in: query
@@ -1336,11 +1412,13 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
+        Note: Les données source BDPM sont en majuscules sans accents (ex: PARACETAMOL).
+        Utilisez des caractères ASCII (sans accents).
       schema:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+'àâäéèêëïîôöùûüÿç]+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
     QueryGroup:
       name: group
       in: query
@@ -1466,7 +1544,6 @@ components:
           title: Conditions de prescription
 
     GeneriqueResponse:
-      # Remove this at sunset
       type: object
       title: GeneriqueResponse
       properties:
@@ -1542,7 +1619,6 @@ components:
           type: array
           items:
             type: integer
-            pattern: "^[0-9]{1,9}$"
           nullable: true
           title: CIS orphelins
           description: |
@@ -1666,6 +1742,11 @@ components:
           format: date-time
           examples: ["2026-01-15T06:00:00Z"]
           title: Date et heure de la dernière mise à jour réussie
+        data_age_hours:
+          type: number
+          format: float
+          examples: [2.5]
+          title: Âge des données en heures
         medicaments:
           type: integer
           examples: [15420]

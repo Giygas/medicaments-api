@@ -15,8 +15,8 @@ import (
 // Pre-compiled regex patterns for performance optimization
 // Compiled once at package initialization and reused for all validations
 var (
-	// Input validation: alphanumeric + French accents + safe punctuation
-	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`)
+	// Input validation: alphanumeric + safe punctuation (ASCII-only)
+	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-\.\+']+$`)
 
 	// Dangerous patterns as strings (faster than regex for simple substring matching)
 	// strings.Contains is 5-10x faster than regex for these patterns
@@ -303,6 +303,11 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("search query too complex: maximum 6 words allowed")
 	}
 
+	// Check for French accented characters (source BDPM data is uppercase without accents)
+	if v.containsAccents(input) {
+		return fmt.Errorf("accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')")
+	}
+
 	// Check for potentially dangerous patterns using string matching (5-10x faster than regex)
 	lowerInput := strings.ToLower(input)
 	for _, pattern := range dangerousPatterns {
@@ -314,7 +319,7 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 	// Allow only alphanumeric characters, spaces, and safe punctuation
 	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign
 	if !inputRegex.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, plus sign, and common French accented characters are allowed")
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed")
 	}
 
 	// Additional checks for repeated characters (potential DoS)
@@ -399,6 +404,18 @@ func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
 			}
 		}
 		if allSame {
+			return true
+		}
+	}
+	return false
+}
+
+// containsAccents checks if input contains French accented characters
+// Source BDPM data is uppercase without accents (e.g., IBUPROFENE, PARACETAMOL)
+func (v *DataValidatorImpl) containsAccents(input string) bool {
+	accents := "àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ"
+	for _, r := range input {
+		if strings.ContainsRune(accents, r) {
 			return true
 		}
 	}

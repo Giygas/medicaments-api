@@ -2,6 +2,8 @@ package validation
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
@@ -126,7 +128,7 @@ func TestValidateMedicament_TooLongDenomination(t *testing.T) {
 
 	// Create a string longer than 200 characters
 	longDenomination := ""
-	for i := 0; i < 201; i++ {
+	for range 201 {
 		longDenomination += "a"
 	}
 
@@ -154,7 +156,7 @@ func TestValidateMedicament_TooLongFormePharmaceutique(t *testing.T) {
 
 	// Create a string longer than 100 characters
 	longForme := ""
-	for i := 0; i < 101; i++ {
+	for range 101 {
 		longForme += "a"
 	}
 
@@ -182,7 +184,7 @@ func TestValidateMedicament_TooLongVoieAdministration(t *testing.T) {
 
 	// Create a string longer than 50 characters
 	longVoie := ""
-	for i := 0; i < 51; i++ {
+	for range 51 {
 		longVoie += "a"
 	}
 
@@ -210,7 +212,7 @@ func TestValidateMedicament_TooLongStatusAutorisation(t *testing.T) {
 
 	// Create a string longer than 50 characters
 	longStatus := ""
-	for i := 0; i < 51; i++ {
+	for range 51 {
 		longStatus += "a"
 	}
 
@@ -506,7 +508,7 @@ func TestValidateDataIntegrity_TooLongGeneriqueLibelle(t *testing.T) {
 
 	// Create a string longer than 200 characters
 	longLibelle := ""
-	for i := 0; i < 201; i++ {
+	for range 201 {
 		longLibelle += "a"
 	}
 
@@ -559,12 +561,11 @@ func TestValidateInput_Valid(t *testing.T) {
 	validInputs := []string{
 		"test",
 		"Test Medicament",
-		"paracétamol",
-		"ibuprofène 200mg",
+		"paracetamol",
+		"ibuprofene 200mg",
 		"aspirine-500",
 		"test'medicament",
 		"dr. smith",
-		"àâäéèêëïîôöùûüÿç",
 		"paracetamol+cafeine",
 		"actonelcombi 35 mg + 1000 mg",
 		"alunbrig 90 mg + 180 mg",
@@ -634,7 +635,7 @@ func TestValidateInput_TooLong(t *testing.T) {
 
 	// Create a string longer than 50 characters
 	longInput := ""
-	for i := 0; i < 51; i++ {
+	for range 51 {
 		longInput += "a"
 	}
 
@@ -751,7 +752,7 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 				t.Errorf("Expected error for invalid characters in input '%s'", input)
 			}
 
-			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, plus sign, and common French accented characters are allowed"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
@@ -780,6 +781,35 @@ func TestValidateInput_ExcessiveRepetition(t *testing.T) {
 			expectedError := "input contains excessive character repetition"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateInput_AccentsRejected(t *testing.T) {
+	validator := NewDataValidator()
+
+	accentInputs := []string{
+		"ibuprofène",
+		"paracétamol",
+		"caféine",
+		"codéïne",
+		"éphédrine",
+		"àâäéèêëïîôöùûüÿç",
+		"PARACÉTAMOL",
+		"CAFÉINE",
+	}
+
+	for _, input := range accentInputs {
+		t.Run(input, func(t *testing.T) {
+			err := validator.ValidateInput(input)
+			if err == nil {
+				t.Errorf("Expected error for accented input '%s'", input)
+			}
+
+			expectedError := "accents not supported. Try removing them"
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Errorf("Expected error to contain '%s', got '%s'", expectedError, err.Error())
 			}
 		})
 	}
@@ -839,7 +869,7 @@ func BenchmarkValidateMedicament(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := validator.ValidateMedicament(medicament); err != nil {
 			b.Logf("Validation failed: %v", err)
 		}
@@ -852,7 +882,7 @@ func BenchmarkValidateInput(b *testing.B) {
 	input := "paracétamol 500mg"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := validator.ValidateInput(input); err != nil {
 			b.Logf("Validation failed: %v", err)
 		}
@@ -1216,14 +1246,7 @@ func TestValidateCIP_NonNumeric(t *testing.T) {
 				"CIP should have 7 or 13 characters",
 			}
 
-			found := false
-			for _, expectedError := range expectedErrors {
-				if err.Error() == expectedError {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if !slices.Contains(expectedErrors, err.Error()) {
 				t.Errorf("Expected one of errors '%v', got '%s'", expectedErrors, err.Error())
 			}
 		})
@@ -1269,7 +1292,7 @@ func BenchmarkValidateDataIntegrity(b *testing.B) {
 	validator := NewDataValidator()
 
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = entities.Medicament{
 			Cis:          i,
 			Denomination: "Test Medicament",
@@ -1277,7 +1300,7 @@ func BenchmarkValidateDataIntegrity(b *testing.B) {
 	}
 
 	generiques := make([]entities.GeneriqueList, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		generiques[i] = entities.GeneriqueList{
 			GroupID: i,
 			Libelle: "Test Generique",
@@ -1288,7 +1311,7 @@ func BenchmarkValidateDataIntegrity(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := validator.ValidateDataIntegrity(medicaments, generiques); err != nil {
 			b.Logf("Validation failed: %v", err)
 		}
@@ -1992,10 +2015,5 @@ func TestReportDataQuality_MedicamentsWithoutGeneriques_MultipleGeneriquesSameCI
 }
 
 func containsCIS(cisList []int, cis int) bool {
-	for _, c := range cisList {
-		if c == cis {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(cisList, cis)
 }

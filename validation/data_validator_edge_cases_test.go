@@ -64,7 +64,7 @@ func TestValidateInput_UnicodeBeyondFrench(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// These should be rejected as they don't match the French-accented pattern
+			// These should be rejected as they don't match the ASCII-only pattern
 			err := validator.ValidateInput(tc.input)
 			if err == nil {
 				t.Errorf("Expected error for non-French Unicode input: '%s'", tc.input)

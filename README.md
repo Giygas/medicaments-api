@@ -1,9 +1,9 @@
 # API des Médicaments
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/giygas/medicaments-api/tests.yml?branch=main)](https://github.com/giygas/medicaments-api/actions)
-[![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/giygas/medicaments-api)
+[![Coverage](https://img.shields.io/badge/coverage-78.5%25-brightgreen)](https://github.com/giygas/medicaments-api)
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
@@ -23,20 +23,20 @@ L'API délivre des performances exceptionnelles grâce à des optimisations cont
 
 **Nouveaux endpoints v1 (recommandés) :**
 
-| Endpoint                          | Description                        | Cache | Coût | Headers    | Validation              |
-| --------------------------------- | ---------------------------------- | ----- | ---- | ---------- | ----------------------- |
-| `/v1/medicaments/export`          | Export complet de la base          | 6h    | 200  | ETag/LM/RL | -                       |
-| `/v1/medicaments?page={n}`        | Pagination (10/page)               | 6h    | 20   | ETag/LM/RL | page ≥ 1                |
-| `/v1/medicaments?search={query}`  | Recherche multi-mots (1-6 mots, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
-| `/v1/medicaments/{cis}`           | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
-| `/v1/medicaments?cip={code}`      | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
-| `/v1/generiques?libelle={nom}`    | Génériques multi-mots (1-6 mots, 3-50 chars) | 1h    | 30   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
-| `/v1/generiques/{groupID}`        | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ groupID ≤ 99,999         |
-| `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
-| `/v1/diagnostics`                | Diagnostics système (détails)    | 10s   | 30   | CC         | -                       |
-| `/`                               | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
-| `/docs`                           | Swagger UI interactive             | 1h    | 0    | CC         | -                       |
-| `/health`                         | Santé système simplifiée            | -     | 5    | RL         | -                       |
+| Endpoint                         | Description                                  | Cache | Coût | Headers    | Validation                                         |
+| -------------------------------- | -------------------------------------------- | ----- | ---- | ---------- | -------------------------------------------------- |
+| `/v1/medicaments/export`         | Export complet de la base                    | 6h    | 200  | ETag/LM/RL | -                                                  |
+| `/v1/medicaments?page={n}`       | Pagination (10/page)                         | 6h    | 20   | ETag/LM/RL | page ≥ 1                                           |
+| `/v1/medicaments?search={query}` | Recherche multi-mots (1-6 mots, 3-50 chars)  | 1h    | 50   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace) |
+| `/v1/medicaments/{cis}`          | Recherche CIS (O(1) lookup)                  | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999                              |
+| `/v1/medicaments?cip={code}`     | Recherche CIP via présentation               | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres                                   |
+| `/v1/generiques?libelle={nom}`   | Génériques multi-mots (1-6 mots, 3-50 chars) | 1h    | 30   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace) |
+| `/v1/generiques/{groupID}`       | Groupe générique par ID                      | 12h   | 5    | ETag/LM/RL | 1 ≤ groupID ≤ 99,999                               |
+| `/v1/presentations/{cip}`        | Présentations par CIP                        | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999                            |
+| `/v1/diagnostics`                | Diagnostics système (détails)                | 10s   | 30   | CC         | -                                                  |
+| `/`                              | Accueil (SPA)                                | 1h    | 0    | CC         | -                                                  |
+| `/docs`                          | Swagger UI interactive                       | 1h    | 0    | CC         | -                                                  |
+| `/health`                        | Santé système simplifiée                     | -     | 5    | RL         | -                                                  |
 
 **Légendes Headers**: ETag/LM (ETag/Last-Modified), CC (Cache-Control), RL (X-RateLimit-\*)
 
@@ -44,14 +44,14 @@ L'API délivre des performances exceptionnelles grâce à des optimisations cont
 
 Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 2026. Veuillez migrer vers les endpoints v1 ci-dessus.
 
-| Endpoint                     | Description                       | Cache | Coût | Headers    | Validation            |
-| ---------------------------- | --------------------------------- | ----- | ---- | ---------- | --------------------- |
-| `GET /database`              | Base complète (15,000+ médicaments)  | 6h    | 200  | ETag/LM/RL | -                     |
-| `GET /database/{page}`       | Pagination (10/page)              | 6h    | 20   | ETag/LM/RL | page ≥ 1              |
-| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars) | 1h    | 80   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
-| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)       | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999 |
-| `GET /generiques/{libelle}`  | Génériques par libellé            | 1h    | 20   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+'àâäéèêëïîôöùûüÿç]+$`     |
-| `GET /generiques/group/{id}` | Groupe générique par ID           | 12h   | 20   | ETag/LM/RL | 1 ≤ ID ≤ 99,999       |
+| Endpoint                     | Description                         | Cache | Coût | Headers    | Validation                             |
+| ---------------------------- | ----------------------------------- | ----- | ---- | ---------- | -------------------------------------- |
+| `GET /database`              | Base complète (15,000+ médicaments) | 6h    | 200  | ETag/LM/RL | -                                      |
+| `GET /database/{page}`       | Pagination (10/page)                | 6h    | 20   | ETag/LM/RL | page ≥ 1                               |
+| `GET /medicament/{nom}`      | Recherche nom (regex, 3-50 chars)   | 1h    | 80   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+']+$` (ASCII-only) |
+| `GET /medicament/id/{cis}`   | Recherche CIS (O(1) lookup)         | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999                  |
+| `GET /generiques/{libelle}`  | Génériques par libellé              | 1h    | 20   | ETag/CC/RL | `^[a-zA-Z0-9\s\-\.\+']+$` (ASCII-only) |
+| `GET /generiques/group/{id}` | Groupe générique par ID             | 12h   | 20   | ETag/LM/RL | 1 ≤ ID ≤ 99,999                        |
 
 ### Guide de Migration vers v1
 
@@ -64,9 +64,9 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 | `GET /medicament/paracetamol` | `GET /v1/medicaments?search=paracetamol` |
 | `GET /medicament/id/61504672` | `GET /v1/medicaments/61504672`           |
 | `GET /database/1`             | `GET /v1/medicaments?page=1`             |
-| `GET /database`               | `GET /v1/medicaments/export`              |
+| `GET /database`               | `GET /v1/medicaments/export`             |
 | `GET /generiques/paracetamol` | `GET /v1/generiques?libelle=paracetamol` |
-| `GET /generiques/group/1234`  | `GET /v1/generiques/1234`              |
+| `GET /generiques/group/1234`  | `GET /v1/generiques/1234`                |
 
 **Règles v1 :**
 
@@ -170,11 +170,13 @@ curl https://medicaments-api.giygas.dev/v1/generiques?group=1234
 #### Recherche multi-mots
 
 L'API supporte désormais la recherche multi-mots avec logique ET :
+
 - Tous les mots doivent être présents dans le résultat (logique ET)
 - Maximum de 6 mots par requête (protection DoS)
 - Les mots peuvent être séparés par `+` ou espace dans l'URL
 
 **Exemples :**
+
 ```bash
 # 2 mots - recherche précise
 curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500"
@@ -215,13 +217,13 @@ curl https://medicaments-api.giygas.dev/v1/presentations/3400936403114
     "surveillanceRenforcee": "Non",
     "composition": [
       {
-      "cis": 60904643,
-      "elementPharmaceutique": "comprimé",
-      "codeSubstance": 2202,
-      "denominationSubstance": "PARACÉTAMOL",
-      "dosage": "500 mg",
-      "referenceDosage": "un comprimé",
-      "natureComposant": "SA"
+        "cis": 60904643,
+        "elementPharmaceutique": "comprimé",
+        "codeSubstance": 2202,
+        "denominationSubstance": "PARACÉTAMOL",
+        "dosage": "500 mg",
+        "referenceDosage": "un comprimé",
+        "natureComposant": "SA"
       },
       {
         "cis": 60904643,
@@ -363,6 +365,7 @@ curl https://medicaments-api.giygas.dev/v1/presentations/3400936403114
 **À propos du champ `orphanCIS`**
 
 Le champ `orphanCIS` contient les codes CIS référencés dans un groupe générique mais pour lesquels aucune entrée médicament correspondante n'existe dans la base de données.
+
 - Les médicaments avec des données complètes (composition, forme pharmaceutique, type) apparaissent dans le tableau `medicaments`
 - Les CIS orphelins apparaissent dans le tableau `orphanCIS` sans détails supplémentaires
 - Ce champ peut être :
@@ -516,7 +519,8 @@ Cette approche basée sur interfaces permet de tester chaque composant indépend
 
 ### Mesures de sécurité
 
-- **Validation stricte** : 3-50 caractères alphanumériques + espaces
+- **Validation stricte** : 3-50 caractères alphanumériques + espaces (ASCII-only)
+  - **Note**: Les données source BDPM sont en majuscules sans accents (ex: IBUPROFENE, PARACETAMOL). L'API n'accepte que les caractères ASCII (lettres sans accents). Les requêtes avec des accents seront rejetées avec un message d'aide.
   - **Recherche multi-mots** : Logique ET avec limite de 6 mots (protection DoS contre requêtes complexes)
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
 - **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
@@ -525,6 +529,11 @@ Cette approche basée sur interfaces permet de tester chaque composant indépend
 - **Nettoyage automatique** : Clients inactifs supprimés régulièrement
 - **Headers de transparence** : `X-RateLimit-*` pour monitoring client
 - **CORS configuré** : Géré via nginx en production
+
+**Note sur les caractères acceptés:**
+Les données source de la BDPM sont en majuscules sans accents (ex: IBUPROFENE, PARACETAMOL).
+Par conséquent, l'API n'accepte que les caractères ASCII (lettres sans accents).
+Les requêtes avec des accents (ex: "ibuprofène") seront rejetées avec un message d'aide.
 
 ### Robustesse et résilience
 
@@ -572,20 +581,20 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 
 **Benchmarks v1 disponibles** :
 
-| Benchmark                        | Endpoint v1                  | Type de lookup |
-| -------------------------------- | ---------------------------- | -------------- |
-| `BenchmarkMedicamentsExport`     | `/v1/medicaments?export=all` | Full export    |
-| `BenchmarkMedicamentsPagination` | `/v1/medicaments?page={n}`   | Pagination     |
-| `BenchmarkMedicamentsSearch`     | `/v1/medicaments?search={q}` | Regex search   |
-| `BenchmarkMedicamentByCIS`       | `/v1/medicaments/{cis}`      | O(1) lookup    |
-| `BenchmarkMedicamentByCIP`       | `/v1/medicaments?cip={code}` | O(2) lookups   |
-| `BenchmarkGeneriquesSearch`      | `/v1/generiques?libelle={n}` | Regex search   |
-| `BenchmarkGeneriqueByGroup`      | `/v1/generiques?group={id}`  | O(1) lookup    |
-| `BenchmarkPresentationByCIP`     | `/v1/presentations/{cip}`    | O(1) lookup    |
-| `BenchmarkAlgorithmicPerformance` | Test complet algorithmique       | Complet        |
-| `BenchmarkHTTPPerformance`        | Test complet HTTP              | Complet        |
-| `BenchmarkRealWorldSearch`       | Tests de recherche réels       | Complet        |
-| `BenchmarkSustainedPerformance`  | Tests de charge soutenus      | Complet        |
+| Benchmark                         | Endpoint v1                  | Type de lookup |
+| --------------------------------- | ---------------------------- | -------------- |
+| `BenchmarkMedicamentsExport`      | `/v1/medicaments?export=all` | Full export    |
+| `BenchmarkMedicamentsPagination`  | `/v1/medicaments?page={n}`   | Pagination     |
+| `BenchmarkMedicamentsSearch`      | `/v1/medicaments?search={q}` | Regex search   |
+| `BenchmarkMedicamentByCIS`        | `/v1/medicaments/{cis}`      | O(1) lookup    |
+| `BenchmarkMedicamentByCIP`        | `/v1/medicaments?cip={code}` | O(2) lookups   |
+| `BenchmarkGeneriquesSearch`       | `/v1/generiques?libelle={n}` | Regex search   |
+| `BenchmarkGeneriqueByGroup`       | `/v1/generiques?group={id}`  | O(1) lookup    |
+| `BenchmarkPresentationByCIP`      | `/v1/presentations/{cip}`    | O(1) lookup    |
+| `BenchmarkAlgorithmicPerformance` | Test complet algorithmique   | Complet        |
+| `BenchmarkHTTPPerformance`        | Test complet HTTP            | Complet        |
+| `BenchmarkRealWorldSearch`        | Tests de recherche réels     | Complet        |
+| `BenchmarkSustainedPerformance`   | Tests de charge soutenus     | Complet        |
 
 **Notes sur les benchmarks complets** :
 
@@ -607,19 +616,20 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 - `Latence` : Temps moyen par opération
 - `Mémoire/op` : Mémoire allouée par opération
 - `Allocs/op` : Nombre d'allocations mémoire par opération
-**Note** : Les benchmarks v1 mesurent le temps de sérialisation uniquement (sans réseau). L'export complet prend ~1.26ms pour sérialiser 15,811 médicaments, mais le transfert réseau prend plusieurs secondes pour ~20MB de données.
+  **Note** : Les benchmarks v1 mesurent le temps de sérialisation uniquement (sans réseau). L'export complet prend ~1.26ms pour sérialiser 15,811 médicaments, mais le transfert réseau prend plusieurs secondes pour ~20MB de données.
 
 ### Benchmarks algorithmiques (Handler performance)
 
-| Endpoint                         | Reqs/sec | Latence      | Allocs/op |
-| -------------------------------- | -------- | ------------ | --------- |
-| `/v1/medicaments/{cis}`         | 400,000  | 3.0µs        | 38        |
-| `/v1/generiques?group={id}`      | 200,000  | 5.0µs        | 37        |
-| `/v1/generiques?libelle={nom}`   | 18,000   | 60µs         | 94        |
-| `/v1/presentations/{cip}`        | 430,000  | 2.0µs        | 63        |
-| `/v1/medicaments?cip={code}`     | 375,000  | 5.0µs        | 54        |
-| `/v1/medicaments?page={n}`       | 40,000   | 30µs         | 38        |
-| `/v1/medicaments?search={query}` | 1,600    | 600µs        | 94        |
+| Endpoint                         | Reqs/sec | Latence | Allocs/op |
+| -------------------------------- | -------- | ------- | --------- |
+| `/v1/medicaments/{cis}`          | 400,000  | 3.0µs   | 38        |
+| `/v1/generiques?group={id}`      | 200,000  | 5.0µs   | 37        |
+| `/v1/generiques?libelle={nom}`   | 18,000   | 60µs    | 94        |
+| `/v1/presentations/{cip}`        | 430,000  | 2.0µs   | 63        |
+| `/v1/medicaments?search={query}` | 1,600    | 600µs   | 94        |
+| `/v1/medicaments?cip={code}`     | 375,000  | 5.0µs   | 54        |
+| `/v1/medicaments?page={n}`       | 40,000   | 30µs    | 38        |
+| `/v1/medicaments?search={query}` | 1,600    | 600µs   | 94        |
 
 **Note** : Benchmarks algorithmiques mesurent la logique pure du handler sans surcharge réseau (go test -bench).
 
@@ -628,13 +638,14 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 Les résultats ci-dessous incluent l'overhead HTTP complet (middleware, logging, sérialisation, réseau) :
 
 | Endpoint                         | HTTP Req/sec | Latence (avg) |
-| -------------------------------- | ------------ | -------------- |
-| `/v1/medicaments/{cis}`         | 78,000       | ~4ms          |
+| -------------------------------- | ------------ | ------------- |
+| `/v1/medicaments/{cis}`          | 78,000       | ~4ms          |
 | `/v1/presentations/{cip}`        | 77,000       | ~4ms          |
-| `/v1/medicaments?cip={code}`    | 75,000       | ~5ms          |
+| `/v1/medicaments?cip={code}`     | 75,000       | ~5ms          |
 | `/v1/generiques?libelle={nom}`   | 36,000       | ~9ms          |
 | `/v1/medicaments?page={n}`       | 41,000       | ~7ms          |
 | `/v1/medicaments?search={query}` | 6,100        | ~50ms         |
+| `/health`                        | 92,000       | ~3ms          |
 
 **Testing conditions**: 300 concurrent workers, 3-second duration, HTTP/1.1 with persistent connections, full middleware stack
 
@@ -649,6 +660,7 @@ Les améliorations v1.1 ont été apportées à l'API pour augmenter considérab
 Élimine les opérations de chaîne répétées (ToLower(), ReplaceAll()) pendant les recherches en calculant les versions normalisées une seule fois lors du parsing des données BDPM. La normalisation se produit une fois par médicament au lieu d'être exécutée à chaque requête de recherche.
 
 Avantages :
+
 - Réduction drastique des allocations mémoire par recherche (16,000 → 94)
 - Lookups par chaîne directement au lieu de calculer à la volée
 - Amélioration de la latence de recherche par un facteur important
@@ -658,13 +670,32 @@ Avantages :
 Réduit l'overhead I/O console en production en n'activant pas le logging debug/info en environnement de production et de test. Seuls les messages WARN et ERROR sont loggés dans ces environnements.
 
 Avantages :
+
 - Réduction de ~40% de l'overhead de logging en production
 - Maintient les logs complets en développement
 - Meilleure visibilité des problèmes réels (WARN/ERROR)
 
+**Optimisation de la validation**
+
+- Pré-compilation des regex au niveau package
+- Remplacement des patterns de danger par `string.Contains()` (5-10x plus rapide que regex)
+- Validation CIP/CIS directe via `strconv.Atoi()` sans regex
+
 **Résultats combinés**
 
 Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-3x sur la plupart des endpoints :
+
+| Endpoint                         | Avant      | Après      | Amélioration |
+| -------------------------------- | ---------- | ---------- | ------------ |
+| `/v1/presentations/{cip}`        | 35K req/s  | 77K req/s  | +120%        |
+| `/v1/medicaments/{cis}`          | 30K req/s  | 78K req/s  | +160%        |
+| `/v1/medicaments?cip={code}`     | 35K req/s  | 75K req/s  | +114%        |
+| `/v1/medicaments?page={n}`       | 20K req/s  | 41K req/s  | +105%        |
+| `/v1/generiques?libelle={nom}`   | 20K req/s  | 36K req/s  | +80%         |
+| `/v1/medicaments?search={query}` | 5K req/s   | 6.1K req/s | +22%         |
+| `/health`                        | 30K req/s  | 92K req/s  | +207%        |
+
+**Memory** : Gamme 55-80MB avec 67.5MB médiane
 
 - **Lookups O(1) (CIS, CIP)** : Amélioration significative du débit
 - **Recherches regex** : Performance accrue grâce aux chaînes pré-normalisées
@@ -972,7 +1003,7 @@ L'architecture privilégie la simplicité, l'efficacité et la résilience :
 
 ### Prérequis
 
-- **Go 1.21+** avec support des modules
+- **Go 1.24+** avec support des modules
 - **2GB RAM** recommandé pour le développement
 - **Connexion internet** pour les mises à jour BDPM
 
@@ -1016,7 +1047,7 @@ golangci-lint run  # si installé
 
 #### Analyse statique
 
-```bash
+````bash
 # Analyse statique du code Go - détecte les problèmes potentiels
 go vet ./...
 
@@ -1050,7 +1081,7 @@ LOG_LEVEL=info               # Niveau de log console (les fichiers sont toujours
 # Limites optionnelles
 MAX_REQUEST_BODY=1048576     # 1MB max corps de requête
 MAX_HEADER_SIZE=1048576      # 1MB max taille headers
-```
+````
 
 ### Fonctionnalités du serveur de développement
 
@@ -1125,6 +1156,7 @@ Source : https://base-donnees-publique.medicaments.gouv.fr
 ## Changelog
 
 Décembre 2025
+
 - Fix encodage des caractères: Changement de charset de Windows1252 vers détection automatique UTF-8/ISO8859-1 dans le downloader
 - Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
 - Fix logging shutdown: Correction des logs pendant l'arrêt du serveur
@@ -1132,6 +1164,7 @@ Décembre 2025
 Février 2026
 
 **Nouvelles fonctionnalités**
+
 - Endpoints v1 avec headers de dépréciation, caching ETag et coûts de token mis à jour
 - Routes RESTful : `/v1/medicaments/{cis}`, `/v1/presentations/{cip}`, `/v1/medicaments/export`
 - Maps de lookup CIP7/CIP13 avec détection de doublons
@@ -1142,22 +1175,26 @@ Février 2026
 - LOG_LEVEL fonctionnel : contrôle le niveau de log console/fichiers (fallback par environnement)
 
 **Performance**
+
 - Amélioration de 6-10x des recherches : noms normalisés pré-calculés réduisant allocations de 170x
 - Validation des entrées optimisée 5-10x : pré-compilation regex, remplacement par string.Contains()
 - Logging optimisé : skip /health et /metrics, réduction volume logs
 
 **Corrections**
+
 - Correction du logging lors de l'arrêt du serveur
 - Endpoint /v1/medicaments : retourne 404 si non trouvé (au lieu de tableau vide)
 - Race conditions corrigées dans le logger rotatif (fuites ressources + concurrence)
 - Validation génériques stricte : groupID 1-9999 avec messages d'erreur clairs
 
 **Refactoring et tests**
+
 - Modernisation syntaxe, division des fichiers de tests et simplification des calculs
 - Mise à jour de la suite de tests pour utiliser les endpoints v1
 - Migration Go 1.24, ajout smoke tests, consolidation benchmarks
 
 **Qualité des données**
+
 - Rapports sur les médicaments sans conditions, génériques, présentations, ou composition
 - Gestion des cas limites TSV : statistiques de skip pour lignes mal formatées
 

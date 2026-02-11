@@ -597,7 +597,7 @@
             <span class="stat-label">RAM stable</span>
           </div>
           <div class="stat">
-            <span class="stat-number">75.5%</span>
+            <span class="stat-number">78.5%</span>
             <span class="stat-label">Test coverage</span>
           </div>
           <div class="stat">
@@ -616,7 +616,7 @@
             ultra-performante. Parsing concurrent des sources en **~0.5
             secondes** avec validation croisée et structuration automatique via
             atomic operations pour garantir des mises à jour zero-downtime.
-            Architecture optimisée pour **380K req/sec** avec seulement
+            Architecture optimisée pour **92K req/sec** avec seulement
             **30-50MB RAM** stable.
           </p>
           <br />
@@ -933,7 +933,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🚀</div>
             <h3>Performance exceptionnelle</h3>
             <p>
-              Architecture optimisée pour <b>391K requêtes/seconde</b> sur les
+              Architecture optimisée pour <b>92K requêtes/seconde</b> sur les
               endpoints critiques. Lookup O(1) en ~2.6µs via maps mémoire,
               compression gzip 80%, et cache HTTP intelligent avec 90%+ hit
               ratio. Tests complets avec 70%+ couverture.
@@ -947,7 +947,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                380K req/sec ⚡
+                92K req/sec ⚡
               </code>
             </div>
           </div>
@@ -2132,11 +2132,14 @@ Content-Type: application/json
               alphanumériques séparés par
               <code style="color: var(--color-highlight)">+</code> ou espace
             </p>
-            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
-              <strong>Caractères autorisés :</strong> Lettres, chiffres,
-              espaces, tirets (-), apostrophes ('), points (.), signe plus (+),
-              et accents français (àâäéèêëïîôöùûüÿç)
-            </p>
+             <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+               <strong>Caractères autorisés :</strong> Lettres, chiffres,
+               espaces, tirets (-), apostrophes ('), points (.), et signe plus (+)
+             </p>
+             <p style="color: var(--color-accent); font-size: 0.9rem; margin-top: 0.5rem">
+               <strong>Note :</strong> Les données source BDPM sont en majuscules sans accents.
+               Utilisez des caractères sans accents (ex: "ibuprofene" au lieu de "ibuprofène").
+             </p>
             <p style="color: var(--color-text-muted)">
               <strong>Insensible à la casse :</strong> La recherche ne tient pas
               compte des majuscules/minuscules
@@ -2158,9 +2161,9 @@ Content-Type: application/json
                 padding: 0.5rem 0.75rem;
                 border-radius: 4px;
               "
-            >
-              paracétamol-400</code
-            >
+             >
+               paracetamol-400</code
+             >
             <code
               style="
                 background: var(--color-bg);
