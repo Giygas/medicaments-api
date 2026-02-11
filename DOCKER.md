@@ -269,7 +269,7 @@ Log aggregation and storage.
 
 - **Image**: `grafana/loki:2.9.10`
 - **Configuration**: `loki/config.yaml`
-- **Port**: 3100
+- **Port**: 3150
 - **Retention**: 30 days
 - **Data Volume**: `loki-data`
 - **Resource Usage**: ~100MB RAM + ~100MB disk
@@ -306,7 +306,7 @@ open http://localhost:3000
 open http://localhost:9091
 
 # Loki API (log queries)
-curl http://localhost:3100/loki/api/v1/labels
+curl http://localhost:3150/loki/api/v1/labels
 
 # Alloy metrics (collector status)
 curl http://localhost:12345/metrics
@@ -403,7 +403,7 @@ docker-compose exec grafana-alloy ls -la /var/log/app/
 docker-compose logs loki | grep -i received
 
 # Test Loki query
-curl -G 'http://localhost:3100/loki/api/v1/query_range' \
+curl -G 'http://localhost:3150/loki/api/v1/query_range' \
   --data-urlencode 'query={app="medicaments_api"}' \
   --data-urlencode 'start=1699488000000000000' \
   --data-urlencode 'end=1699491600000000000'
@@ -458,7 +458,7 @@ docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medic
 | File | Purpose |
 |-------|---------|
 | `observability/alloy/config.alloy` | Alloy configuration (logs + metrics collection) |
-| `observability/loki/config.yaml` | Loki configuration (log storage, 30-day retention) |
+| `observability/loki/config.yaml` | Loki configuration (log storage, 30-day retention, 16MB/sec ingestion rate) |
 | `observability/prometheus/prometheus.yml` | Prometheus configuration (metric storage, 30-day retention) |
 | `observability/grafana/provisioning/datasources/loki.yml` | Auto-configure Loki datasource |
 | `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource |
@@ -1008,4 +1008,4 @@ For issues or questions:
 
 ---
 
-**Last updated: 2025-02-08**
+**Last updated: 2026-02-11**

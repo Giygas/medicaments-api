@@ -14,9 +14,6 @@ common:
     kvstore:
       store: inmemory
 
-query_range:
-  split_queries_by_interval: 15m
-
 schema_config:
   configs:
     - from: 2024-01-01
@@ -31,9 +28,13 @@ ruler:
   alertmanager_url: http://localhost:9093
 
 limits_config:
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  max_streams_per_user: 10000
   enforce_metric_name: false
   reject_old_samples: true
   reject_old_samples_max_age: 168h
+  split_queries_by_interval: 15m
 
 # Configure retention (30 days)
 compactor:

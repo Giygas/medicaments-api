@@ -12,8 +12,10 @@ A complete local observability stack has been added to your Docker staging envir
    - Forwards to local Loki and Prometheus
 
 2. **`observability/loki/config.yaml`** - Loki configuration
-   - Stores logs for 30 days
-   - Exposes API on port 3100
+    - Stores logs for 30 days
+     - Exposes API on port 3150
+    - Ingestion rate: 16 MB/sec (increased from default 4 MB/sec)
+    - Burst size: 32 MB/sec (increased from default 8 MB/sec)
 
 3. **`observability/prometheus/prometheus.yml`** - Prometheus configuration
    - Scrapes metrics from Alloy
@@ -46,7 +48,7 @@ A complete local observability stack has been added to your Docker staging envir
 |----------|------|------|---------|
 | medicaments-api | 8030, 9090 | ~50MB | ~20MB | API + Metrics |
 | grafana-alloy | 12345 | ~150MB | ~10MB | Log/Metric Collector |
-| loki | 3100 | ~100MB | ~100MB | Log Storage |
+| loki | 3150 | ~100MB | ~100MB | Log Storage |
 | prometheus | 9091 | ~150MB | ~200MB | Metric Storage |
 | grafana | 3000 | ~200MB | ~50MB | Visualization |
 | **Total** | - | **~650MB** | **~380MB** |
@@ -64,7 +66,7 @@ All observability configurations now organized in `observability/` directory:
 - **8030** - medicaments-api (HTTP API)
 - **9090** - medicaments-api (Prometheus metrics)
 - **12345** - grafana-alloy (self-metrics)
-- **3100** - loki (Loki API)
+- **3150** - loki (Loki API)
 - **9091** - prometheus (Prometheus UI)
 - **3000** - grafana (Grafana UI)
 
@@ -90,7 +92,7 @@ docker-compose ps
 # NAME                    STATUS              PORTS
 # medicaments-api-staging  Up                  0.0.0.0:8030->8000/tcp, 0.0.0.0:9090->9090/tcp
 # grafana-alloy          Up                  0.0.0.0:12345->12345/tcp
-# loki                   Up                  0.0.0.0:3100->3100/tcp
+# loki                   Up                  0.0.0.0:3150->3100/tcp
 # prometheus             Up                  0.0.0.0:9091->9090/tcp
 # grafana                Up                  0.0.0.0.0:3000->3000/tcp
 ```
@@ -221,7 +223,7 @@ ls -la logs/
 docker-compose exec grafana-alloy ls -la /var/log/app/
 
 # Test Loki query
-curl -G 'http://localhost:3100/loki/api/v1/query_range' \
+curl -G 'http://localhost:3150/loki/api/v1/query_range' \
   --data-urlencode 'query={app="medicaments_api"}' \
   --data-urlencode 'start=1709452800000000000' \
   --data-urlencode 'end=17094564000000000'
@@ -262,11 +264,15 @@ docker-compose up -d
 
 **Loki** (30 days): Edit `loki/config.yaml`:
 ```yaml
+limits_config:
+  ingestion_rate_mb: 16  # Reduce if experiencing high ingestion volume
+  ingestion_burst_size_mb: 32
+
 table_manager:
   retention_period: 720h  # Change to desired hours
 ```
 
-**Prometheus** (15 days): Edit `prometheus/prometheus.yml`:
+**Prometheus** (30 days): Edit `prometheus/prometheus.yml`:
 ```yaml
 # Add to global section
 global:
@@ -343,4 +349,4 @@ ls -lh DOCKER*.md
 
 ---
 
-**Last updated: 2025-02-09**
+**Last updated: 2026-02-10**
