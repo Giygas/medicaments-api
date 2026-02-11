@@ -397,23 +397,40 @@ func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http
 
 // HealthCheck returns server health information
 func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	// Get data statistics
+
+	// Get data statistics with error handling
 	medicaments := h.dataStore.GetMedicaments()
 	generiques := h.dataStore.GetGeneriques()
 	lastUpdate := h.dataStore.GetLastUpdated()
 	isUpdating := h.dataStore.IsUpdating()
+
 	dataAge := time.Since(lastUpdate)
 
-	// Determine health status based on data availability and age
+	// Determine health status
 	var healthStatus string
 	var httpStatus int
+
 	switch {
-	case len(medicaments) == 0:
+	case len(medicaments) == 0 || len(generiques) == 0:
+		// No data = service unavailable
 		healthStatus = "unhealthy"
 		httpStatus = http.StatusServiceUnavailable
+
+	case dataAge > 48*time.Hour:
+		// Severely stale data = unhealthy
+		healthStatus = "unhealthy"
+		httpStatus = http.StatusServiceUnavailable
+
 	case dataAge > 24*time.Hour:
+		// Moderately stale data = degraded (but still returns 503 for alerting)
 		healthStatus = "degraded"
-		httpStatus = http.StatusOK
+		httpStatus = http.StatusServiceUnavailable // Changed from 200
+
+	case isUpdating && dataAge > 6*time.Hour:
+		// Stuck in updating state
+		healthStatus = "degraded"
+		httpStatus = http.StatusServiceUnavailable
+
 	default:
 		healthStatus = "healthy"
 		httpStatus = http.StatusOK
@@ -422,16 +439,12 @@ func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	response := HealthResponseImpl{
 		Status: healthStatus,
 		Data: map[string]any{
-			"last_update": lastUpdate.Format(time.RFC3339),
-			"medicaments": len(medicaments),
-			"generiques":  len(generiques),
-			"is_updating": isUpdating,
+			"last_update":    lastUpdate.Format(time.RFC3339),
+			"data_age_hours": dataAge.Hours(),
+			"medicaments":    len(medicaments),
+			"generiques":     len(generiques),
+			"is_updating":    isUpdating,
 		},
-	}
-
-	// Set appropriate status code
-	if healthStatus == "unhealthy" {
-		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
 	h.RespondWithJSON(w, httpStatus, response)

@@ -401,7 +401,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 
 	// Check data section fields
 	if dataSection, ok := healthResponse["data"].(map[string]any); ok {
-		dataFields := []string{"last_update", "medicaments", "generiques", "is_updating"}
+		dataFields := []string{"last_update", "data_age_hours", "medicaments", "generiques", "is_updating"}
 		for _, field := range dataFields {
 			if _, exists := dataSection[field]; !exists {
 				t.Errorf("Health response data section missing %s field", field)

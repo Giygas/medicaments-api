@@ -739,6 +739,7 @@ L'endpoint `/health` fournit une réponse simplifiée pour vérifier l'état de 
   "status": "healthy",
   "data": {
     "last_update": "2026-01-15T06:00:00Z",
+    "data_age_hours": 2.5,
     "medicaments": 15420,
     "generiques": 5200,
     "is_updating": false

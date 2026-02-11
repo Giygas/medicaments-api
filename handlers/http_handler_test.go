@@ -841,7 +841,7 @@ func TestHealthCheck(t *testing.T) {
 			generiques:     []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test Group", []int{1})},
 			lastUpdated:    time.Now().Add(-25 * time.Hour),
 			updating:       false,
-			expectedCode:   http.StatusOK,
+			expectedCode:   http.StatusServiceUnavailable,
 			expectedStatus: "degraded",
 		},
 		{
@@ -897,7 +897,7 @@ func TestHealthCheck(t *testing.T) {
 
 			// Verify data field contains expected keys
 			if data, ok := response["data"].(map[string]any); ok {
-				expectedDataKeys := []string{"last_update", "medicaments", "generiques", "is_updating"}
+				expectedDataKeys := []string{"last_update", "data_age_hours", "medicaments", "generiques", "is_updating"}
 				for _, key := range expectedDataKeys {
 					if _, ok := data[key]; !ok {
 						t.Errorf("Data should contain '%s' key", key)
@@ -906,7 +906,7 @@ func TestHealthCheck(t *testing.T) {
 			}
 
 			// Verify removed fields are not present
-			removedFields := []string{"data_age_hours", "uptime_seconds", "system"}
+			removedFields := []string{"uptime_seconds", "system"}
 			for _, field := range removedFields {
 				if _, ok := response[field]; ok {
 					t.Errorf("Response should not contain '%s' field (removed)", field)
