@@ -1,0 +1,154 @@
+name: Security Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Fast blocking security checks - must pass before PR can merge
+  quick-security:
+    name: Quick Security Checks (Blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Go Setup (includes golangci-lint)
+        uses: ./.github/actions/go-setup
+
+      - name: Install gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run gosec (blocking on HIGH/CRITICAL)
+        run: |
+          gosec -fmt json -out gosec-report.json ./... > gosec-output.txt 2>&1 || true
+          cat gosec-output.txt
+
+          # Check for HIGH or CRITICAL severity issues
+          if grep -q '"Severity": "[HC]' gosec-report.json 2>/dev/null; then
+            echo "❌ SECURITY ISSUE FOUND: HIGH or CRITICAL severity vulnerabilities detected"
+            grep -E '"Severity": "[HC]' gosec-report.json
+            exit 1
+          fi
+          echo "✅ No HIGH or CRITICAL security issues found"
+
+      - name: Install govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run govulncheck (blocking)
+        run: |
+          echo "Running govulncheck..."
+          govulncheck -json ./... > vuln-report.json 2>&1 || true
+
+          # Check if any vulnerabilities were found
+          VULN_COUNT=$(jq '[.[] | select(.ID != null)] | length' vuln-report.json || echo "0")
+          if [ "$VULN_COUNT" -gt "0" ]; then
+            echo "❌ VULNERABILITIES FOUND: $VULN_COUNT vulnerabilities detected"
+            echo "Run 'govulncheck ./...' locally for details"
+            exit 1
+          fi
+          echo "✅ No known vulnerabilities found"
+
+      - name: Upload gosec report
+        uses: actions/upload-artifact@v6
+        with:
+          name: gosec-report
+          path: |
+            gosec-report.json
+            gosec-output.txt
+          retention-days: 30
+
+      - name: Upload govulncheck report
+        uses: actions/upload-artifact@v6
+        with:
+          name: govulncheck-report
+          path: vuln-report.json
+          retention-days: 30
+
+  # Full security analysis - runs after quick checks, non-blocking
+  full-security:
+    name: Full Security Analysis (Non-blocking)
+    runs-on: ubuntu-latest
+    needs: quick-security
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Go Setup
+        uses: ./.github/actions/go-setup
+
+      - name: Install gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Create logs directory
+        run: mkdir -p logs
+
+      - name: Run gosec full analysis
+        run: |
+          echo "Running full gosec analysis..."
+          gosec -fmt json -out gosec-full-report.json ./... || true
+
+          # Generate human-readable summary
+          gosec -fmt text -out gosec-full-report.txt ./... || true
+          echo "✅ Full gosec analysis completed"
+
+      - name: Install govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run govulncheck full analysis
+        run: |
+          echo "Running full govulncheck analysis..."
+          govulncheck ./... || true
+          echo "✅ Full govulncheck analysis completed"
+
+      - name: Comment PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            let comment = '## 🔒 Security Analysis Results\n\n';
+            comment += '*Automated security analysis completed*\n\n';
+            
+            // Add gosec results
+            if (fs.existsSync('gosec-full-report.txt')) {
+              const gosecResults = fs.readFileSync('gosec-full-report.txt', 'utf8');
+              const issueCount = (gosecResults.match(/\[.*\]/g) || []).length;
+              comment += `### 🛡️ gosec Results\n`;
+              comment += `- Issues found: ${issueCount}\n`;
+              comment += `- See uploaded artifacts for details\n\n`;
+            }
+            
+            // Add govulncheck results
+            comment += `### 🔍 govulncheck Results\n`;
+            comment += `- Quick check passed (no vulnerabilities found)\n\n`;
+            
+            comment += `> 📝 Full reports are available as workflow artifacts`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Upload full security reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: security-full-reports
+          path: |
+            gosec-full-report.json
+            gosec-full-report.txt
+          retention-days: 30

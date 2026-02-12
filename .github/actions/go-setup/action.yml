@@ -1,0 +1,72 @@
+name: "Go Setup"
+description: "Setup Go environment with all necessary checks and caching"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Go environment
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.24'
+    - run: go version
+      shell: bash
+
+    - name: Cache Go modules
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      shell: bash
+      run: go mod download
+
+    - name: Install bc for coverage calculations
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update && sudo apt-get install -y bc
+        elif [ "$RUNNER_OS" = "Darwin" ]; then
+          brew install bc
+        fi
+
+    - name: Install golangci-lint
+      shell: bash
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.59.1
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Run golangci-lint
+      shell: bash
+      run: golangci-lint run --timeout=5m
+
+    - name: Verify dependencies
+      shell: bash
+      run: go mod verify
+
+    - name: Run go vet
+      shell: bash
+      run: |
+        echo "Running go vet..."
+        if go vet ./...; then
+          echo "✅ go vet passed"
+        else
+          echo "❌ go vet found issues"
+          exit 1
+        fi
+
+    - name: Run go fmt check
+      shell: bash
+      run: |
+        if [ "$(gofmt -s -l . | grep -v '^vendor/' | wc -l)" -gt 0 ]; then
+          echo "❌ The following files are not formatted:"
+          gofmt -s -l . | grep -v '^vendor/'
+          echo ""
+          echo "Run 'gofmt -w .' to fix formatting"
+          exit 1
+        fi
+        echo "✅ All files are properly formatted"

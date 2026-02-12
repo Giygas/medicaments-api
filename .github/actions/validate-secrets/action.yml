@@ -1,0 +1,41 @@
+name: "Validate Secrets"
+description: "Validate required and optional secrets are set"
+
+inputs:
+  required_secrets:
+    description: "Comma-separated list of required secret names"
+    required: true
+  optional_secrets:
+    description: "Comma-separated list of optional secret names"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate secrets
+      shell: bash
+      run: |
+        echo "Validating secrets..."
+
+        IFS=',' read -ra REQUIRED <<< "${{ inputs.required_secrets }}"
+        for secret in "${REQUIRED[@]}"; do
+          secret=$(echo "$secret" | xargs)
+          secret_value="${{ secrets[secret] }}"
+          if [ -z "$secret_value" ]; then
+            echo "ERROR: $secret secret is not set"
+            exit 1
+          fi
+        done
+
+        if [ -n "${{ inputs.optional_secrets }}" ]; then
+          IFS=',' read -ra OPTIONAL <<< "${{ inputs.optional_secrets }}"
+          for secret in "${OPTIONAL[@]}"; do
+            secret=$(echo "$secret" | xargs)
+            secret_value="${{ secrets[secret] }}"
+            if [ -z "$secret_value" ]; then
+              echo "WARNING: $secret secret is not set (optional)"
+            fi
+          done
+        fi
+
+        echo "✅ All required secrets are present"

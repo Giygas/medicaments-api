@@ -5,80 +5,227 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: deployment-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # Run comprehensive tests before deployment
+  detect-changes:
+    name: Detect File Changes
+    runs-on: ubuntu-latest
+    outputs:
+      docs-changed: ${{ steps.filter.outputs.docs }}
+      app-changed: ${{ steps.filter.outputs.app }}
+      changed-files: ${{ steps.filter.outputs.all_changed_files }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Filter changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - '!html/**'
+            docs:
+              - 'html/**'
+          list-files: shell
+
   test:
     name: Comprehensive Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app-changed == 'true'
     uses: ./.github/workflows/tests.yml
     secrets: inherit
 
-  setup_go:
-    name: setup go
+  build:
+    name: Build Application
     runs-on: ubuntu-latest
-    needs: test  # Only deploy if tests pass
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app-changed == 'true'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
 
-      - name: Install dependencies
-        run: go mod download
-      - name: Build
+      - name: Go Setup
+        uses: ./.github/actions/go-setup
+
+      - name: Cache built binary
+        uses: actions/cache@v4
+        id: binary-cache
+        with:
+          path: medicaments-api
+          key: ${{ runner.os }}-binary-${{ hashFiles('go.mod', 'go.sum', '**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-binary-
+
+      - name: Build application
+        if: steps.binary-cache.outputs.cache-hit != 'true'
+        shell: bash
         run: |
           GOOS=linux GOARCH=amd64 go build -o medicaments-api .
-          ls -la medicaments-api  # Verify binary exists and show size
-          file medicaments-api    # Show file type to confirm it's executable
-        
-      - name: install ssh keys
-        # check this thread to understand why its needed:
-        # https://stackoverflow.com/a/70447517
+          ls -la medicaments-api
+          file medicaments-api
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: medicaments-api-binary
+          path: medicaments-api
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test, build]
+    if: needs.detect-changes.outputs.app-changed == 'true'
+
+    steps:
+      - name: Show changed files
         run: |
-          install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
-          
+          echo "📋 Changed files detected:"
+          echo "${{ needs.detect-changes.outputs.changed-files }}"
+      - name: Download binary artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: medicaments-api-binary
+          path: .
+
+      - name: SSH Setup
+        uses: ./.github/actions/ssh-setup
+
+      - name: Validate required secrets
+        uses: ./.github/actions/validate-secrets
+        with:
+          required_secrets: SSH_USER,SSH_HOST,SSH_PRIVATE_KEY,REPO_DIR,APP_RESTART,ADDRESS,PORT
+          optional_secrets: HTML_DIR
+
       - name: Test SSH connection
+        shell: bash
         run: |
           ssh -o ConnectTimeout=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
-          
+
       - name: Verify target directory exists
+        shell: bash
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ${{ secrets.REPO_DIR }} && ls -la ${{ secrets.REPO_DIR }}"
 
+      - name: Get version info for metadata
+        id: version
+        shell: bash
+        run: |
+          # Get tag for this commit (if it exists)
+          TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+          # Get commit message
+          MESSAGE=$(git log -1 --pretty=%s ${{ github.sha }})
+          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+          
+          # Get short SHA for display
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-9)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          # Display version info
+          if [ -n "$TAG" ]; then
+            echo "📦 Deploying version: $TAG"
+            echo "📝 Commit: $MESSAGE"
+          else
+            echo "📦 Deploying commit: $SHORT_SHA (no tag)"
+            echo "📝 Commit: $MESSAGE"
+          fi
 
-      - name: Stop the service waiting for it's correct shutdown
+      - name: Backup current version
+        shell: bash
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' << 'EOF'
+            cd "${REPO_DIR}"
+            echo "=== Creating backup ==="
+
+            # Create backups directory if it doesn't exist
+            mkdir -p backups
+
+            # Generate timestamp
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            BACKUP_DIR="backups/medicaments-api-${TIMESTAMP}"
+
+            # Create backup directory
+            mkdir -p "${BACKUP_DIR}"
+
+            # Backup binary if it exists
+            if [ -f medicaments-api ]; then
+              cp medicaments-api "${BACKUP_DIR}/"
+              echo "✓ Backed up binary to ${BACKUP_DIR}/medicaments-api"
+            else
+              echo "⚠ No binary found to backup (first deployment?)"
+            fi
+
+            # Backup html directory if it exists
+            if [ -d html ]; then
+              cp -r html "${BACKUP_DIR}/"
+              echo "✓ Backed up html to ${BACKUP_DIR}/html"
+            fi
+
+            # Create metadata file for tracking
+            echo "timestamp=${TIMESTAMP}" > "${BACKUP_DIR}/metadata.txt"
+            echo "sha=${SHA}" >> "${BACKUP_DIR}/metadata.txt"
+            echo "commit=${COMMIT}" >> "${BACKUP_DIR}/metadata.txt"
+            echo "branch=${BRANCH}" >> "${BACKUP_DIR}/metadata.txt"
+            echo "tag=${TAG}" >> "${BACKUP_DIR}/metadata.txt"
+            echo "message=${MESSAGE}" >> "${BACKUP_DIR}/metadata.txt"
+            echo "short_sha=${SHORT_SHA}" >> "${BACKUP_DIR}/metadata.txt"
+
+            # Cleanup: Keep only last 3 backups
+            cd backups
+            ls -t medicaments-api-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+            echo "✓ Cleanup complete, keeping last 3 backups"
+
+            echo "=== Backup created: ${BACKUP_DIR} ==="
+          EOF
+        env:
+          REPO_DIR: ${{ secrets.REPO_DIR }}
+          SHA: ${{ github.sha }}
+          COMMIT: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
+          MESSAGE: ${{ steps.version.outputs.message }}
+          SHORT_SHA: ${{ steps.version.outputs.short_sha }}
+
+      - name: Stop the service waiting for its correct shutdown
+        shell: bash
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             echo "=== Initiating graceful shutdown ==="
-            
+
             # Check if service exists and is running
             if sudo systemctl is-active --quiet medicaments-api; then
               echo "Service is running, initiating graceful stop..."
-              
+
               # Send graceful stop signal
               sudo systemctl stop medicaments-api
-              
-              # Wait for graceful shutdown (max 40 seconds - your timeout is 30s + buffer)
+
+              # Wait for graceful shutdown (max 20 seconds)
               echo "Waiting for graceful shutdown to complete..."
-              for i in {1..40}; do
+              for i in {1..20}; do
                 if ! sudo systemctl is-active --quiet medicaments-api; then
                   echo "Service stopped gracefully after ${i} seconds"
                   break
                 fi
-                echo "Still shutting down... (${i}/40)"
+                echo "Still shutting down... (${i}/20)"
                 sleep 1
               done
-              
+
               # Force stop if still running (shouldn't happen with proper graceful shutdown)
               if sudo systemctl is-active --quiet medicaments-api; then
                 echo "WARNING: Graceful shutdown timed out, forcing stop..."
                 sudo systemctl kill medicaments-api
                 sleep 2
-                
+
                 # Check if process is actually gone using pgrep instead of systemctl
                 if pgrep -f medicaments-api > /dev/null; then
                   echo "ERROR: Processes still running after force kill, cleaning up..."
@@ -87,28 +234,29 @@ jobs:
                   sudo systemctl reset-failed medicaments-api
                 fi
               fi
-              
+
             else
               echo "Service is not running"
             fi
-            
+
             # Double-check no processes are left
             if pgrep -f medicaments-api > /dev/null; then
               echo "WARNING: Found lingering processes, cleaning up..."
               pkill -f medicaments-api
               sleep 2
             fi
-            
+
             echo "Service shutdown complete"
           EOF
 
-          
       - name: Copy binary to server
+        shell: bash
         run: |
           echo "Copying to: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}"
           scp -v medicaments-api ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}
 
       - name: Verify binary was copied
+        shell: bash
         run: |
           echo "=== Checking if binary exists after copy ==="
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
@@ -123,21 +271,121 @@ jobs:
           EOF
 
       - name: Copy html files
+        shell: bash
         run: |
           # Copy html directory if it exists
           if [ -d html ]; then
             scp -r html ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}/
           fi
-          
 
       - name: Set permissions and restart app
+        shell: bash
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             cd ${{ secrets.REPO_DIR }}
             chmod +x medicaments-api
-            ls -la medicaments-api  # Verify file is there and executable
+            ls -la medicaments-api
             ${{ secrets.APP_RESTART }}
           EOF
-          
-      - name: cleanup
-        run: rm -rf ~/.ssh
+
+      - name: Save deployment metadata
+        shell: bash
+        run: |
+          echo "DEPLOYMENT_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+          echo "DEPLOYMENT_SHA=${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Verify application health (with automatic rollback)
+        shell: bash
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' << 'EOF'
+            DEPLOYMENT_FAILED=false
+
+            echo "=== Verifying application health ==="
+
+            # Wait for service to be active (max 30 seconds)
+            for i in {1..30}; do
+              if sudo systemctl is-active --quiet medicaments-api; then
+                echo "✓ Service is active after ${i} seconds"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "✗ Service failed to start within 30 seconds"
+                sudo systemctl status medicaments-api
+                DEPLOYMENT_FAILED=true
+              fi
+              sleep 1
+            done
+
+            # Check health endpoint (only if service is active)
+            if [ "$DEPLOYMENT_FAILED" = "false" ]; then
+              echo "Checking health endpoint..."
+              HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ADDRESS }}:${{ secrets.PORT }}/health" || echo "000")
+
+              if [ "$HEALTH_RESPONSE" = "200" ]; then
+                echo "✓ Health endpoint returned 200 OK"
+                echo "=== Deployment verification successful ==="
+              else
+                echo "✗ Health endpoint returned $HEALTH_RESPONSE"
+                DEPLOYMENT_FAILED=true
+              fi
+            fi
+
+            # Rollback if deployment failed
+            if [ "$DEPLOYMENT_FAILED" = "true" ]; then
+              echo ""
+              echo "=== DEPLOYMENT FAILED - INITIATING ROLLBACK ==="
+              echo "Recent logs:"
+              sudo journalctl -u medicaments-api -n 50 --no-pager
+              echo ""
+
+              # Find latest backup
+              cd "${REPO_DIR}/backups"
+              LATEST_BACKUP=$(ls -t medicaments-api-* 2>/dev/null | head -1)
+
+              if [ -z "$LATEST_BACKUP" ]; then
+                echo "✗ ERROR: No backups found for rollback!"
+                exit 1
+              fi
+
+              echo "Rolling back to: $LATEST_BACKUP"
+
+              # Stop service
+              sudo systemctl stop medicaments-api
+
+              # Restore binary
+              if [ -f "$LATEST_BACKUP/medicaments-api" ]; then
+                cp "$LATEST_BACKUP/medicaments-api" ../medicaments-api
+                chmod +x ../medicaments-api
+                echo "✓ Restored binary"
+              fi
+
+              # Restore html
+              if [ -d "$LATEST_BACKUP/html" ]; then
+                rm -rf ../html
+                cp -r "$LATEST_BACKUP/html" ../
+                echo "✓ Restored html"
+              fi
+
+              # Restart service
+              cd "${REPO_DIR}"
+              ${APP_RESTART}
+              sleep 3
+
+              # Verify rollback succeeded
+              if sudo systemctl is-active --quiet medicaments-api; then
+                echo "✓ Rollback successful, service is running"
+                echo "Please investigate the failed deployment logs"
+                exit 1
+              else
+                echo "✗ Rollback failed! Manual intervention required!"
+                sudo systemctl status medicaments-api
+                exit 1
+              fi
+            fi
+          EOF
+        env:
+          REPO_DIR: ${{ secrets.REPO_DIR }}
+          APP_RESTART: ${{ secrets.APP_RESTART }}
+
+      - name: SSH Cleanup
+        uses: ./.github/actions/ssh-cleanup
