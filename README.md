@@ -7,6 +7,7 @@
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
+[![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](CHANGELOG.md)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français
 via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM,
@@ -1155,48 +1156,12 @@ Source : https://base-donnees-publique.medicaments.gouv.fr
 
 ## Changelog
 
-Décembre 2025
+Pour l'historique complet des versions et des changements détaillés, consultez le [CHANGELOG.md](CHANGELOG.md).
 
-- Fix encodage des caractères: Changement de charset de Windows1252 vers détection automatique UTF-8/ISO8859-1 dans le downloader
-- Corrige les problèmes d'encodage pour les médicaments avec caractères spéciaux
-- Fix logging shutdown: Correction des logs pendant l'arrêt du serveur
+### Versions
 
-Février 2026
-
-**Nouvelles fonctionnalités**
-
-- Endpoints v1 avec headers de dépréciation, caching ETag et coûts de token mis à jour
-- Routes RESTful : `/v1/medicaments/{cis}`, `/v1/presentations/{cip}`, `/v1/medicaments/export`
-- Maps de lookup CIP7/CIP13 avec détection de doublons
-- Endpoint `/v1/diagnostics` : rapports d'intégrité des données et métriques système
-- Champ orphanCIS dans les réponses génériques : codes CIS sans entrée médicament correspondante
-- Endpoint `/health` simplifié : statut de santé et données de base uniquement
-- Support du signe + dans les recherches : "paracetamol+cafeine" fonctionne comme "paracetamol cafeine"
-- LOG_LEVEL fonctionnel : contrôle le niveau de log console/fichiers (fallback par environnement)
-
-**Performance**
-
-- Amélioration de 6-10x des recherches : noms normalisés pré-calculés réduisant allocations de 170x
-- Validation des entrées optimisée 5-10x : pré-compilation regex, remplacement par string.Contains()
-- Logging optimisé : skip /health et /metrics, réduction volume logs
-
-**Corrections**
-
-- Correction du logging lors de l'arrêt du serveur
-- Endpoint /v1/medicaments : retourne 404 si non trouvé (au lieu de tableau vide)
-- Race conditions corrigées dans le logger rotatif (fuites ressources + concurrence)
-- Validation génériques stricte : groupID 1-9999 avec messages d'erreur clairs
-
-**Refactoring et tests**
-
-- Modernisation syntaxe, division des fichiers de tests et simplification des calculs
-- Mise à jour de la suite de tests pour utiliser les endpoints v1
-- Migration Go 1.24, ajout smoke tests, consolidation benchmarks
-
-**Qualité des données**
-
-- Rapports sur les médicaments sans conditions, génériques, présentations, ou composition
-- Gestion des cas limites TSV : statistiques de skip pour lignes mal formatées
+- **v1.1.0** (Février 2026) - API RESTful v1, améliorations de performance 22-207%, métriques Prometheus
+- **v1.0.0** (Décembre 2025) - Version initiale
 
 ---
 
