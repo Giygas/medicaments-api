@@ -831,6 +831,10 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
     "generique_only_cis": {
       "count": 45,
       "sample_cis": [64007890, 64008901]
+    },
+    "presentations_with_orphaned_cis": {
+      "count": 6,
+      "sample_cip": [3400935910882, 3400930279069]
     }
   }
 }
@@ -850,11 +854,12 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
   - `medicaments_without_presentations` : Médicaments sans présentations
   - `medicaments_without_compositions` : Médicaments sans composition
   - `generique_only_cis` : CIS présents uniquement dans les génériques
+  - `presentations_with_orphaned_cis` : Présentations référençant des CIS inexistants
 
 #### Notes sur l'intégrité des données
 
 - Les comptages représentent le nombre d'entrées affectées par chaque catégorie
-- `sample_cis` contient des exemples de CIS pour chaque catégorie (limité à 2 exemples)
+- Les tableaux `sample_cis` et `sample_cip` contiennent des exemples représentatifs pour investigation (2-10 selon la catégorie)
 - Ces informations aident à identifier les incohérences potentielles dans les données BDPM
 
 ## Architecture système

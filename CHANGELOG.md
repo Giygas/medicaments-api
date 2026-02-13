@@ -10,29 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-02-13
 
 ### Added
-- **New V1 RESTful API** with 9 new endpoints replacing legacy routes
-  - `/v1/medicaments/export` - Full dataset export (replaces `/database`)
-  - `/v1/medicaments/{cis}` - CIS lookup via path parameter (O(1))
-  - `/v1/medicaments?search={query}` - Multi-word search with AND logic
-  - `/v1/medicaments?page={n}` - Pagination support
-  - `/v1/medicaments?cip={code}` - CIP lookup via presentations
-  - `/v1/presentations/{cip}` - Presentations by CIP code
-  - `/v1/generiques/{groupID}` - Generic group by ID via path parameter
-  - `/v1/generiques?libelle={nom}` - Generic multi-word search
-  - `/v1/diagnostics` - System metrics and data quality reports
-- **Prometheus metrics monitoring** (port 9090/metrics)
-  - HTTP request counter (method, path, status)
-  - Request duration histogram (11 buckets: 1ms to 5s)
-  - Requests in-flight gauge for concurrent request tracking
-- **Sequential log file numbering** to prevent unbounded growth
-  - Format: `app-YYYY-Www_01.log`, `app-YYYY-Www_02.log`, etc.
-  - Replaces timestamp-based naming
-- **Multi-word search with AND logic** (1-6 words, + or space separator)
-- **CIP7/CIP13 lookup maps** with duplicate detection
-- **OrphanCIS tracking** in generique responses (data quality)
-- **Data quality reports** for database updates with cached diagnostics
-- **ETag caching** with SHA256-based ETags and If-None-Match support
-- **HTTP deprecation headers** on legacy endpoints (Sunset: 2026-07-31)
+- **RESTful v1 API** with 9 new endpoints using path-based routing
+  - Medicament lookup by CIS, CIP, or multi-word search
+  - Presentation and generique group endpoints
+  - `/v1/diagnostics` for system metrics and data quality reports
+- **Prometheus metrics** on port 9090 (request counter, duration histogram, in-flight gauge)
+- **Multi-word search** with AND logic (up to 6 words)
+- **ETag caching** with SHA256-based validation
+- **Sequential log numbering** to prevent unbounded growth (`_01`, `_02`, etc.)
+- **Orphaned presentations tracking** in `/v1/diagnostics`
+  - Shows CIP codes for presentations with non-existent CIS
 
 ### Changed
 - **Pre-computed normalized names**: 5x faster search, 170x fewer allocations

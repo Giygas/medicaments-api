@@ -82,18 +82,20 @@ func (m *mockSchedulerDataStore) GetServerStartTime() time.Time {
 
 func (m *mockSchedulerDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
 	return &interfaces.DataQualityReport{
-		DuplicateCIS:                       []int{},
-		DuplicateGroupIDs:                  []int{},
-		MedicamentsWithoutConditions:       0,
-		MedicamentsWithoutGeneriques:       0,
-		MedicamentsWithoutPresentations:    0,
-		MedicamentsWithoutCompositions:     0,
-		GeneriqueOnlyCIS:                   0,
-		MedicamentsWithoutConditionsCIS:    []int{},
-		MedicamentsWithoutGeneriquesCIS:    []int{},
-		MedicamentsWithoutPresentationsCIS: []int{},
-		MedicamentsWithoutCompositionsCIS:  []int{},
-		GeneriqueOnlyCISList:               []int{},
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        0,
+		MedicamentsWithoutGeneriques:        0,
+		MedicamentsWithoutPresentations:     0,
+		MedicamentsWithoutCompositions:      0,
+		GeneriqueOnlyCIS:                    0,
+		PresentationsWithOrphanedCIS:        0,
+		MedicamentsWithoutConditionsCIS:     []int{},
+		MedicamentsWithoutGeneriquesCIS:     []int{},
+		MedicamentsWithoutPresentationsCIS:  []int{},
+		MedicamentsWithoutCompositionsCIS:   []int{},
+		GeneriqueOnlyCISList:                []int{},
+		PresentationsWithOrphanedCISCIPList: []int{},
 	}
 }
 
