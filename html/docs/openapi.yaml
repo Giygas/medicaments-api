@@ -63,9 +63,13 @@ info:
   license:
     name: AGPL-3.0
     url: https://www.gnu.org/licenses/agpl-3.0.html
-externalDocs:
-  description: Base de données publique des médicaments
-  url: https://base-donnees-publique.medicaments.gouv.fr
+  externalDocs:
+    - description: Spécification OpenAPI interactive (Swagger UI)
+      url: https://medicaments-api.giygas.dev/docs
+    - description: Guide de migration vers API v1
+      url: https://medicaments-api.giygas.dev/docs/MIGRATION.md
+    - description: Base de données publique des médicaments
+      url: https://base-donnees-publique.medicaments.gouv.fr
 servers:
   - url: https://medicaments-api.giygas.dev/
 
