@@ -21,28 +21,28 @@ L'API délivre des performances exceptionnelles : lookups O(1) par code CIS ou C
 
 **Nouveaux endpoints v1 (recommandés) :**
 
-| Endpoint | Description | Documentation |
-|----------|-------------|-----------------|
-| `/v1/medicaments` | Recherche & browse médicaments | [Full API](html/docs/openapi.yaml) |
-| `/v1/generiques` | Groupes génériques | [Full API](html/docs/openapi.yaml) |
-| `/v1/presentations` | Présentations par CIP | [Full API](html/docs/openapi.yaml) |
-| `/v1/diagnostics` | Métriques système détaillées | [Full API](html/docs/openapi.yaml) |
-| `/health` | Santé système simplifiée | [Full API](html/docs/openapi.yaml) |
-| `/` | Documentation SPA | [Full API](html/docs/openapi.yaml) |
-| `/docs` | Swagger UI interactive | [Full API](html/docs/openapi.yaml) |
+| Endpoint            | Description                    | Documentation                      |
+| ------------------- | ------------------------------ | ---------------------------------- |
+| `/v1/medicaments`   | Recherche & browse médicaments | [Full API](html/docs/openapi.yaml) |
+| `/v1/generiques`    | Groupes génériques             | [Full API](html/docs/openapi.yaml) |
+| `/v1/presentations` | Présentations par CIP          | [Full API](html/docs/openapi.yaml) |
+| `/v1/diagnostics`   | Métriques système détaillées   | [Full API](html/docs/openapi.yaml) |
+| `/health`           | Santé système simplifiée       | [Full API](html/docs/openapi.yaml) |
+| `/`                 | Documentation SPA              | [Full API](html/docs/openapi.yaml) |
+| `/docs`             | Swagger UI interactive         | [Full API](html/docs/openapi.yaml) |
 
 **Endpoints legacy (dépréciés - suppression juillet 2026) :**
 
 Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 2026.
 
-| Endpoint | Description | Migration |
-|----------|-------------|------------|
-| `GET /database` | Base complète | → `/v1/medicaments/export` |
-| `GET /database/{page}` | Pagination | → `/v1/medicaments?page={n}` |
-| `GET /medicament/{nom}` | Recherche nom | → `/v1/medicaments?search={nom}` |
-| `GET /medicament/id/{cis}` | Recherche CIS | → `/v1/medicaments/{cis}` |
-| `GET /generiques/{libelle}` | Génériques libellé | → `/v1/generiques?libelle={libelle}` |
-| `GET /generiques/group/{id}` | Groupe générique | → `/v1/generiques/{id}` |
+| Endpoint                     | Description        | Migration                            |
+| ---------------------------- | ------------------ | ------------------------------------ |
+| `GET /database`              | Base complète      | → `/v1/medicaments/export`           |
+| `GET /database/{page}`       | Pagination         | → `/v1/medicaments?page={n}`         |
+| `GET /medicament/{nom}`      | Recherche nom      | → `/v1/medicaments?search={nom}`     |
+| `GET /medicament/id/{cis}`   | Recherche CIS      | → `/v1/medicaments/{cis}`            |
+| `GET /generiques/{libelle}`  | Génériques libellé | → `/v1/generiques?libelle={libelle}` |
+| `GET /generiques/group/{id}` | Groupe générique   | → `/v1/generiques/{id}`              |
 
 Voir le [Guide de Migration](docs/MIGRATION.md) pour les détails complets.
 
@@ -113,15 +113,21 @@ Note : Maximum de 6 mots par requête (protection DoS). Les mots peuvent être s
 
 ```javascript
 // Recherche par nom
-const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol');
+const response = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol",
+);
 const data = await response.json();
 
 // Recherche par CIS
-const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments/61504672');
+const response = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments/61504672",
+);
 const data = await response.json();
 
 // Pagination
-const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments?page=1');
+const response = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments?page=1",
+);
 const data = await response.json();
 console.log(`Page ${data.page} of ${data.maxPage}`);
 ```
@@ -176,7 +182,7 @@ print(f"Page {data['page']} of {data['maxPage']}")
 - 📝 **[Guide de migration v1](docs/MIGRATION.md)** - Migration depuis les endpoints legacy vers v1
 - 🧪 **[Guide de tests](docs/TESTING.md)** - Stratégies de tests, benchmarks, couverture
 
-## 🚀 Développement Local
+## Développement Local
 
 ### Prérequis
 
@@ -184,7 +190,7 @@ print(f"Page {data['page']} of {data['maxPage']}")
 - **2GB RAM** recommandé pour le développement
 - **Connexion internet** pour les mises à jour BDPM
 
-### ⚡ Démarrage Rapide
+### Démarrage Rapide
 
 ```bash
 # Cloner et configurer
@@ -202,7 +208,7 @@ cp .env.example .env
 go run .
 ```
 
-### 🛠️ Commandes de Développement
+### Commandes de Développement
 
 ```bash
 # Build
