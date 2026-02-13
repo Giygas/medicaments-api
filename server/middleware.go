@@ -126,12 +126,18 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 type RateLimiter struct {
 	clients map[string]*ratelimit.Bucket
 	mu      sync.RWMutex
+	wg      sync.WaitGroup
+
+	stopChan chan struct{}
+	stopped  bool
 }
 
 // NewRateLimiter creates a new rate limiter
 func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
-		clients: make(map[string]*ratelimit.Bucket),
+		clients:  make(map[string]*ratelimit.Bucket),
+		stopChan: make(chan struct{}),
+		stopped:  false,
 	}
 }
 
@@ -153,24 +159,53 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 	return bucket
 }
 
-// cleanup removes old clients periodically
+// cleanup starts a background goroutine that manages rate limiter memory.
+// Executes every 30 minutes to remove inactive clients (those with full buckets).
+// Continues until shutdown signal is received via stopChan.
+// Called once at application startup via init().
 func (rl *RateLimiter) cleanup() {
 	ticker := time.NewTicker(30 * time.Minute)
+	rl.wg.Add(1)
 	go func() {
-		for range ticker.C {
-			rl.mu.Lock()
-			// Remove clients with full buckets
-			for ip, bucket := range rl.clients {
-				if bucket.Available() == bucket.Capacity() {
-					delete(rl.clients, ip)
+		defer rl.wg.Done()
+		for {
+			select {
+			case <-ticker.C:
+				rl.mu.Lock()
+				// Remove clients with full buckets
+				for ip, bucket := range rl.clients {
+					if bucket.Available() == bucket.Capacity() {
+						delete(rl.clients, ip)
+					}
 				}
+				rl.mu.Unlock()
+			case <-rl.stopChan:
+				ticker.Stop()
+				return
 			}
-			rl.mu.Unlock()
 		}
 	}()
 }
 
 var globalRateLimiter = NewRateLimiter()
+
+// StopRateLimiter stops the rate limiter cleanup goroutine.
+// Must be called during application shutdown to prevent goroutine leaks.
+// Stops the 30-minute cleanup ticker and ensures all goroutines exit cleanly.
+// Safe to call multiple times - first call stops the goroutine, subsequent calls are no-ops.
+func StopRateLimiter() {
+	rl := globalRateLimiter
+	rl.mu.Lock()
+	if rl.stopped {
+		rl.mu.Unlock()
+		return
+	}
+	rl.stopped = true
+	close(rl.stopChan)
+	rl.mu.Unlock()
+
+	rl.wg.Wait()
+}
 
 func init() {
 	globalRateLimiter.cleanup()

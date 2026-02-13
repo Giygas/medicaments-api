@@ -31,6 +31,12 @@ type Server struct {
 	httpHandler   interfaces.HTTPHandler
 	healthChecker interfaces.HealthChecker
 	startTime     time.Time
+
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+
+	metricsServer   *http.Server
+	profilingServer *http.Server
 }
 
 // NewServer creates a new server instance
@@ -42,6 +48,8 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 	healthChecker := health.NewHealthChecker(dataContainer)
 	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
 
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+
 	server := &Server{
 		server: &http.Server{
 			Handler:      router,
@@ -50,11 +58,13 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
-		router:        router,
-		dataContainer: dataContainer,
-		config:        cfg,
-		httpHandler:   httpHandler,
-		healthChecker: healthChecker,
+		router:         router,
+		dataContainer:  dataContainer,
+		config:         cfg,
+		httpHandler:    httpHandler,
+		healthChecker:  healthChecker,
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
 	}
 
 	server.setupMiddleware()
@@ -164,18 +174,29 @@ func (s *Server) Start() error {
 
 // Start metrics server
 func (s *Server) startMetricsServer() {
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	s.metricsServer = &http.Server{
+		Addr:    "127.0.0.1:9090",
+		Handler: metricsMux,
+	}
+
+	logging.Info("Metrics: http://127.0.0.1:9090/metrics")
+
 	go func() {
-		metricsMux := http.NewServeMux()
-		metricsMux.Handle("/metrics", promhttp.Handler())
-
-		metricsServer := &http.Server{
-			Addr:    "127.0.0.1:9090",
-			Handler: metricsMux,
-		}
-
-		logging.Info("Metrics: http://127.0.0.1:9090/metrics")
-		if err := metricsServer.ListenAndServe(); err != nil {
+		if err := s.metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logging.Error("Metrics server failed", "error", err)
+		}
+	}()
+
+	go func() {
+		<-s.shutdownCtx.Done()
+		logging.Info("Shutting down metrics server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.metricsServer.Shutdown(shutdownCtx); err != nil {
+			logging.Error("Metrics server shutdown error", "error", err)
 		}
 	}()
 }
@@ -183,6 +204,8 @@ func (s *Server) startMetricsServer() {
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
 	logging.Info("Shutting down server...")
+
+	s.shutdownCancel()
 
 	if err := s.server.Shutdown(ctx); err != nil {
 		logging.Error("Server forced to shutdown", "error", err)
@@ -202,10 +225,26 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 // startProfilingServer starts the pprof profiling server in development mode
 func (s *Server) startProfilingServer() {
+	s.profilingServer = &http.Server{
+		Addr:    "localhost:6060",
+		Handler: nil,
+	}
+
+	logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
+
 	go func() {
-		logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
-		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+		if err := s.profilingServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logging.Warn("Profiling server failed: ", err)
+		}
+	}()
+
+	go func() {
+		<-s.shutdownCtx.Done()
+		logging.Info("Shutting down profiling server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.profilingServer.Shutdown(shutdownCtx); err != nil {
+			logging.Warn("Profiling server shutdown error: ", err)
 		}
 	}()
 }

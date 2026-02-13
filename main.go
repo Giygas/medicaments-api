@@ -79,6 +79,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Stop rate limiter cleanup goroutine
+	logging.Info("Stopping rate limiter cleanup goroutine...")
+	server.StopRateLimiter()
+
 	// Attempt graceful shutdown
 	if err := srv.Shutdown(ctx); err != nil {
 		logging.Error("Server shutdown failed", "error", err)
