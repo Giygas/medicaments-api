@@ -18,12 +18,14 @@ type DataQualityReport struct {
 	MedicamentsWithoutPresentations int // Count of medicaments without presentations
 	MedicamentsWithoutCompositions  int // Count of medicaments without compositions
 	GeneriqueOnlyCIS                int // CIS values in generiques that don't have corresponding medicaments
-	// Sample CIS for investigation (first 10, except compositions which has all)
-	MedicamentsWithoutConditionsCIS    []int
-	MedicamentsWithoutGeneriquesCIS    []int
-	MedicamentsWithoutPresentationsCIS []int
-	MedicamentsWithoutCompositionsCIS  []int
-	GeneriqueOnlyCISList               []int
+	PresentationsWithOrphanedCIS    int // Count of presentations referencing non-existent CIS
+	// Sample CIS/CIP for investigation (first 10, except compositions which has all)
+	MedicamentsWithoutConditionsCIS     []int
+	MedicamentsWithoutGeneriquesCIS     []int
+	MedicamentsWithoutPresentationsCIS  []int
+	MedicamentsWithoutCompositionsCIS   []int
+	GeneriqueOnlyCISList                []int
+	PresentationsWithOrphanedCISCIPList []int
 }
 
 // DataStore defines the contract for data storage operations.
@@ -117,7 +119,12 @@ type DataValidator interface {
 	ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
 
 	// ReportDataQuality generates a data quality report with all issues found
-	ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *DataQualityReport
+	ReportDataQuality(
+		medicaments []entities.Medicament,
+		generiques []entities.GeneriqueList,
+		presentationsCIP7Map map[int]entities.Presentation,
+		presentationsCIP13Map map[int]entities.Presentation,
+	) *DataQualityReport
 
 	// ValidateInput validates user input strings
 	ValidateInput(input string) error

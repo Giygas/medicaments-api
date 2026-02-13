@@ -85,7 +85,7 @@ func TestIntegrationFullDataParsingPipeline(t *testing.T) {
 	}
 
 	// Test 5: Verify data integrity
-	verifyDataIntegrity(t, medicaments, generiques, medicamentsMap, generiquesMap)
+	verifyDataIntegrity(t, medicaments, generiques, medicamentsMap, generiquesMap, presentationsCIP7Map, presentationsCIP13Map)
 
 	// Test 6: Test API endpoints with real data
 	testAPIEndpointsWithRealData(t, medicaments, generiques)
@@ -212,10 +212,10 @@ func cleanupTestEnvironment(t *testing.T) {
 	// os.RemoveAll("src")
 }
 
-func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList) {
+func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 	// Use existing validator to generate data quality report (eliminates redundant validation logic)
 	validator := validation.NewDataValidator()
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, presentationsCIP7Map, presentationsCIP13Map)
 
 	// Log data quality issues found (real-world data issues, not test failures)
 	if report.MedicamentsWithoutCompositions > 0 {
@@ -235,6 +235,10 @@ func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generi
 	if report.GeneriqueOnlyCIS > 0 {
 		t.Logf("Data quality: %d generique-only CIS (sample: %v)",
 			report.GeneriqueOnlyCIS, report.GeneriqueOnlyCISList[:min(10, len(report.GeneriqueOnlyCISList))])
+	}
+	if report.PresentationsWithOrphanedCIS > 0 {
+		t.Logf("Data quality: %d presentations with orphaned CIS (sample CIP: %v)",
+			report.PresentationsWithOrphanedCIS, report.PresentationsWithOrphanedCISCIPList[:min(10, len(report.PresentationsWithOrphanedCISCIPList))])
 	}
 
 	// Integration-test-specific structural checks (not covered by validator)

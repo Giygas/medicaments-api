@@ -460,20 +460,27 @@ func (m *MockDataValidator) CheckDuplicateCIP(presentations []entities.Presentat
 	return nil
 }
 
-func (m *MockDataValidator) ReportDataQuality(medicaments []entities.Medicament, generiques []entities.GeneriqueList) *interfaces.DataQualityReport {
+func (m *MockDataValidator) ReportDataQuality(
+	medicaments []entities.Medicament,
+	generiques []entities.GeneriqueList,
+	presentationsCIP7Map map[int]entities.Presentation,
+	presentationsCIP13Map map[int]entities.Presentation,
+) *interfaces.DataQualityReport {
 	return &interfaces.DataQualityReport{
-		DuplicateCIS:                       []int{},
-		DuplicateGroupIDs:                  []int{},
-		MedicamentsWithoutConditions:       0,
-		MedicamentsWithoutGeneriques:       0,
-		MedicamentsWithoutPresentations:    0,
-		MedicamentsWithoutCompositions:     0,
-		GeneriqueOnlyCIS:                   0,
-		MedicamentsWithoutConditionsCIS:    []int{},
-		MedicamentsWithoutGeneriquesCIS:    []int{},
-		MedicamentsWithoutPresentationsCIS: []int{},
-		MedicamentsWithoutCompositionsCIS:  []int{},
-		GeneriqueOnlyCISList:               []int{},
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        0,
+		MedicamentsWithoutGeneriques:        0,
+		MedicamentsWithoutPresentations:     0,
+		MedicamentsWithoutCompositions:      0,
+		GeneriqueOnlyCIS:                    0,
+		PresentationsWithOrphanedCIS:        0,
+		MedicamentsWithoutConditionsCIS:     []int{},
+		MedicamentsWithoutGeneriquesCIS:     []int{},
+		MedicamentsWithoutPresentationsCIS:  []int{},
+		MedicamentsWithoutCompositionsCIS:   []int{},
+		GeneriqueOnlyCISList:                []int{},
+		PresentationsWithOrphanedCISCIPList: []int{},
 	}
 }
 

@@ -450,6 +450,10 @@ func (h *HTTPHandlerImpl) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Requ
 			"count":      report.GeneriqueOnlyCIS,
 			"sample_cis": report.GeneriqueOnlyCISList,
 		},
+		"presentations_with_orphaned_cis": map[string]any{
+			"count":      report.PresentationsWithOrphanedCIS,
+			"sample_cip": report.PresentationsWithOrphanedCISCIPList,
+		},
 	}
 
 	response := DiagnosticsResponseImpl{

@@ -192,20 +192,24 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 func (v *DataValidatorImpl) ReportDataQuality(
 	medicaments []entities.Medicament,
 	generiques []entities.GeneriqueList,
+	presentationsCIP7Map map[int]entities.Presentation,
+	presentationsCIP13Map map[int]entities.Presentation,
 ) *interfaces.DataQualityReport {
 	report := &interfaces.DataQualityReport{
-		DuplicateCIS:                       []int{},
-		DuplicateGroupIDs:                  []int{},
-		MedicamentsWithoutConditions:       0,
-		MedicamentsWithoutGeneriques:       0,
-		MedicamentsWithoutPresentations:    0,
-		MedicamentsWithoutCompositions:     0,
-		GeneriqueOnlyCIS:                   0,
-		MedicamentsWithoutConditionsCIS:    []int{},
-		MedicamentsWithoutGeneriquesCIS:    []int{},
-		MedicamentsWithoutPresentationsCIS: []int{},
-		MedicamentsWithoutCompositionsCIS:  []int{},
-		GeneriqueOnlyCISList:               []int{},
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        0,
+		MedicamentsWithoutGeneriques:        0,
+		MedicamentsWithoutPresentations:     0,
+		MedicamentsWithoutCompositions:      0,
+		GeneriqueOnlyCIS:                    0,
+		PresentationsWithOrphanedCIS:        0,
+		MedicamentsWithoutConditionsCIS:     []int{},
+		MedicamentsWithoutGeneriquesCIS:     []int{},
+		MedicamentsWithoutPresentationsCIS:  []int{},
+		MedicamentsWithoutCompositionsCIS:   []int{},
+		GeneriqueOnlyCISList:                []int{},
+		PresentationsWithOrphanedCISCIPList: []int{},
 	}
 
 	// Check 1: Find all duplicate CIS codes
@@ -276,6 +280,33 @@ func (v *DataValidatorImpl) ReportDataQuality(
 		for _, cis := range gen.OrphanCIS {
 			if len(report.GeneriqueOnlyCISList) < 10 {
 				report.GeneriqueOnlyCISList = append(report.GeneriqueOnlyCISList, cis)
+			}
+		}
+	}
+
+	// Check 8: Count presentations with orphaned CIS (store first 10 CIP codes)
+	// Track which CIS codes have been checked to avoid counting the same presentation twice
+	// (same presentation can exist in both CIP7 and CIP13 maps if CIP7 is contained in CIP13)
+	checkedCIS := make(map[int]bool)
+	for _, pres := range presentationsCIP13Map {
+		if !checkedCIS[pres.Cis] {
+			checkedCIS[pres.Cis] = true
+			if !cisMap[pres.Cis] {
+				report.PresentationsWithOrphanedCIS++
+				if len(report.PresentationsWithOrphanedCISCIPList) < 10 {
+					report.PresentationsWithOrphanedCISCIPList = append(report.PresentationsWithOrphanedCISCIPList, pres.Cip13)
+				}
+			}
+		}
+	}
+	for _, pres := range presentationsCIP7Map {
+		if !checkedCIS[pres.Cis] {
+			checkedCIS[pres.Cis] = true
+			if !cisMap[pres.Cis] {
+				report.PresentationsWithOrphanedCIS++
+				if len(report.PresentationsWithOrphanedCISCIPList) < 10 {
+					report.PresentationsWithOrphanedCISCIPList = append(report.PresentationsWithOrphanedCISCIPList, pres.Cip7)
+				}
 			}
 		}
 	}

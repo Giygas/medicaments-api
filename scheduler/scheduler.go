@@ -98,7 +98,7 @@ func (s *Scheduler) updateData() error {
 	}
 
 	validator := validation.NewDataValidator()
-	report := validator.ReportDataQuality(newMedicaments, newGeneriques)
+	report := validator.ReportDataQuality(newMedicaments, newGeneriques, newPresentationsCIP7Map, newPresentationsCIP13Map)
 
 	// Log duplicate CIS
 	if len(report.DuplicateCIS) > 0 {
@@ -121,6 +121,14 @@ func (s *Scheduler) updateData() error {
 		logging.Warn("Medicaments without compositions",
 			"count", report.MedicamentsWithoutCompositions,
 			"cis_list", report.MedicamentsWithoutCompositionsCIS,
+		)
+	}
+
+	// Log presentations with orphaned CIS
+	if report.PresentationsWithOrphanedCIS > 0 {
+		logging.Warn("Presentations with orphaned CIS",
+			"count", report.PresentationsWithOrphanedCIS,
+			"cip_list", report.PresentationsWithOrphanedCISCIPList,
 		)
 	}
 

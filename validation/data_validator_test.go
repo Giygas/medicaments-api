@@ -1358,7 +1358,7 @@ func TestReportDataQuality_CleanData(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if len(report.DuplicateCIS) != 0 {
 		t.Errorf("Expected no duplicate CIS, got %v", report.DuplicateCIS)
@@ -1405,7 +1405,7 @@ func TestReportDataQuality_DuplicateCIS(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if len(report.DuplicateCIS) != 2 {
 		t.Errorf("Expected 2 duplicate CIS, got %d: %v", len(report.DuplicateCIS), report.DuplicateCIS)
@@ -1461,7 +1461,7 @@ func TestReportDataQuality_DuplicateGroupIDs(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if len(report.DuplicateGroupIDs) != 1 {
 		t.Errorf("Expected 1 duplicate group ID, got %d: %v", len(report.DuplicateGroupIDs), report.DuplicateGroupIDs)
@@ -1494,7 +1494,7 @@ func TestReportDataQuality_MedicamentsWithoutConditions(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutConditions != 3 {
 		t.Errorf("Expected 3 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
@@ -1543,7 +1543,7 @@ func TestReportDataQuality_MedicamentsWithoutGeneriques(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutGeneriques != 3 {
 		t.Errorf("Expected 3 medicaments without generiques, got %d", report.MedicamentsWithoutGeneriques)
@@ -1575,7 +1575,7 @@ func TestReportDataQuality_MedicamentsWithoutPresentations(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutPresentations != 3 {
 		t.Errorf("Expected 3 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
@@ -1614,7 +1614,7 @@ func TestReportDataQuality_MedicamentsWithoutCompositions(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutCompositions != 11 {
 		t.Errorf("Expected 11 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
@@ -1663,7 +1663,7 @@ func TestReportDataQuality_GeneriqueOnlyCIS(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.GeneriqueOnlyCIS != 8 {
 		t.Errorf("Expected 8 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
@@ -1714,7 +1714,7 @@ func TestReportDataQuality_MultipleIssues(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if len(report.DuplicateCIS) != 1 {
 		t.Errorf("Expected 1 duplicate CIS, got %d: %v", len(report.DuplicateCIS), report.DuplicateCIS)
@@ -1742,7 +1742,7 @@ func TestReportDataQuality_MultipleIssues(t *testing.T) {
 func TestReportDataQuality_EmptyInputs(t *testing.T) {
 	validator := NewDataValidator()
 
-	report := validator.ReportDataQuality([]entities.Medicament{}, []entities.GeneriqueList{})
+	report := validator.ReportDataQuality([]entities.Medicament{}, []entities.GeneriqueList{}, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if len(report.DuplicateCIS) != 0 {
 		t.Errorf("Expected no duplicate CIS, got %v", report.DuplicateCIS)
@@ -1794,7 +1794,7 @@ func TestReportDataQuality_BoundaryTenItems(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutConditions != 10 {
 		t.Errorf("Expected 10 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
@@ -1836,7 +1836,7 @@ func TestReportDataQuality_MoreThanTenItems(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutConditions != 15 {
 		t.Errorf("Expected 15 medicaments without conditions, got %d", report.MedicamentsWithoutConditions)
@@ -1880,7 +1880,7 @@ func TestReportDataQuality_MoreThanTenItemsPresentations(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutPresentations != 11 {
 		t.Errorf("Expected 11 medicaments without presentations, got %d", report.MedicamentsWithoutPresentations)
@@ -1908,7 +1908,7 @@ func TestReportDataQuality_MoreThanTenItemsGeneriqueOnlyCIS(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.GeneriqueOnlyCIS != 11 {
 		t.Errorf("Expected 11 generique-only CIS, got %d", report.GeneriqueOnlyCIS)
@@ -1950,7 +1950,7 @@ func TestReportDataQuality_CompositionsNoLimit(t *testing.T) {
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutCompositions != 14 {
 		t.Errorf("Expected 14 medicaments without compositions, got %d", report.MedicamentsWithoutCompositions)
@@ -2001,7 +2001,7 @@ func TestReportDataQuality_MedicamentsWithoutGeneriques_MultipleGeneriquesSameCI
 		},
 	}
 
-	report := validator.ReportDataQuality(medicaments, generiques)
+	report := validator.ReportDataQuality(medicaments, generiques, make(map[int]entities.Presentation), make(map[int]entities.Presentation))
 
 	if report.MedicamentsWithoutGeneriques != 1 {
 		t.Errorf("Expected 1 medicament without generiques (CIS 10000004), got %d", report.MedicamentsWithoutGeneriques)
