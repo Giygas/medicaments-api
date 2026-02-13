@@ -29,6 +29,7 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	// Skip header line
 	scanner.Scan()
@@ -51,6 +52,11 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 		if groupID != "" {
 			generiquesMap[groupID] = append(generiquesMap[groupID], cis)
 		}
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt: %w", err)
 	}
 
 	return generiquesMap, nil

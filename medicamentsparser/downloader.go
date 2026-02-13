@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/giygas/medicaments-api/logging"
@@ -19,7 +20,11 @@ import (
 func downloadAndParseFile(filepath string, url string) error {
 
 	filepath = "files/" + filepath + ".txt"
-	response, err := http.Get(url)
+
+	client := &http.Client{
+		Timeout: 5 * time.Minute,
+	}
+	response, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download %s: %w", url, err)
 	}
@@ -56,12 +61,18 @@ func downloadAndParseFile(filepath string, url string) error {
 	}()
 
 	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	for scanner.Scan() {
 		_, err = fmt.Fprintln(outFile, scanner.Text())
 		if err != nil {
 			return fmt.Errorf("failed to write to file %s: %w", filepath, err)
 		}
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("scanner error in %s: %w", filepath, err)
 	}
 
 	logging.Debug(fmt.Sprintf("%s downloaded and parsed without errors", filepath))

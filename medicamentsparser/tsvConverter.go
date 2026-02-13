@@ -29,6 +29,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Presentation
 	lineCount := 0
@@ -116,6 +117,11 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Presentations.txt: %w", err)
+	}
+
 	// Log skip statistics if any lines were skipped
 	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
 		logging.Info("Presentations.txt skip statistics",
@@ -147,8 +153,9 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
-	// Create the variables to use in the loop
+	// Create variables to use in loop
 	var jsonRecords []entities.Generique
 
 	// Use a map for creating the generiques list
@@ -218,6 +225,11 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 		}
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt: %w", err)
+	}
+
 	// Log skip statistics if any lines were skipped
 	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
 		logging.Info("Generiques.txt skip statistics",
@@ -248,6 +260,7 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Composition
 	lineCount := 0
@@ -298,6 +311,11 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Compositions.txt: %w", err)
+	}
+
 	// Log skip statistics if any lines were skipped
 	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
 		logging.Info("Compositions.txt skip statistics",
@@ -328,6 +346,7 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Specialite
 	lineCount := 0
@@ -375,6 +394,11 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Specialites.txt: %w", err)
+	}
+
 	// Log skip statistics if any lines were skipped
 	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
 		logging.Info("Specialites.txt skip statistics",
@@ -405,6 +429,7 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Condition
 	lineCount := 0
@@ -444,6 +469,11 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Conditions.txt: %w", err)
+	}
+
 	// Log skip statistics if any lines were skipped (excluding expected empty lines)
 	if skippedMissingColumns > 0 || skippedFormatErrors > 0 {
 		logging.Info("Conditions.txt skip statistics",
@@ -475,6 +505,7 @@ func createMedicamentGeneriqueType() (map[int]string, error) {
 	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	lineCount := 0
 	skippedEmptyLines := 0
@@ -519,6 +550,11 @@ func createMedicamentGeneriqueType() (map[int]string, error) {
 		}
 
 		medsType[cis] = generiqueType
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt (type mapping): %w", err)
 	}
 
 	// Log skip statistics if any lines were skipped
