@@ -1,11 +1,14 @@
 package logging
 
 import (
+	"flag"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
+	"sync"
+	"testing"
 	"time"
+
+	"github.com/giygas/medicaments-api/config"
 )
 
 type LoggingService struct {
@@ -13,30 +16,123 @@ type LoggingService struct {
 	RotatingLogger *RotatingLogger
 }
 
-var DefaultLoggingService *LoggingService
+var (
+	DefaultLoggingService *LoggingService
+	initOnce              sync.Once
+)
 
-// InitLogger initializes the global logger instance
+// InitLogger initializes global logger instance
 func InitLogger(logDir string) {
 	InitLoggerWithRetention(logDir, 4) // Default 4 weeks retention
 }
 
-// InitLoggerWithRetention initializes the global logger with custom retention
+// InitLoggerWithRetention initializes global logger with custom retention
 func InitLoggerWithRetention(logDir string, retentionWeeks int) {
 	InitLoggerWithRetentionAndSize(logDir, retentionWeeks, 100*1024*1024) // Default 100MB
 }
 
 // InitLoggerWithRetentionAndSize initializes the global logger with custom retention and size limit
 func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSize int64) {
+	env := config.DetectEnvironment()
+	InitLoggerWithEnvironment(logDir, env, "", retentionWeeks, maxFileSize)
+}
+
+// InitLoggerWithEnvironment initializes logger with explicit environment control
+func InitLoggerWithEnvironment(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
+	initOnce.Do(func() {
+		doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+	})
+}
+
+// parseLogLevel converts a string log level to slog.Level
+// Returns slog.LevelInfo as a safe default for invalid values
+func parseLogLevel(level string) slog.Level {
+	switch level {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo // Safe default
+	}
+}
+
+// GetConsoleLogLevel returns the appropriate console log level for an environment
+// If logLevelStr is provided and not in test environment, it overrides the environment default
+func GetConsoleLogLevel(env config.Environment, logLevelStr string, isVerbose bool) slog.Level {
+	// Use LOG_LEVEL override if provided (except in test environment)
+	if logLevelStr != "" && env != config.EnvTest {
+		return parseLogLevel(logLevelStr)
+	}
+
+	switch env {
+	case config.EnvDevelopment:
+		return slog.LevelInfo // Full output in dev
+	case config.EnvTest:
+		if isVerbose {
+			return slog.LevelInfo // Verbose tests show all logs
+		}
+		return slog.LevelError // Errors only in tests
+	case config.EnvStaging, config.EnvProduction:
+		return slog.LevelWarn // WARN and errors in staging/prod
+	default:
+		return slog.LevelInfo // Default to info
+	}
+}
+
+// GetFileLogLevel returns the file log level
+// Files always log at DEBUG level to capture all information for debugging
+func GetFileLogLevel() slog.Level {
+	return slog.LevelDebug
+}
+
+// doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
+func doInit(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
 		logDir = "logs" // Default directory
 	}
 
+	// Determine if running tests (for verbose mode)
+	// Use recover to handle calls to testing.Verbose() before flags are parsed
+	isVerbose := false
+	if flag := flag.CommandLine.Lookup("test.v"); flag != nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// testing.Verbose() called before Parse() - default to false (ERROR-only in tests)
+					isVerbose = false
+				}
+			}()
+			isVerbose = testing.Verbose()
+		}()
+	}
+
+	// Determine console and file log levels based on environment and LOG_LEVEL
+	consoleLevel := GetConsoleLogLevel(env, logLevelStr, isVerbose)
+	fileLevel := GetFileLogLevel()
+
+	// Log detected environment for debugging (skip in tests to avoid noise)
+	if env != config.EnvTest {
+		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: consoleLevel,
+		}))
+		consoleLogger.Info("Initializing logger",
+			"environment", env.String(),
+			"console_level", consoleLevel.String(),
+			"file_level", fileLevel.String(),
+			"log_directory", logDir)
+	}
+
 	// Create logs directory if it doesn't exist
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		// If we can't create logs directory, just log to console
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: consoleLevel,
 		}))
 		consoleLogger.Error("Failed to create logs directory", "error", err)
 		DefaultLoggingService = &LoggingService{
@@ -50,11 +146,14 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 	// Create rotating logger with size limit
 	rotatingLogger := NewRotatingLoggerWithSizeLimit(logDir, retentionWeeks, maxFileSize)
 
-	// Initialize the rotating logger
-	if err := rotatingLogger.rotateIfNeeded(); err != nil {
+	// Initialize rotating logger
+	rotatingLogger.mu.Lock()
+	err := rotatingLogger.doRotate(getWeekKey(time.Now()))
+	rotatingLogger.mu.Unlock()
+	if err != nil {
 		// Fallback to console logger if rotation fails
 		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: consoleLevel,
 		}))
 		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
 		DefaultLoggingService = &LoggingService{
@@ -67,9 +166,9 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 
 	// Start cleanup goroutine with proper cancellation
 	go func() {
-		defer close(rotatingLogger.cleanupDone)
-		ticker := time.NewTicker(24 * time.Hour) // Check daily
+		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
+		defer close(rotatingLogger.cleanupDone)
 
 		for {
 			select {
@@ -77,18 +176,20 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 				// Context cancelled, exit gracefully
 				return
 			case <-ticker.C:
-				rotatingLogger.cleanupOldLogs()
+				if err := rotatingLogger.cleanupOldLogs(); err != nil {
+					slog.Warn("Failed to cleanup old logs", "error", err)
+				}
 			}
 		}
 	}()
 
 	// Create multi-handler that writes to both console and rotating file
 	consoleHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: consoleLevel,
 	})
 
 	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: fileLevel,
 	})
 
 	// Combine handlers - write to both
@@ -103,29 +204,64 @@ func InitLoggerWithRetentionAndSize(logDir string, retentionWeeks int, maxFileSi
 		RotatingLogger: rotatingLogger,
 	}
 	slog.SetDefault(logger)
-
-	// Setup graceful shutdown to close log file
-	setupGracefulShutdown()
 }
 
-// setupGracefulShutdown ensures log files are properly closed on exit
-func setupGracefulShutdown() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+// ResetForTest resets the global logger - ONLY for testing
+// Provides proper test isolation by cleaning up resources and reinitializing
+// Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
+func ResetForTest(t *testing.T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
+	t.Helper() // Mark as test helper for better error reporting
 
-	go func() {
-		<-c
-		if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-			DefaultLoggingService.RotatingLogger.Close()
-		}
-		os.Exit(0)
-	}()
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+
+	// Register cleanup to run after test completes
+	// This is key improvement over save/restore pattern
+	t.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
 }
 
-// Close closes the logging service and cleans up resources
+// ResetForBenchmark resets the global logger - ONLY for benchmarks
+// Provides proper benchmark isolation by cleaning up resources and reinitializing
+func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
+	b.Helper() // Mark as benchmark helper for better error reporting
+
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+
+	// Register cleanup to run after benchmark completes
+	b.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
+}
+
+// Close closes logging service and cleans up resources
 func Close() {
 	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-		DefaultLoggingService.RotatingLogger.Close()
+		if err := DefaultLoggingService.RotatingLogger.Close(); err != nil {
+			slog.Warn("Failed to close rotating logger", "error", err)
+		}
 	}
 }
 

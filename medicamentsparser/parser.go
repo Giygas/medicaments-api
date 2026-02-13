@@ -17,11 +17,11 @@ func NewMedicamentsParser() *MedicamentsParser {
 }
 
 // ParseAllMedicaments implements the Parser interface
-func (p *MedicamentsParser) ParseAllMedicaments() ([]entities.Medicament, error) {
+func (p *MedicamentsParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 	return ParseAllMedicaments()
 }
 
 // GeneriquesParser implements the Parser interface
-func (p *MedicamentsParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
+func (p *MedicamentsParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
 	return GeneriquesParser(medicaments, medicamentsMap)
 }

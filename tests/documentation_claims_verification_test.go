@@ -3,21 +3,32 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/server"
 	"github.com/giygas/medicaments-api/validation"
-	"github.com/go-chi/chi/v5"
+)
+
+var (
+	testOnce      sync.Once
+	testContainer *data.DataContainer
 )
 
 // Comprehensive test to verify all documentation performance claims
@@ -34,30 +45,30 @@ type PerformanceClaim struct {
 var verificationResults []PerformanceClaim
 
 func TestDocumentationClaimsVerification(t *testing.T) {
-	// Skip performance verification in CI environments since they have variable performance
 	if os.Getenv("CI") == "true" {
 		t.Skip("Skipping performance verification in CI environment")
 	}
 
 	fmt.Println("=== COMPREHENSIVE DOCUMENTATION CLAIMS VERIFICATION ===")
 
-	// Initialize test data
+	logging.ResetForTest(t, "", config.EnvProduction, "", 4, 100*1024*1024)
+
 	container := createFullTestData()
 	validator := validation.NewDataValidator()
 
-	// Test all performance claims
 	testAlgorithmicPerformance(t, container, validator)
 	testHTTPPerformance(t, container, validator)
 	testMemoryUsage(t, container)
 	testParsingPerformance(t)
-	testTestCoverage(t)
 
-	// Generate verification report
 	generateVerificationReport(t)
 }
 
 func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, validator interfaces.DataValidator) {
 	fmt.Println("\n--- ALGORITHMIC PERFORMANCE VERIFICATION ---")
+
+	healthChecker := health.NewHealthChecker(container)
+	httpHandler := handlers.NewHTTPHandler(container, validator, healthChecker)
 
 	claims := []struct {
 		name       string
@@ -68,53 +79,91 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 		tolerance  float64
 	}{
 		{
-			name:    "/medicament/id/{cis}",
-			handler: handlers.FindMedicamentByID(container),
+			name:    "/v1/medicaments/{cis}",
+			handler: httpHandler.FindMedicamentByCIS,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/id/500", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("cis", "500")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments/61266250", nil)
+				return req
 			},
-			claimedReq: 45000,
-			claimedLat: 25.0,
-			tolerance:  15.0,
+			claimedReq: 400000,
+			claimedLat: 3.0,
+			tolerance:  20.0,
 		},
 		{
-			name:    "/generiques/group/{id}",
-			handler: handlers.FindGeneriquesByGroupID(container),
+			name:    "/v1/generiques/{groupID}",
+			handler: httpHandler.ServeGeneriquesV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/generiques/group/50", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("groupId", "50")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/generiques?group=50", nil)
+				return req
 			},
-			claimedReq: 110000,
-			claimedLat: 9.0,
-			tolerance:  10.0,
+			claimedReq: 200000,
+			claimedLat: 5.0,
+			tolerance:  20.0,
 		},
 		{
-			name:    "/database/{page}",
-			handler: handlers.ServePagedMedicaments(container),
+			name:    "/v1/medicaments?page={n}",
+			handler: httpHandler.ServeMedicamentsV1,
 			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/database/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("pageNumber", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+				req := httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
+				return req
 			},
-			claimedReq: 7000,
-			claimedLat: 140.0,
-			tolerance:  15.0,
+			claimedReq: 40000,
+			claimedLat: 30.0,
+			tolerance:  20.0,
+		},
+		{
+			name:    "/v1/medicaments?search={query}",
+			handler: httpHandler.ServeMedicamentsV1,
+			setupReq: func() *http.Request {
+				req := httptest.NewRequest("GET", "/v1/medicaments?search=Medicament", nil)
+				return req
+			},
+			claimedReq: 1600,
+			claimedLat: 750.0,
+			tolerance:  30.0,
+		},
+		{
+			name:    "/v1/generiques?libelle={nom}",
+			handler: httpHandler.ServeGeneriquesV1,
+			setupReq: func() *http.Request {
+				req := httptest.NewRequest("GET", "/v1/generiques?libelle=Paracetamol", nil)
+				return req
+			},
+			claimedReq: 18000,
+			claimedLat: 60.0,
+			tolerance:  30.0,
+		},
+		{
+			name:    "/v1/presentations?cip={code}",
+			handler: httpHandler.ServePresentationsV1,
+			setupReq: func() *http.Request {
+				req := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
+				return req
+			},
+			claimedReq: 430000,
+			claimedLat: 2.0,
+			tolerance:  20.0,
+		},
+		{
+			name:    "/v1/medicaments?cip={code}",
+			handler: httpHandler.ServeMedicamentsV1,
+			setupReq: func() *http.Request {
+				req := httptest.NewRequest("GET", "/v1/medicaments?cip=1234567", nil)
+				return req
+			},
+			claimedReq: 375000,
+			claimedLat: 5.0,
+			tolerance:  20.0,
 		},
 		{
 			name:    "/health",
-			handler: handlers.HealthCheck(container),
+			handler: httpHandler.HealthCheck,
 			setupReq: func() *http.Request {
 				return httptest.NewRequest("GET", "/health", nil)
 			},
-			claimedReq: 7000,
-			claimedLat: 145.0,
-			tolerance:  15.0,
+			claimedReq: 400000,
+			claimedLat: 3.0,
+			tolerance:  20.0,
 		},
 	}
 
@@ -124,7 +173,7 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 			result := testing.Benchmark(func(b *testing.B) {
 				b.ResetTimer()
 				b.ReportAllocs()
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					req := claim.setupReq()
 					w := httptest.NewRecorder()
 					claim.handler(w, req)
@@ -164,86 +213,118 @@ func testAlgorithmicPerformance(t *testing.T, container *data.DataContainer, val
 	}
 }
 
-func testHTTPPerformance(t *testing.T, container *data.DataContainer, validator interfaces.DataValidator) {
+func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataValidator) {
 	fmt.Println("\n--- HTTP PERFORMANCE VERIFICATION ---")
+
+	srv, baseURL := setupTestServer(t)
+	defer func() {
+		if err := srv.Shutdown(context.Background()); err != nil {
+			t.Logf("Server shutdown error: %v", err)
+		}
+	}()
+
+	transport := &http.Transport{
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 1000,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
+
+	for range 100 {
+		resp, err := client.Get(baseURL + "/health")
+		if err == nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}
 
 	claims := []struct {
 		name       string
-		handler    http.HandlerFunc
-		setupReq   func() *http.Request
+		endpoint   string
 		claimedReq float64
-		claimedLat float64
 		tolerance  float64
 	}{
 		{
-			name:    "/medicament/id/{cis}",
-			handler: handlers.NewHTTPHandler(container, validator).FindMedicamentByID,
-			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/id/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("cis", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-			},
-			claimedReq: 40000,
-			claimedLat: 0.5,
-			tolerance:  20.0,
-		},
-		{
-			name:    "/database/{page}",
-			handler: handlers.NewHTTPHandler(container, validator).ServePagedMedicaments,
-			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/database/1", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("pageNumber", "1")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-			},
-			claimedReq: 7000,
-			claimedLat: 0.5,
-			tolerance:  20.0,
-		},
-		{
-			name:    "/medicament/{nom}",
-			handler: handlers.NewHTTPHandler(container, validator).FindMedicament,
-			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/medicament/Medicament", nil)
-				rctx := chi.NewRouteContext()
-				rctx.URLParams.Add("element", "Medicament")
-				return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-			},
-			claimedReq: 70,
-			claimedLat: 15.0,
+			name:       "/v1/medicaments/{cis}",
+			endpoint:   "/v1/medicaments/61266250",
+			claimedReq: 78000,
 			tolerance:  25.0,
 		},
 		{
-			name:    "/health",
-			handler: handlers.NewHTTPHandler(container, validator).HealthCheck,
-			setupReq: func() *http.Request {
-				return httptest.NewRequest("GET", "/health", nil)
-			},
-			claimedReq: 5000,
-			claimedLat: 0.5,
-			tolerance:  20.0,
+			name:       "/v1/medicaments?page={n}",
+			endpoint:   "/v1/medicaments?page=1",
+			claimedReq: 41000,
+			tolerance:  25.0,
+		},
+		{
+			name:       "/v1/medicaments?search={query}",
+			endpoint:   "/v1/medicaments?search=Test",
+			claimedReq: 6100,
+			tolerance:  25.0,
+		},
+		{
+			name:       "/v1/generiques?libelle={nom}",
+			endpoint:   "/v1/generiques?libelle=Paracetamol",
+			claimedReq: 36000,
+			tolerance:  25.0,
+		},
+		{
+			name:       "/v1/presentations?cip={code}",
+			endpoint:   "/v1/presentations/1234567",
+			claimedReq: 77000,
+			tolerance:  25.0,
+		},
+		{
+			name:       "/v1/medicaments?cip={code}",
+			endpoint:   "/v1/medicaments?cip=1234567",
+			claimedReq: 75000,
+			tolerance:  25.0,
+		},
+		{
+			name:       "/health",
+			endpoint:   "/health",
+			claimedReq: 92000,
+			tolerance:  25.0,
 		},
 	}
 
+	const workers = 300
+	const duration = 3 * time.Second
+
 	for _, claim := range claims {
-		t.Run(claim.name+" HTTP", func(t *testing.T) {
-			// Benchmark for throughput
-			result := testing.Benchmark(func(b *testing.B) {
-				b.ResetTimer()
-				b.ReportAllocs()
-				for i := 0; i < b.N; i++ {
-					req := claim.setupReq()
-					w := httptest.NewRecorder()
-					claim.handler(w, req)
-				}
-			})
+		t.Run(claim.name+" HTTP throughput", func(t *testing.T) {
+			var successCount atomic.Int64
+			var wg sync.WaitGroup
+			done := make(chan struct{})
 
-			measuredReq := float64(result.N) / result.T.Seconds()
-			measuredLat := result.T.Nanoseconds() / int64(result.N) / 1000000 // milliseconds
+			time.AfterFunc(duration, func() { close(done) })
 
-			// Verify throughput claim
+			for range workers {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for {
+						select {
+						case <-done:
+							return
+						default:
+							resp, err := client.Get(baseURL + claim.endpoint)
+							if err == nil {
+								_, _ = io.Copy(io.Discard, resp.Body)
+								_ = resp.Body.Close()
+								successCount.Add(1)
+							}
+						}
+					}
+				}()
+			}
+
+			wg.Wait()
+
+			measuredReq := float64(successCount.Load()) / duration.Seconds()
+
 			reqPassed := measuredReq >= claim.claimedReq*(1-claim.tolerance/100)
+
 			verificationResults = append(verificationResults, PerformanceClaim{
 				Description:   fmt.Sprintf("%s HTTP throughput", claim.name),
 				ClaimedValue:  claim.claimedReq,
@@ -254,53 +335,38 @@ func testHTTPPerformance(t *testing.T, container *data.DataContainer, validator 
 				Tolerance:     claim.tolerance,
 			})
 
-			// Verify latency claim
-			latPassed := float64(measuredLat) <= claim.claimedLat*(1+claim.tolerance/100)
-			verificationResults = append(verificationResults, PerformanceClaim{
-				Description:   fmt.Sprintf("%s HTTP latency", claim.name),
-				ClaimedValue:  claim.claimedLat,
-				MeasuredValue: float64(measuredLat),
-				Unit:          "ms",
-				ClaimType:     "latency",
-				Passed:        latPassed,
-				Tolerance:     claim.tolerance,
-			})
-
-			fmt.Printf("  %s: %.0f req/sec (claimed: %.0f), %.2fms (claimed: %.2f)\n",
-				claim.name, measuredReq, claim.claimedReq, float64(measuredLat), claim.claimedLat)
+			fmt.Printf("  %s: %.2f req/sec (claimed: %.1f)\n",
+				claim.name, measuredReq, claim.claimedReq)
 		})
 	}
 }
 
-func testMemoryUsage(t *testing.T, container *data.DataContainer) {
+func testMemoryUsage(t *testing.T, _ *data.DataContainer) {
+	t.Helper()
 	fmt.Println("\n--- MEMORY USAGE VERIFICATION ---")
 
-	// Measure memory usage
-	var m1, m2 runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&m1)
+	srv, _ := setupTestServer(t)
+	defer func() {
+		if err := srv.Shutdown(context.Background()); err != nil {
+			t.Logf("Server shutdown error: %v", err)
+		}
+	}()
 
-	// Access all data to ensure it's loaded
-	_ = container.GetMedicaments()
-	_ = container.GetGeneriques()
-	_ = container.GetMedicamentsMap()
-	_ = container.GetGeneriquesMap()
+	time.Sleep(2 * time.Second)
 
-	runtime.GC()
-	runtime.ReadMemStats(&m2)
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
 
-	// Calculate memory usage in MB
-	allocMB := float64(m2.Alloc) / 1024 / 1024
-	sysMB := float64(m2.Sys) / 1024 / 1024
+	allocMB := float64(m.Alloc) / 1024 / 1024
+	sysMB := float64(m.Sys) / 1024 / 1024
 
-	// Check against claimed 0.1-100MB RAM usage
-	claimedMin := 0.1
-	claimedMax := 100.0
+	claimedMin := 60.0
+	claimedMax := 90.0
 
 	memoryPassed := allocMB >= claimedMin && allocMB <= claimedMax
 	verificationResults = append(verificationResults, PerformanceClaim{
-		Description:   "Stable RAM usage",
-		ClaimedValue:  (claimedMin + claimedMax) / 2, // Average for comparison
+		Description:   "Application memory usage",
+		ClaimedValue:  (claimedMin + claimedMax) / 2,
 		MeasuredValue: allocMB,
 		Unit:          "MB",
 		ClaimType:     "memory",
@@ -308,7 +374,8 @@ func testMemoryUsage(t *testing.T, container *data.DataContainer) {
 		Tolerance:     0.0,
 	})
 
-	fmt.Printf("  Memory usage: %.1f MB alloc, %.1f MB sys (claimed: 1-100 MB)\n", allocMB, sysMB)
+	fmt.Printf("  Application memory: %.1f MB alloc, %.1f MB sys (claimed: %.1f-%.1f MB)\n",
+		allocMB, sysMB, claimedMin, claimedMax)
 }
 
 func testParsingPerformance(t *testing.T) {
@@ -317,7 +384,7 @@ func testParsingPerformance(t *testing.T) {
 	start := time.Now()
 
 	// Parse full medicaments database
-	medicaments, err := medicamentsparser.ParseAllMedicaments()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -335,7 +402,7 @@ func testParsingPerformance(t *testing.T) {
 	}
 
 	duration := time.Since(start).Seconds()
-	claimedDuration := 0.5
+	claimedDuration := 0.7
 
 	parsingPassed := duration <= claimedDuration*2.0 // 100% tolerance for CI environments
 	verificationResults = append(verificationResults, PerformanceClaim{
@@ -351,39 +418,12 @@ func testParsingPerformance(t *testing.T) {
 	fmt.Printf("  Parsing time: %.2f seconds (claimed: %.1f)\n", duration, claimedDuration)
 }
 
-func testTestCoverage(t *testing.T) {
-	fmt.Println("\n--- TEST COVERAGE VERIFICATION ---")
-
-	// Test coverage verification
-	// Using the actual measured coverage from go test -coverprofile
-
-	claimedCoverage := 70.0
-	// Actual measured coverage from: go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
-	measuredCoverage := 75.5 // This is the real coverage as measured above
-
-	coveragePassed := measuredCoverage >= claimedCoverage
-	verificationResults = append(verificationResults, PerformanceClaim{
-		Description:   "Test coverage",
-		ClaimedValue:  claimedCoverage,
-		MeasuredValue: measuredCoverage,
-		Unit:          "%",
-		ClaimType:     "coverage",
-		Passed:        coveragePassed,
-		Tolerance:     0.0,
-	})
-
-	fmt.Printf("  Test coverage: %.1f%% (claimed: %.1f%%)\n", measuredCoverage, claimedCoverage)
-}
-
 func createFullTestData() *data.DataContainer {
-	var once sync.Once
-	var container *data.DataContainer
-
-	once.Do(func() {
+	testOnce.Do(func() {
 		fmt.Println("Loading full medicaments database for verification...")
 
-		// Parse the full medicaments database
-		medicaments, err := medicamentsparser.ParseAllMedicaments()
+		// Parse of full medicaments database
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}
@@ -400,13 +440,80 @@ func createFullTestData() *data.DataContainer {
 			panic(fmt.Sprintf("Failed to parse generiques: %v", err))
 		}
 
-		container = data.NewDataContainer()
-		container.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap)
+		testContainer = data.NewDataContainer()
+		testContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
+			presentationsCIP7Map, presentationsCIP13Map, &interfaces.DataQualityReport{
+				DuplicateCIS:                       []int{},
+				DuplicateGroupIDs:                  []int{},
+				MedicamentsWithoutConditions:       0,
+				MedicamentsWithoutGeneriques:       0,
+				MedicamentsWithoutPresentations:    0,
+				MedicamentsWithoutCompositions:     0,
+				GeneriqueOnlyCIS:                   0,
+				MedicamentsWithoutConditionsCIS:    []int{},
+				MedicamentsWithoutGeneriquesCIS:    []int{},
+				MedicamentsWithoutPresentationsCIS: []int{},
+				MedicamentsWithoutCompositionsCIS:  []int{},
+				GeneriqueOnlyCISList:               []int{},
+			})
 
 		fmt.Printf("Loaded: %d medicaments, %d generiques\n", len(medicaments), len(generiques))
 	})
 
-	return container
+	return testContainer
+}
+
+func setupTestServer(t *testing.T) (*server.Server, string) {
+	logging.ResetForTest(t, "", config.EnvProduction, "", 4, 100*1024*1024)
+
+	container := createFullTestData()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Logf("Failed to close listener: %v", err)
+	}
+
+	cfg := &config.Config{
+		Port:           fmt.Sprintf("%d", port),
+		Address:        "127.0.0.1",
+		Env:            config.EnvTest,
+		LogLevel:       "error",
+		MaxRequestBody: 1048576,
+		MaxHeaderSize:  1048576,
+	}
+
+	srv := server.NewServer(cfg, container)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- srv.Start()
+	}()
+
+	baseURL := "http://" + cfg.Address + ":" + fmt.Sprintf("%d", port)
+
+	maxRetries := 50
+	for range maxRetries {
+		resp, err := http.Get(baseURL + "/health")
+		if err == nil {
+			_ = resp.Body.Close()
+			time.Sleep(100 * time.Millisecond)
+			return srv, baseURL
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	select {
+	case err := <-serverErr:
+		t.Fatalf("Server failed to start: %v", err)
+	default:
+		t.Fatal("Server failed to become ready after 10 seconds")
+	}
+
+	return srv, baseURL
 }
 
 func generateVerificationReport(t *testing.T) {
@@ -423,9 +530,6 @@ func generateVerificationReport(t *testing.T) {
 		}
 
 		diff := ((result.MeasuredValue - result.ClaimedValue) / result.ClaimedValue) * 100
-		if diff < 0 {
-			diff = -diff
-		}
 
 		fmt.Printf("%s %s: %.1f %s (claimed: %.1f %s, diff: %.1f%%)\n",
 			status, result.Description, result.MeasuredValue, result.Unit,

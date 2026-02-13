@@ -11,25 +11,9 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/logging"
-	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-// MockHealthChecker implements interfaces.HealthChecker for testing
-type MockHealthChecker struct {
-	status  string
-	details map[string]interface{}
-	err     error
-}
-
-func (m *MockHealthChecker) HealthCheck() (string, map[string]interface{}, error) {
-	return m.status, m.details, m.err
-}
-
-func (m *MockHealthChecker) CalculateNextUpdate() time.Time {
-	return time.Now().Add(6 * time.Hour)
-}
 
 // TestNewServer tests server creation with various configurations
 func TestNewServer(t *testing.T) {
@@ -46,7 +30,7 @@ func TestNewServer(t *testing.T) {
 			config: &config.Config{
 				Port:           "8080",
 				Address:        "localhost",
-				Env:            "test",
+				Env:            config.EnvTest,
 				LogLevel:       "info",
 				MaxRequestBody: 1048576,
 				MaxHeaderSize:  1048576,
@@ -59,7 +43,7 @@ func TestNewServer(t *testing.T) {
 			config: &config.Config{
 				Port:           "8080",
 				Address:        "localhost",
-				Env:            "test",
+				Env:            config.EnvTest,
 				LogLevel:       "info",
 				MaxRequestBody: 1048576,
 				MaxHeaderSize:  1048576,
@@ -72,7 +56,7 @@ func TestNewServer(t *testing.T) {
 			config: &config.Config{
 				Port:           "8080",
 				Address:        "localhost",
-				Env:            "test",
+				Env:            config.EnvTest,
 				LogLevel:       "info",
 				MaxRequestBody: 1048576,
 				MaxHeaderSize:  1048576,
@@ -90,7 +74,7 @@ func TestNewServer(t *testing.T) {
 				cfg = &config.Config{
 					Port:           "8080",
 					Address:        "localhost",
-					Env:            "test",
+					Env:            config.EnvTest,
 					LogLevel:       "info",
 					MaxRequestBody: 1048576,
 					MaxHeaderSize:  1048576,
@@ -104,10 +88,6 @@ func TestNewServer(t *testing.T) {
 			}
 
 			server := NewServer(cfg, dc)
-
-			if server == nil {
-				t.Fatal("Server should not be nil")
-			}
 
 			if server.server.Addr != cfg.Address+":"+cfg.Port {
 				t.Errorf("Expected server address %s, got %s", cfg.Address+":"+cfg.Port, server.server.Addr)
@@ -144,7 +124,7 @@ func TestSetupMiddleware(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -167,7 +147,7 @@ func TestSetupMiddleware(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test"))
+		_, _ = w.Write([]byte("test"))
 	})
 
 	server.router.ServeHTTP(rr, req)
@@ -191,7 +171,7 @@ func TestSetupRoutes(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -226,7 +206,6 @@ func TestSetupRoutes(t *testing.T) {
 	// Check API routes
 	for _, route := range expectedRoutes {
 		// Chi doesn't expose route listing directly, so we'll test by making requests
-		req := httptest.NewRequest("GET", route, nil)
 		rr := httptest.NewRecorder()
 
 		// Replace path parameters with actual values for testing
@@ -236,7 +215,7 @@ func TestSetupRoutes(t *testing.T) {
 		testRoute = strings.ReplaceAll(testRoute, "{libelle}", "test")
 		testRoute = strings.ReplaceAll(testRoute, "{groupId}", "1")
 
-		req = httptest.NewRequest("GET", testRoute, nil)
+		req := httptest.NewRequest("GET", testRoute, nil)
 		req.RemoteAddr = "127.0.0.1:1234" // Set localhost RemoteAddr to pass BlockDirectAccessMiddleware
 		router.ServeHTTP(rr, req)
 
@@ -279,7 +258,7 @@ func TestServerLifecycle(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "0", // Use port 0 for automatic port assignment
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "error", // Reduce log noise during tests
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -300,7 +279,7 @@ func TestServerLifecycle(t *testing.T) {
 	// Test that server is running by making a request
 	resp, err := http.Get("http://localhost:" + server.server.Addr[strings.LastIndex(server.server.Addr, ":")+1:] + "/health")
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	// Test graceful shutdown
@@ -326,126 +305,12 @@ func TestServerLifecycle(t *testing.T) {
 	}
 }
 
-// TestGetHealthData tests health data generation
-func TestGetHealthData(t *testing.T) {
-	// Initialize logging for tests
-	logging.InitLogger("")
-
-	cfg := &config.Config{
-		Port:           "8080",
-		Address:        "localhost",
-		Env:            "test",
-		LogLevel:       "info",
-		MaxRequestBody: 1048576,
-		MaxHeaderSize:  1048576,
-	}
-
-	// Create data container with test data
-	dc := data.NewDataContainer()
-
-	// Add some test medicaments
-	testMedicaments := []entities.Medicament{
-		{Cis: 1, Denomination: "Test Med 1"},
-		{Cis: 2, Denomination: "Test Med 2"},
-	}
-	dc.UpdateData(testMedicaments, []entities.GeneriqueList{},
-		map[int]entities.Medicament{1: testMedicaments[0], 2: testMedicaments[1]},
-		map[int]entities.Generique{})
-
-	server := NewServer(cfg, dc)
-
-	healthData := server.GetHealthData()
-
-	// Verify health data structure
-	if healthData.Status == "" {
-		t.Error("Status should not be empty")
-	}
-
-	if healthData.Uptime == "" {
-		t.Error("Uptime should not be empty")
-	}
-
-	if healthData.MemoryUsage < 0 {
-		t.Error("Memory usage should be non-negative")
-	}
-
-	if healthData.LastUpdate == "" {
-		t.Error("Last update should not be empty")
-	}
-
-	if healthData.NextUpdate == "" {
-		t.Error("Next update should not be empty")
-	}
-
-	if healthData.MedicamentCount != 2 {
-		t.Errorf("Should count test medicaments, got %d", healthData.MedicamentCount)
-	}
-
-	if healthData.GeneriqueCount < 0 {
-		t.Error("Generique count should be non-negative")
-	}
-}
-
-// TestFormatUptimeHuman tests uptime formatting
-func TestFormatUptimeHuman(t *testing.T) {
-	tests := []struct {
-		name     string
-		duration time.Duration
-		expected string
-	}{
-		{
-			name:     "zero duration",
-			duration: 0,
-			expected: "0s",
-		},
-		{
-			name:     "seconds only",
-			duration: 45 * time.Second,
-			expected: "45s",
-		},
-		{
-			name:     "minutes and seconds",
-			duration: 2*time.Minute + 30*time.Second,
-			expected: "2m 30s",
-		},
-		{
-			name:     "hours, minutes, and seconds",
-			duration: 1*time.Hour + 2*time.Minute + 30*time.Second,
-			expected: "1h 2m 30s",
-		},
-		{
-			name:     "days, hours, minutes, and seconds",
-			duration: 2*24*time.Hour + 1*time.Hour + 2*time.Minute + 30*time.Second,
-			expected: "2d 1h 2m 30s",
-		},
-		{
-			name:     "exactly one day",
-			duration: 24 * time.Hour,
-			expected: "1d 0h 0m 0s",
-		},
-		{
-			name:     "exactly one hour",
-			duration: time.Hour,
-			expected: "1h 0m 0s",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatUptimeHuman(tt.duration)
-			if result != tt.expected {
-				t.Errorf("Expected %s, got %s", tt.expected, result)
-			}
-		})
-	}
-}
-
 // TestServerWithRealDependencies tests server with real dependencies
 func TestServerWithRealDependencies(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -470,7 +335,7 @@ func TestServerConfiguration(t *testing.T) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 2048576, // 2MB
 		MaxHeaderSize:  512,     // 512 bytes
@@ -502,7 +367,7 @@ func BenchmarkNewServer(b *testing.B) {
 	cfg := &config.Config{
 		Port:           "8080",
 		Address:        "localhost",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 		MaxRequestBody: 1048576,
 		MaxHeaderSize:  1048576,
@@ -513,25 +378,5 @@ func BenchmarkNewServer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = NewServer(cfg, dc)
-	}
-}
-
-// BenchmarkGetHealthData benchmarks health data generation
-func BenchmarkGetHealthData(b *testing.B) {
-	cfg := &config.Config{
-		Port:           "8080",
-		Address:        "localhost",
-		Env:            "test",
-		LogLevel:       "info",
-		MaxRequestBody: 1048576,
-		MaxHeaderSize:  1048576,
-	}
-
-	dc := data.NewDataContainer()
-	server := NewServer(cfg, dc)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = server.GetHealthData()
 	}
 }

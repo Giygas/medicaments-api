@@ -10,6 +10,7 @@ import (
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-co-op/gocron"
 )
 
@@ -74,11 +75,11 @@ func (s *Scheduler) updateData() error {
 	}
 	defer s.dataStore.EndUpdate()
 
-	fmt.Println("Starting database update at:", time.Now())
+	logging.Info(fmt.Sprintf("Starting database update at: %s", time.Now().Format(time.RFC3339)))
 	start := time.Now()
 
 	// Parse data using injected parser
-	newMedicaments, err := s.parser.ParseAllMedicaments()
+	newMedicaments, newPresentationsCIP7Map, newPresentationsCIP13Map, err := s.parser.ParseAllMedicaments()
 	if err != nil {
 		logging.Error("Failed to parse medicaments", "error", err)
 		return fmt.Errorf("failed to parse medicaments: %w", err)
@@ -96,8 +97,43 @@ func (s *Scheduler) updateData() error {
 		return fmt.Errorf("failed to parse generiques: %w", err)
 	}
 
-	// Atomic update using injected data store
-	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap)
+	validator := validation.NewDataValidator()
+	report := validator.ReportDataQuality(newMedicaments, newGeneriques, newPresentationsCIP7Map, newPresentationsCIP13Map)
+
+	// Log duplicate CIS
+	if len(report.DuplicateCIS) > 0 {
+		logging.Warn("Duplicate CIS detected",
+			"total", len(report.DuplicateCIS),
+			"cis_list", report.DuplicateCIS,
+		)
+	}
+
+	// Log duplicate Group IDs
+	if len(report.DuplicateGroupIDs) > 0 {
+		logging.Warn("Duplicate group IDs detected",
+			"total", len(report.DuplicateGroupIDs),
+			"group_ids_list", report.DuplicateGroupIDs,
+		)
+	}
+
+	// Log medicaments without compositions as WARN (with full CIS list)
+	if report.MedicamentsWithoutCompositions > 0 {
+		logging.Warn("Medicaments without compositions",
+			"count", report.MedicamentsWithoutCompositions,
+			"cis_list", report.MedicamentsWithoutCompositionsCIS,
+		)
+	}
+
+	// Log presentations with orphaned CIS
+	if report.PresentationsWithOrphanedCIS > 0 {
+		logging.Warn("Presentations with orphaned CIS",
+			"count", report.PresentationsWithOrphanedCIS,
+			"cip_list", report.PresentationsWithOrphanedCISCIPList,
+		)
+	}
+
+	// Atomic update using injected data store (including report)
+	s.dataStore.UpdateData(newMedicaments, newGeneriques, newMedicamentsMap, newGeneriquesMap, newPresentationsCIP7Map, newPresentationsCIP13Map, report)
 
 	elapsed := time.Since(start)
 	logging.Info("Database update completed", "duration", elapsed.String(), "medicament_count", len(newMedicaments))
@@ -118,27 +154,4 @@ func (s *Scheduler) startHealthMonitoring() {
 			}
 		}
 	}()
-}
-
-// CalculateNextUpdate calculates the next scheduled update time based on the cron schedule (06:00;18:00)
-func CalculateNextUpdate() time.Time {
-	now := time.Now()
-
-	// Get today's 6:00 AM and 6:00 PM times
-	sixAM := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, now.Location())
-	sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
-
-	// If current time is before 6:00 AM, next update is 6:00 AM today
-	if now.Before(sixAM) {
-		return sixAM
-	}
-
-	// If current time is between 6:00 AM and 6:00 PM, next update is 6:00 PM today
-	if now.Before(sixPM) {
-		return sixPM
-	}
-
-	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
-	tomorrow := now.AddDate(0, 0, 1)
-	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
 }

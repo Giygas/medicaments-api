@@ -12,6 +12,8 @@ import (
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
 	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/server"
 	"github.com/giygas/medicaments-api/validation"
@@ -21,16 +23,18 @@ import (
 // Mock data for testing
 var testMedicaments = []entities.Medicament{
 	{
-		Cis:          1,
-		Denomination: "Test Medicament",
-		Generiques:   []entities.Generique{{Cis: 1, Group: 100, Libelle: "Test Group", Type: "Princeps"}},
+		Cis:                    12345678,
+		Denomination:           "Test Medicament",
+		DenominationNormalized: "test medicament",
+		Generiques:             []entities.Generique{{Cis: 12345678, Group: 100, Libelle: "Test Group", Type: "Princeps"}},
 	},
 }
 
 var testGeneriques = []entities.GeneriqueList{
 	{
-		GroupID: 100,
-		Libelle: "Test Group",
+		GroupID:           100,
+		Libelle:           "Test Group",
+		LibelleNormalized: "test group",
 		Medicaments: []entities.GeneriqueMedicament{
 			{
 				Cis:                 1,
@@ -44,25 +48,35 @@ var testGeneriques = []entities.GeneriqueList{
 }
 
 var testMedicamentsMap = map[int]entities.Medicament{
-	1: testMedicaments[0],
+	12345678: testMedicaments[0],
 }
 
-var testGeneriquesMap = map[int]entities.Generique{
-	100: {Cis: 1, Group: 100, Libelle: "Test Group", Type: "Princeps"},
+var testGeneriquesMap = map[int]entities.GeneriqueList{
+	100: {GroupID: 100, Libelle: "Test Group"},
 }
 
 // Global test data container
 var testDataContainer *data.DataContainer
 
-func isDatabaseReady() bool {
-	return len(testDataContainer.GetMedicaments()) > 0
-}
-
 func TestMain(m *testing.M) {
 	fmt.Println("Initializing test data...")
 	// Initialize mock data for tests
 	testDataContainer = data.NewDataContainer()
-	testDataContainer.UpdateData(testMedicaments, testGeneriques, testMedicamentsMap, testGeneriquesMap)
+	testDataContainer.UpdateData(testMedicaments, testGeneriques, testMedicamentsMap, testGeneriquesMap,
+		map[int]entities.Presentation{}, map[int]entities.Presentation{}, &interfaces.DataQualityReport{
+			DuplicateCIS:                       []int{},
+			DuplicateGroupIDs:                  []int{},
+			MedicamentsWithoutConditions:       0,
+			MedicamentsWithoutGeneriques:       0,
+			MedicamentsWithoutPresentations:    0,
+			MedicamentsWithoutCompositions:     0,
+			GeneriqueOnlyCIS:                   0,
+			MedicamentsWithoutConditionsCIS:    []int{},
+			MedicamentsWithoutGeneriquesCIS:    []int{},
+			MedicamentsWithoutPresentationsCIS: []int{},
+			MedicamentsWithoutCompositionsCIS:  []int{},
+			GeneriqueOnlyCISList:               []int{},
+		})
 	fmt.Printf("Mock data initialized: %d medicaments, %d generiques\n", len(testMedicaments), len(testGeneriques))
 
 	fmt.Println("Running tests...")
@@ -78,38 +92,36 @@ func TestEndpoints(t *testing.T) {
 		endpoint string
 		expected int
 	}{
-
-		{"Test database", "/database", http.StatusOK},
-		{"Test database with trailing slash", "/database/", http.StatusNotFound}, // Chi doesn't handle trailing slash
-		{"Test generiques/Test Group", "/generiques/Test Group", http.StatusOK},
-		{"Test generiques/group/100", "/generiques/group/100", http.StatusOK},
-		{"Test medicament/Test Medicament", "/medicament/Test Medicament", http.StatusOK},
-		{"Test database with a", "/database/a", http.StatusBadRequest},
-		{"Test database with 1", "/database/1", http.StatusOK},
-		{"Test database with 0", "/database/0", http.StatusBadRequest},
-		{"Test database with -1", "/database/-1", http.StatusBadRequest},
-		{"Test database with large number", "/database/10000", http.StatusNotFound}, // Only 1 page available
-		{"Test generiques", "/generiques", http.StatusNotFound},
-		{"Test generiques/aaaaaaaaaaa", "/generiques/aaaaaaaaaaa", http.StatusBadRequest},
-		{"Test medicament", "/medicament", http.StatusNotFound},
-		{"Test medicament/1000000000000000", "/medicament/100000000000000", http.StatusBadRequest},
-		{"Test medicament/id/1", "/medicament/id/1", http.StatusOK},
-		{"Test medicament/id/999999", "/medicament/id/999999", http.StatusNotFound},
-		{"Test generiques/group/a", "/generiques/group/a", http.StatusBadRequest},
-		{"Test generiques/group/999999", "/generiques/group/999999", http.StatusNotFound},
+		{"Test medicaments export", "/v1/medicaments/export", http.StatusOK},
+		{"Test medicaments pagination", "/v1/medicaments?page=1", http.StatusOK},
+		{"Test medicaments search", "/v1/medicaments?search=Test", http.StatusOK},
+		{"Test medicaments by CIS", "/v1/medicaments/12345678", http.StatusOK},
+		{"Test medicaments by invalid CIS", "/v1/medicaments/99999999", http.StatusNotFound},
+		{"Test generiques by libelle", "/v1/generiques?libelle=Test Group", http.StatusOK},
+		{"Test generiques by group ID", "/v1/generiques/100", http.StatusOK},
+		{"Test generiques with no params", "/v1/generiques", http.StatusBadRequest},
+		{"Test generiques with invalid group ID", "/v1/generiques/invalid", http.StatusBadRequest},
+		{"Test generiques with not found group ID", "/v1/generiques/99999", http.StatusNotFound},
+		{"Test medicaments no params", "/v1/medicaments", http.StatusBadRequest},
+		{"Test medicaments multiple params", "/v1/medicaments?page=1&search=test", http.StatusBadRequest},
+		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},
+		{"Test medicaments negative page", "/v1/medicaments?page=-1", http.StatusBadRequest},
+		{"Test medicaments invalid CIS", "/v1/medicaments/abc", http.StatusBadRequest},
 		{"Test health", "/health", http.StatusOK},
 	}
 
 	router := chi.NewRouter()
-	// Note: rateLimitHandler is now part of the server middleware
+	// Note: rateLimitHandler is now part of server middleware
 	validator := validation.NewDataValidator()
-	router.Get("/database/{pageNumber}", handlers.ServePagedMedicaments(testDataContainer))
-	router.Get("/database", handlers.ServeAllMedicaments(testDataContainer))
-	router.Get("/medicament/{element}", handlers.FindMedicament(testDataContainer, validator))
-	router.Get("/medicament/id/{cis}", handlers.FindMedicamentByID(testDataContainer))
-	router.Get("/generiques/{libelle}", handlers.FindGeneriques(testDataContainer, validator))
-	router.Get("/generiques/group/{groupId}", handlers.FindGeneriquesByGroupID(testDataContainer))
-	router.Get("/health", handlers.HealthCheck(testDataContainer))
+	healthChecker := health.NewHealthChecker(testDataContainer)
+	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
+	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
+	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
+	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
+	router.Get("/v1/generiques/{groupID}", httpHandler.FindGeneriquesByGroupID)
+	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
+	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
+	router.Get("/health", httpHandler.HealthCheck)
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -164,7 +176,7 @@ func TestBlockDirectAccessMiddleware(t *testing.T) {
 	router := chi.NewRouter()
 	router.Use(server.BlockDirectAccessMiddleware)
 	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("allowed"))
+		_, _ = w.Write([]byte("allowed"))
 	})
 
 	// Test without nginx headers (should be blocked)
@@ -215,16 +227,19 @@ func TestRateLimiter(t *testing.T) {
 	router := chi.NewRouter()
 	// Apply rate limiting middleware
 	router.Use(server.RateLimitHandler)
-	router.Get("/database", handlers.ServeAllMedicaments(testDataContainer))
+	validator := validation.NewDataValidator()
+	healthChecker := health.NewHealthChecker(testDataContainer)
+	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
+	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 
-	// Simulate requests from the same IP
+	// Simulate requests from same IP
 	clientIP := "192.168.1.1:12345"
 
-	// Make requests to /database until we get rate limited
+	// Make requests to /v1/medicaments/export until we get rate limited
 	// Each costs 200 tokens, so we should be able to make 5 requests (1000 tokens)
 	requestCount := 0
 	for requestCount = 0; requestCount < 10; requestCount++ {
-		req, _ := http.NewRequest("GET", "/database", nil)
+		req, _ := http.NewRequest("GET", "/v1/medicaments/export", nil)
 		req.RemoteAddr = clientIP
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -241,7 +256,7 @@ func TestRateLimiter(t *testing.T) {
 
 	// Should have been rate limited by now (after 5 requests)
 	if requestCount >= 10 {
-		t.Error("Expected to be rate limited after 5 requests, but wasn't")
+		t.Errorf("Expected to be rate limited after 5 requests, but wasn't")
 	} else {
 		fmt.Printf("Rate limited after %d requests (expected around 5)\n", requestCount)
 	}
@@ -258,14 +273,14 @@ func TestRequestSizeMiddleware(t *testing.T) {
 		MaxHeaderSize:  512,  // 512 bytes for testing
 		Port:           "8002",
 		Address:        "127.0.0.1",
-		Env:            "test",
+		Env:            config.EnvTest,
 		LogLevel:       "info",
 	}
 
 	// Test handler that simply returns 200 OK
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Wrap the test handler with our middleware
@@ -317,7 +332,7 @@ func TestRequestSizeMiddleware(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Add many large headers to exceed MaxHeaderSize (512 bytes)
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			req.Header.Set(fmt.Sprintf("X-Large-Header-%d", i), fmt.Sprintf("%0200d", i))
 		}
 
@@ -384,8 +399,14 @@ func TestCompressionOptimization(t *testing.T) {
 	t.Run("Basic JSON response", func(t *testing.T) {
 		w := httptest.NewRecorder()
 
-		// Use handlers package respondWithJSON
-		handlers.RespondWithJSON(w, http.StatusOK, map[string]string{"message": "test"})
+		// Create handler and test actual endpoint compression
+		validator := validation.NewDataValidator()
+		healthChecker := health.NewHealthChecker(testDataContainer)
+		httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
+		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
+		req.Header.Set("Accept-Encoding", "gzip")
+
+		httpHandler.ExportMedicaments(w, req)
 
 		// Check that response was written correctly
 		if w.Code != http.StatusOK {

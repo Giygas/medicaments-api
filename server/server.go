@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/giygas/medicaments-api/config"
@@ -17,33 +15,12 @@ import (
 	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/metrics"
 	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-// formatUptimeHuman formats duration into a human-readable string
-func formatUptimeHuman(d time.Duration) string {
-	days := int(d.Hours()) / 24
-	hours := int(d.Hours()) % 24
-	minutes := int(d.Minutes()) % 60
-	seconds := int(d.Seconds()) % 60
-
-	var parts []string
-
-	if days > 0 {
-		parts = append(parts, fmt.Sprintf("%dd", days))
-	}
-	if hours > 0 || days > 0 {
-		parts = append(parts, fmt.Sprintf("%dh", hours))
-	}
-	if minutes > 0 || hours > 0 || days > 0 {
-		parts = append(parts, fmt.Sprintf("%dm", minutes))
-	}
-	parts = append(parts, fmt.Sprintf("%ds", seconds))
-
-	return strings.Join(parts, " ")
-}
 
 // Server represents the HTTP server
 type Server struct {
@@ -54,16 +31,24 @@ type Server struct {
 	httpHandler   interfaces.HTTPHandler
 	healthChecker interfaces.HealthChecker
 	startTime     time.Time
+
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+
+	metricsServer   *http.Server
+	profilingServer *http.Server
 }
 
 // NewServer creates a new server instance
 func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 	router := chi.NewRouter()
 
-	// Create interface-based dependencies
+	// Dependencies
 	validator := validation.NewDataValidator()
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator)
 	healthChecker := health.NewHealthChecker(dataContainer)
+	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
+
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	server := &Server{
 		server: &http.Server{
@@ -73,11 +58,13 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
-		router:        router,
-		dataContainer: dataContainer,
-		config:        cfg,
-		httpHandler:   httpHandler,
-		healthChecker: healthChecker,
+		router:         router,
+		dataContainer:  dataContainer,
+		config:         cfg,
+		httpHandler:    httpHandler,
+		healthChecker:  healthChecker,
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
 	}
 
 	server.setupMiddleware()
@@ -95,22 +82,43 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RedirectSlashes)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
-	s.router.Use(RateLimitHandler)
+
+	s.router.Use(metrics.Metrics)
+
+	// Disable rate limiting in test mode to measure true throughput performance
+	if s.config.Env != config.EnvTest {
+		s.router.Use(RateLimitHandler)
+	}
 }
 
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
-	// API routes using clean interface-based handlers
-	s.router.Get("/database", s.httpHandler.ServeAllMedicaments)
+	// Old API routes
+	s.router.Get("/database", s.httpHandler.ExportMedicaments)
 	s.router.Get("/database/{pageNumber}", s.httpHandler.ServePagedMedicaments)
-	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament)
-	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByID)
-	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
+	s.router.Get("/medicament/cip/{cip}", s.httpHandler.FindMedicamentByCIP)
+	s.router.Get("/medicament/id/{cis}", s.httpHandler.FindMedicamentByCIS)
+	s.router.Get("/medicament/{element}", s.httpHandler.FindMedicament) // General string search
 	s.router.Get("/generiques/group/{groupId}", s.httpHandler.FindGeneriquesByGroupID)
+	s.router.Get("/generiques/{libelle}", s.httpHandler.FindGeneriques)
+	// This will stay between in all versions
 	s.router.Get("/health", s.httpHandler.HealthCheck)
 
 	// Documentation routes
 	s.setupDocumentationRoutes()
+
+	// V1 routes
+	s.router.Get("/v1/medicaments/export", s.httpHandler.ExportMedicaments)
+	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
+	s.router.Get("/v1/medicaments/{cis}", s.httpHandler.FindMedicamentByCIS)
+	s.router.Get("/v1/presentations/{cip}", s.httpHandler.ServePresentationsV1)
+	s.router.Get("/v1/generiques/{groupID}", s.httpHandler.FindGeneriquesByGroupID)
+	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
+	s.router.Get("/v1/diagnostics", s.httpHandler.ServeDiagnosticsV1)
+
+	// Will get a 404 otherwise
+	s.router.Get("/v1/presentations/", s.httpHandler.ServePresentationsMissingCIP)
+
 }
 
 // setupDocumentationRoutes configures documentation and static file routes
@@ -158,17 +166,51 @@ func (s *Server) Start() error {
 	s.dataContainer.SetServerStartTime(s.startTime)
 
 	// Start profiling server if in development mode
-	if s.config.Env == "dev" {
+	if s.config.Env == config.EnvDevelopment {
 		s.startProfilingServer()
 	}
+
+	s.startMetricsServer()
 
 	logging.Info(fmt.Sprintf("Starting server at: %s:%s", s.config.Address, s.config.Port))
 	return s.server.ListenAndServe()
 }
 
+// Start metrics server
+func (s *Server) startMetricsServer() {
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	s.metricsServer = &http.Server{
+		Addr:              "127.0.0.1:9090",
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	logging.Info("Metrics: http://127.0.0.1:9090/metrics")
+
+	go func() {
+		if err := s.metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logging.Error("Metrics server failed", "error", err)
+		}
+	}()
+
+	go func() {
+		<-s.shutdownCtx.Done()
+		logging.Info("Shutting down metrics server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.metricsServer.Shutdown(shutdownCtx); err != nil {
+			logging.Error("Metrics server shutdown error", "error", err)
+		}
+	}()
+}
+
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
 	logging.Info("Shutting down server...")
+
+	s.shutdownCancel()
 
 	if err := s.server.Shutdown(ctx); err != nil {
 		logging.Error("Server forced to shutdown", "error", err)
@@ -183,71 +225,32 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	logging.Info("Waiting for ongoing requests to complete...")
 	time.Sleep(2 * time.Second)
 
-	logging.Info("Server shutdown complete")
 	return nil
 }
 
 // startProfilingServer starts the pprof profiling server in development mode
 func (s *Server) startProfilingServer() {
+	s.profilingServer = &http.Server{
+		Addr:              "localhost:6060",
+		Handler:           nil,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
+
 	go func() {
-		fmt.Println("Profiling server started at http://localhost:6060/debug/pprof/")
-		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
-			fmt.Println("Profiling server failed: ", err)
+		if err := s.profilingServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logging.Warn("Profiling server failed", "error", err)
 		}
 	}()
-}
 
-// HealthData represents health check response data
-type HealthData struct {
-	Status          string `json:"status"`
-	Uptime          string `json:"uptime"`
-	MemoryUsage     int    `json:"memory_usage_mb"`
-	LastUpdate      string `json:"last_update"`
-	NextUpdate      string `json:"next_update"`
-	IsUpdating      bool   `json:"is_updating"`
-	MedicamentCount int    `json:"medicament_count"`
-	GeneriqueCount  int    `json:"generique_count"`
-}
-
-// GetHealthData returns current health statistics
-func (s *Server) GetHealthData() HealthData {
-	// Get memory statistics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	memoryUsageMB := int(m.Alloc / 1024 / 1024)
-
-	// Calculate uptime
-	uptime := time.Since(s.startTime)
-
-	// Get health data from interface-based health checker
-	status, details, err := s.healthChecker.HealthCheck()
-	if err != nil {
-		status = "unhealthy"
-	}
-
-	// Extract data from details
-	data := details["data"].(map[string]interface{})
-
-	// Helper function to convert interface{} to int, handling both int and float64
-	toInt := func(v interface{}) int {
-		switch val := v.(type) {
-		case int:
-			return val
-		case float64:
-			return int(val)
-		default:
-			return 0
+	go func() {
+		<-s.shutdownCtx.Done()
+		logging.Info("Shutting down profiling server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.profilingServer.Shutdown(shutdownCtx); err != nil {
+			logging.Warn("Profiling server shutdown error", "error", err)
 		}
-	}
-
-	return HealthData{
-		Status:          status,
-		Uptime:          formatUptimeHuman(uptime),
-		MemoryUsage:     memoryUsageMB,
-		LastUpdate:      details["last_update"].(string),
-		NextUpdate:      data["next_update"].(string),
-		IsUpdating:      data["is_updating"].(bool),
-		MedicamentCount: toInt(data["medicaments"]),
-		GeneriqueCount:  toInt(data["generiques"]),
-	}
+	}()
 }

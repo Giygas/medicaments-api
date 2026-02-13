@@ -9,6 +9,25 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
+// DataQualityReport provides a summary of data quality issues
+type DataQualityReport struct {
+	DuplicateCIS                    []int
+	DuplicateGroupIDs               []int
+	MedicamentsWithoutConditions    int
+	MedicamentsWithoutGeneriques    int
+	MedicamentsWithoutPresentations int // Count of medicaments without presentations
+	MedicamentsWithoutCompositions  int // Count of medicaments without compositions
+	GeneriqueOnlyCIS                int // CIS values in generiques that don't have corresponding medicaments
+	PresentationsWithOrphanedCIS    int // Count of presentations referencing non-existent CIS
+	// Sample CIS/CIP for investigation (first 10, except compositions which has all)
+	MedicamentsWithoutConditionsCIS     []int
+	MedicamentsWithoutGeneriquesCIS     []int
+	MedicamentsWithoutPresentationsCIS  []int
+	MedicamentsWithoutCompositionsCIS   []int
+	GeneriqueOnlyCISList                []int
+	PresentationsWithOrphanedCISCIPList []int
+}
+
 // DataStore defines the contract for data storage operations.
 // It provides thread-safe access to medicaments and generiques data
 // with atomic operations for zero-downtime updates.
@@ -17,14 +36,19 @@ type DataStore interface {
 	GetMedicaments() []entities.Medicament
 	GetGeneriques() []entities.GeneriqueList
 	GetMedicamentsMap() map[int]entities.Medicament
-	GetGeneriquesMap() map[int]entities.Generique
+	GetGeneriquesMap() map[int]entities.GeneriqueList
+	GetPresentationsCIP7Map() map[int]entities.Presentation
+	GetPresentationsCIP13Map() map[int]entities.Presentation
 	GetLastUpdated() time.Time
 	IsUpdating() bool
 	GetServerStartTime() time.Time
+	GetDataQualityReport() *DataQualityReport
 
 	// Data update methods
 	UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList,
-		medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique)
+		medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList,
+		presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation,
+		report *DataQualityReport)
 	BeginUpdate() bool
 	EndUpdate()
 }
@@ -33,10 +57,11 @@ type DataStore interface {
 // It handles downloading, processing, and transforming raw data into structured entities.
 type Parser interface {
 	// ParseAllMedicaments downloads and parses all medicament data
-	ParseAllMedicaments() ([]entities.Medicament, error)
+	ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation,
+		map[int]entities.Presentation, error)
 
 	// GeneriquesParser processes medicaments data to create generique groups
-	GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error)
+	GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error)
 }
 
 // Scheduler defines the contract for job scheduling and health monitoring.
@@ -54,20 +79,29 @@ type HTTPHandler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	// Specific endpoint handlers
-	ServeAllMedicaments(w http.ResponseWriter, r *http.Request)
 	ServePagedMedicaments(w http.ResponseWriter, r *http.Request)
 	FindMedicament(w http.ResponseWriter, r *http.Request)
-	FindMedicamentByID(w http.ResponseWriter, r *http.Request)
+	FindMedicamentByCIS(w http.ResponseWriter, r *http.Request)
+	FindMedicamentByCIP(w http.ResponseWriter, r *http.Request)
 	FindGeneriques(w http.ResponseWriter, r *http.Request)
 	FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request)
+	// This will stay in all versions
 	HealthCheck(w http.ResponseWriter, r *http.Request)
+	ExportMedicaments(w http.ResponseWriter, r *http.Request)
+
+	// V1 handlers
+	ServeMedicamentsV1(w http.ResponseWriter, r *http.Request)
+	ServePresentationsV1(w http.ResponseWriter, r *http.Request)
+	ServePresentationsMissingCIP(w http.ResponseWriter, r *http.Request)
+	ServeGeneriquesV1(w http.ResponseWriter, r *http.Request)
+	ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request)
 }
 
 // HealthChecker defines the contract for health check functionality.
 // It provides system health monitoring and reporting.
 type HealthChecker interface {
 	// HealthCheck returns current system health status
-	HealthCheck() (status string, details map[string]interface{}, err error)
+	HealthCheck() (status string, data map[string]any, httpStatus int)
 
 	// CalculateNextUpdate returns the next scheduled update time
 	CalculateNextUpdate() time.Time
@@ -79,9 +113,26 @@ type DataValidator interface {
 	// ValidateMedicament checks if a medicament entity is valid
 	ValidateMedicament(m *entities.Medicament) error
 
+	// CheckDuplicateCIP validates that CIP7 and CIP13 values are unique
+	CheckDuplicateCIP(presentations []entities.Presentation) error
+
 	// ValidateDataIntegrity performs comprehensive data validation
 	ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error
 
+	// ReportDataQuality generates a data quality report with all issues found
+	ReportDataQuality(
+		medicaments []entities.Medicament,
+		generiques []entities.GeneriqueList,
+		presentationsCIP7Map map[int]entities.Presentation,
+		presentationsCIP13Map map[int]entities.Presentation,
+	) *DataQualityReport
+
 	// ValidateInput validates user input strings
 	ValidateInput(input string) error
+
+	// ValidateCIP validates CIS codes
+	ValidateCIS(input string) (int, error)
+
+	// ValidateCIP validates CIP codes
+	ValidateCIP(input string) (int, error)
 }

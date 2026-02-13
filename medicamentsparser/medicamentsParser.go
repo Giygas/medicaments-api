@@ -3,13 +3,15 @@ package medicamentsparser
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/validation"
 )
 
-func validateMedicamenti(m *entities.Medicament) error {
+func validateMedicamentsIntegrity(m *entities.Medicament) error {
 	if m.Cis <= 0 {
 		return fmt.Errorf("invalid CIS: %d", m.Cis)
 	}
@@ -23,10 +25,13 @@ func validateMedicamenti(m *entities.Medicament) error {
 	return nil
 }
 
-func ParseAllMedicaments() ([]entities.Medicament, error) {
+func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 
 	// Download the neccesary files from https://base-donnees-publique.medicaments.gouv.fr/telechargement
-	downloadAndParseAll()
+	if err := downloadAndParseAll(); err != nil {
+		logging.Error("Failed to download and parse files", "error", err)
+		return nil, nil, nil, fmt.Errorf("failed to download files: %w", err)
+	}
 
 	//Make all the json files concurrently
 	var wg sync.WaitGroup
@@ -124,7 +129,7 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	// Check for any errors that occurred during concurrent processing
 	select {
 	case err := <-errorChan:
-		return nil, fmt.Errorf("error during data parsing: %w", err)
+		return nil, nil, nil, fmt.Errorf("error during data parsing: %w", err)
 	default:
 		// No errors, continue processing
 	}
@@ -134,11 +139,6 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 	specialites := <-specialitesChan
 	generiques := <-generiquesChan
 	compositions := <-compositionsChan
-
-	fmt.Printf("Number of conditions to process: %d\n", len(conditions))
-	fmt.Printf("Number of presentations to process: %d\n", len(presentations))
-	fmt.Printf("Number of generiques to process: %d\n", len(generiques))
-	fmt.Printf("Number of specialites to process: %d\n", len(specialites))
 
 	conditionsChan = nil
 	presentationsChan = nil
@@ -157,9 +157,19 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 		generiquesMap[gen.Cis] = append(generiquesMap[gen.Cis], gen)
 	}
 
+	// Check for duplicate CIP values before building maps
+	validator := validation.NewDataValidator()
+	if err := validator.CheckDuplicateCIP(presentations); err != nil {
+		logging.Warn("Duplicate CIP values detected, last occurrence will be used", "error", err)
+	}
+
 	presentationsMap := make(map[int][]entities.Presentation)
+	presentationsCIP7Map := make(map[int]entities.Presentation)
+	presentationsCIP13Map := make(map[int]entities.Presentation)
 	for _, pres := range presentations {
 		presentationsMap[pres.Cis] = append(presentationsMap[pres.Cis], pres)
+		presentationsCIP7Map[pres.Cip7] = pres
+		presentationsCIP13Map[pres.Cip13] = pres
 	}
 
 	conditionsMap := make(map[int][]string)
@@ -175,6 +185,7 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 
 		medicament.Cis = med.Cis
 		medicament.Denomination = med.Denomination
+		medicament.DenominationNormalized = strings.ReplaceAll(strings.ToLower(med.Denomination), "+", " ")
 		medicament.FormePharmaceutique = med.FormePharmaceutique
 		medicament.VoiesAdministration = med.VoiesAdministration
 		medicament.StatusAutorisation = med.StatusAutorisation
@@ -206,7 +217,7 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 		}
 
 		// Validate the medicament structure
-		if err := validateMedicamenti(medicament); err != nil {
+		if err := validateMedicamentsIntegrity(medicament); err != nil {
 			logging.Warn("Skipping invalid medicament: ", "error", err, "cis", med.Cis)
 			continue
 		}
@@ -215,13 +226,8 @@ func ParseAllMedicaments() ([]entities.Medicament, error) {
 
 	}
 
-	logging.Info("All medicaments parsed successfully")
+	logging.Info("All medicaments parsed successfully",
+		"medicaments_parsed", len(medicamentsSlice))
 
-	conditions = nil
-	presentations = nil
-	specialites = nil
-	generiques = nil
-	compositions = nil
-
-	return medicamentsSlice, nil
+	return medicamentsSlice, presentationsCIP7Map, presentationsCIP13Map, nil
 }

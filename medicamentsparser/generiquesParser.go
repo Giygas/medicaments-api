@@ -11,9 +11,10 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
-var medsType map[int]string
-
 // readGeneriquesFromTSV reads generiques data directly from TSV file
+//
+// Returns: map where the key is the groupID (string) and the value is an array
+// of the medicaments CIS in the group
 func readGeneriquesFromTSV() (map[string][]int, error) {
 	generiquesMap := make(map[string][]int)
 
@@ -21,14 +22,17 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generiques file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generiques TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	// Skip header line
-	if scanner.Scan() {
-		// Header line, skip it
-	}
+	scanner.Scan()
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -50,12 +54,15 @@ func readGeneriquesFromTSV() (map[string][]int, error) {
 		}
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt: %w", err)
+	}
+
 	return generiquesMap, nil
 }
 
-func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
-
-	var err error
+func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
 
 	// allGeneriques: []Generique
 	allGeneriques, err := makeGeneriques(nil)
@@ -63,15 +70,11 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		return nil, nil, fmt.Errorf("failed to parse generiques: %w", err)
 	}
 
-	// Create a map of all the generiques to reduce algorithm complexity
-	// We need to preserve the libelle for each group, not overwrite it
-	generiquesMap := make(map[int]entities.Generique)
-	for i := range allGeneriques {
-		group := allGeneriques[i].Group
-		// Only set if not already present to preserve the first (correct) libelle
-		if _, exists := generiquesMap[group]; !exists {
-			generiquesMap[group] = allGeneriques[i]
-		}
+	// Create a map of libelles
+	libelle := make(map[int]string)
+	for el := range allGeneriques {
+		groupID := allGeneriques[el].Group
+		libelle[groupID] = allGeneriques[el].Libelle
 	}
 
 	// generiques file: [groupid]:[]cis of medicaments in the same group
@@ -83,12 +86,13 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 
 	// The medsType is a map where the key are the medicament cis and the value is the
 	// type of generique
-	medsType, err = createMedicamentGeneriqueType()
+	medsType, err := createMedicamentGeneriqueType()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create medicament generique type mapping: %w", err)
 	}
 
 	var generiques []entities.GeneriqueList
+	generiquesMap := make(map[int]entities.GeneriqueList)
 
 	for i, v := range generiquesFile {
 
@@ -99,17 +103,21 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 			continue
 		}
 
-		current := entities.GeneriqueList{
-			GroupID:     groupInt,
-			Libelle:     generiquesMap[groupInt].Libelle,
-			Medicaments: getMedicamentsInArray(v, mMap),
+		medicaments, orphaned := getMedicamentsInArray(v, mMap, medsType)
+
+		currentGenerique := entities.GeneriqueList{
+			GroupID:           groupInt,
+			Libelle:           libelle[groupInt],
+			LibelleNormalized: strings.ReplaceAll(strings.ToLower(libelle[groupInt]), "+", " "),
+			Medicaments:       medicaments,
+			OrphanCIS:         orphaned,
 		}
 
-		generiques = append(generiques, current)
+		generiques = append(generiques, currentGenerique)
+		generiquesMap[groupInt] = currentGenerique
 	}
 
-	// Write debug file
-
+	// Write debug
 	fmt.Println("Generiques parsing completed", "count", len(generiques))
 	return generiques, generiquesMap, nil
 }
@@ -127,9 +135,19 @@ func createGeneriqueComposition(medicamentComposition *[]entities.Composition) [
 	return compositions
 }
 
-func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament) []entities.GeneriqueMedicament {
-	var medicamentsArray []entities.GeneriqueMedicament
-
+// getMedicamentsInArray splits CIS into two categories based on medicament availability:
+// - Generiques with full medicament data (returns as GeneriqueMedicament with composition, type, etc.)
+// - Orphan CIS without medicament data (returns as raw CIS integers)
+//
+// Parameters:
+//   - medicamentsIds: Array of CIS values to process
+//   - medicamentMap: Map of CIS to full Medicament entities for O(1) lookup
+//   - medsType: Map of CIS to medicament type
+//
+// Returns:
+//   - generiquesMedicaments: CIS that exist in medicamentMap with full data populated
+//   - orphanCIS: CIS values that don't have corresponding medicament entries
+func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities.Medicament, medsType map[int]string) (generiquesMedicaments []entities.GeneriqueMedicament, orphanCIS []int) {
 	for _, v := range medicamentsIds {
 		if medicament, ok := (*medicamentMap)[v]; ok {
 			generiqueComposition := createGeneriqueComposition(&medicament.Composition)
@@ -140,9 +158,10 @@ func getMedicamentsInArray(medicamentsIds []int, medicamentMap *map[int]entities
 				Type:                medsType[medicament.Cis],
 				Composition:         generiqueComposition,
 			}
-			medicamentsArray = append(medicamentsArray, generiqueMed)
+			generiquesMedicaments = append(generiquesMedicaments, generiqueMed)
+		} else {
+			orphanCIS = append(orphanCIS, v)
 		}
 	}
-
-	return medicamentsArray
+	return
 }

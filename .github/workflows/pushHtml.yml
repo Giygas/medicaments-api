@@ -2,7 +2,7 @@ name: Upload html
 on:
   push:
     paths:
-      - 'html/**'
+      - "html/**"
 
 jobs:
   push_server:
@@ -11,15 +11,48 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      - name: install ssh keys
-        # check this thread to understand why its needed:
-        # https://stackoverflow.com/a/70447517
+        uses: actions/checkout@v6
+
+      - name: SSH Setup
+        uses: ./.github/actions/ssh-setup
+
+      - name: Validate required secrets
+        shell: bash
         run: |
-          install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
-      - name: Copy file to server
-        run: scp -r html/* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.HTML_DIR }}
-      - name: cleanup
-        run: rm -rf ~/.ssh
+          echo "Validating secrets..."
+          if [ -z "${{ secrets.SSH_USER }}" ]; then
+            echo "ERROR: SSH_USER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "ERROR: SSH_HOST secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "ERROR: SSH_PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.REPO_DIR }}" ]; then
+            echo "ERROR: REPO_DIR secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.HTML_DIR }}" ]; then
+            echo "WARNING: HTML_DIR secret is not set (optional)"
+          fi
+          echo "✅ All required secrets are present"
+
+      - name: Show files to deploy
+        shell: bash
+        run: |
+          echo "📋 HTML files to deploy:"
+          find html -type f \
+            \( -name "*.html" -o -name "*.ico" -o -name "*.yaml" -o -name "*.yml" \) \
+            -not -path "html/.git/*" \
+            | sort
+
+      - name: Copy HTML files to server
+        shell: bash
+        run: scp -r html ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REPO_DIR }}/
+
+      - name: SSH Cleanup
+        uses: ./.github/actions/ssh-cleanup

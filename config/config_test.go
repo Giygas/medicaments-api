@@ -7,10 +7,10 @@ import (
 
 func TestLoadValidConfig(t *testing.T) {
 	// Set valid environment variables
-	os.Setenv("PORT", "8002")
-	os.Setenv("ADDRESS", "127.0.0.1")
-	os.Setenv("ENV", "dev")
-	os.Setenv("LOG_LEVEL", "info")
+	_ = os.Setenv("PORT", "8002")
+	_ = os.Setenv("ADDRESS", "127.0.0.1")
+	_ = os.Setenv("ENV", "dev")
+	_ = os.Setenv("LOG_LEVEL", "info")
 	defer cleanupEnv()
 
 	cfg, err := Load()
@@ -24,7 +24,7 @@ func TestLoadValidConfig(t *testing.T) {
 	if cfg.Address != "127.0.0.1" {
 		t.Errorf("Expected address 127.0.0.1, got %s", cfg.Address)
 	}
-	if cfg.Env != "dev" {
+	if cfg.Env != EnvDevelopment {
 		t.Errorf("Expected env dev, got %s", cfg.Env)
 	}
 	if cfg.LogLevel != "info" {
@@ -34,10 +34,10 @@ func TestLoadValidConfig(t *testing.T) {
 
 func TestLoadWithDefaults(t *testing.T) {
 	// Clear environment variables to test defaults
-	os.Unsetenv("PORT")
-	os.Unsetenv("ADDRESS")
-	os.Unsetenv("ENV")
-	os.Unsetenv("LOG_LEVEL")
+	_ = os.Unsetenv("PORT")
+	_ = os.Unsetenv("ADDRESS")
+	_ = os.Unsetenv("ENV")
+	_ = os.Unsetenv("LOG_LEVEL")
 	defer cleanupEnv()
 
 	cfg, err := Load()
@@ -51,7 +51,7 @@ func TestLoadWithDefaults(t *testing.T) {
 	if cfg.Address != "127.0.0.1" {
 		t.Errorf("Expected default address 127.0.0.1, got %s", cfg.Address)
 	}
-	if cfg.Env != "dev" {
+	if cfg.Env != EnvDevelopment {
 		t.Errorf("Expected default env dev, got %s", cfg.Env)
 	}
 	if cfg.LogLevel != "info" {
@@ -72,10 +72,10 @@ func TestInvalidPort(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", tc.port)
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", tc.port)
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -94,10 +94,10 @@ func TestInvalidAddress(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", tc.address)
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", tc.address)
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -116,10 +116,10 @@ func TestInvalidEnv(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", tc.env)
-		os.Setenv("LOG_LEVEL", "info")
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", tc.env)
+		_ = os.Setenv("LOG_LEVEL", "info")
 
 		_, err := Load()
 		if err == nil {
@@ -138,10 +138,10 @@ func TestInvalidLogLevel(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("PORT", "8002")
-		os.Setenv("ADDRESS", "127.0.0.1")
-		os.Setenv("ENV", "dev")
-		os.Setenv("LOG_LEVEL", tc.logLevel)
+		_ = os.Setenv("PORT", "8002")
+		_ = os.Setenv("ADDRESS", "127.0.0.1")
+		_ = os.Setenv("ENV", "dev")
+		_ = os.Setenv("LOG_LEVEL", tc.logLevel)
 
 		_, err := Load()
 		if err == nil {
@@ -151,8 +151,60 @@ func TestInvalidLogLevel(t *testing.T) {
 }
 
 func cleanupEnv() {
-	os.Unsetenv("PORT")
-	os.Unsetenv("ADDRESS")
-	os.Unsetenv("ENV")
-	os.Unsetenv("LOG_LEVEL")
+	_ = os.Unsetenv("PORT")
+	_ = os.Unsetenv("ADDRESS")
+	_ = os.Unsetenv("ENV")
+	_ = os.Unsetenv("LOG_LEVEL")
+}
+
+func TestParseEnvironment(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected Environment
+		hasError bool
+	}{
+		{"dev", EnvDevelopment, false},
+		{"development", EnvDevelopment, false},
+		{"staging", EnvStaging, false},
+		{"prod", EnvProduction, false},
+		{"production", EnvProduction, false},
+		{"test", EnvTest, false},
+		{"invalid", EnvDevelopment, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			env, err := ParseEnvironment(tt.input)
+			if tt.hasError {
+				if err == nil {
+					t.Errorf("Expected error for %s, got none", tt.input)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for %s: %v", tt.input, err)
+				}
+				if env != tt.expected {
+					t.Errorf("Expected %v, got %v", tt.expected, env)
+				}
+			}
+		})
+	}
+}
+
+func TestEnvironmentString(t *testing.T) {
+	tests := []struct {
+		env      Environment
+		expected string
+	}{
+		{EnvDevelopment, "dev"},
+		{EnvStaging, "staging"},
+		{EnvProduction, "prod"},
+		{EnvTest, "test"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.env.String(); got != tt.expected {
+			t.Errorf("Expected %s, got %s", tt.expected, got)
+		}
+	}
 }

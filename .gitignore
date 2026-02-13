@@ -1,5 +1,8 @@
 CODE_REVIEW.md
 AGENTS.md
+TODO.md
+releases/
+vendor/
 .opencode
 logs/
 extras/
@@ -12,6 +15,7 @@ src/
 **src/*.json
 src/*
 .env
+.env.staging
 .DS_Store
 /medicaments-api
 medicamentsparser/files
@@ -21,4 +25,4 @@ coverage.out
 *.coverage
 *.cover
 *.out
-
+/workspaces

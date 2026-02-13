@@ -2,9 +2,11 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -13,20 +15,95 @@ import (
 type Config struct {
 	Port              string
 	Address           string
-	Env               string
-	LogLevel          string
-	LogRetentionWeeks int   // Number of weeks to keep log files
-	MaxLogFileSize    int64 // Maximum log file size in bytes
-	MaxRequestBody    int64 // Maximum request body size in bytes
-	MaxHeaderSize     int64 // Maximum header size in bytes
+	Env               Environment // Type-safe environment enum
+	LogLevel          string      // Console logging level (file logging is always DEBUG)
+	LogRetentionWeeks int         // Number of weeks to keep log files
+	MaxLogFileSize    int64       // Maximum log file size in bytes
+	MaxRequestBody    int64       // Maximum request body size in bytes
+	MaxHeaderSize     int64       // Maximum header size in bytes
+}
+
+// Environment represents the application environment
+type Environment int
+
+const (
+	EnvDevelopment Environment = iota
+	EnvStaging
+	EnvProduction
+	EnvTest
+)
+
+// String returns the string representation of Environment
+func (e Environment) String() string {
+	switch e {
+	case EnvDevelopment:
+		return "dev"
+	case EnvStaging:
+		return "staging"
+	case EnvProduction:
+		return "prod"
+	case EnvTest:
+		return "test"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseEnvironment parses an environment string into Environment enum
+func ParseEnvironment(env string) (Environment, error) {
+	env = strings.ToLower(env)
+	switch env {
+	case "dev", "development":
+		return EnvDevelopment, nil
+	case "staging":
+		return EnvStaging, nil
+	case "prod", "production":
+		return EnvProduction, nil
+	case "test":
+		return EnvTest, nil
+	default:
+		return EnvDevelopment, fmt.Errorf("invalid environment: %s", env)
+	}
+}
+
+// DetectEnvironment auto-detects the current environment
+// Priority: test flags > ENV env var > default (dev)
+func DetectEnvironment() Environment {
+	// Check if running tests first
+	if flag := flag.CommandLine.Lookup("test.v"); flag != nil {
+		return EnvTest
+	}
+	if flag := flag.CommandLine.Lookup("test.run"); flag != nil {
+		return EnvTest
+	}
+
+	// Read ENV from environment variable
+	envStr := os.Getenv("ENV")
+	if envStr == "" {
+		return EnvDevelopment // Default to dev
+	}
+
+	env, err := ParseEnvironment(envStr)
+	if err != nil {
+		return EnvDevelopment // Fallback to dev on error
+	}
+
+	return env
 }
 
 // Load loads and validates configuration from environment variables
 func Load() (*Config, error) {
+	// Parse environment string to Environment enum
+	envStr := getEnvWithDefault("ENV", "dev")
+	env, err := ParseEnvironment(envStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ENV: %w", err)
+	}
+
 	cfg := &Config{
 		Port:              getEnvWithDefault("PORT", "8000"),
 		Address:           getEnvWithDefault("ADDRESS", "127.0.0.1"),
-		Env:               getEnvWithDefault("ENV", "dev"),
+		Env:               env, // Use parsed Environment enum
 		LogLevel:          getEnvWithDefault("LOG_LEVEL", "info"),
 		LogRetentionWeeks: getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
 		MaxLogFileSize:    getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
@@ -53,10 +130,7 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("invalid ADDRESS: %w", err)
 	}
 
-	// Validate ENV
-	if err := validateEnv(cfg.Env); err != nil {
-		return fmt.Errorf("invalid ENV: %w", err)
-	}
+	// Note: ENV is already validated during Load() via ParseEnvironment()
 
 	// Validate LOG_LEVEL
 	if err := validateLogLevel(cfg.LogLevel); err != nil {
@@ -135,24 +209,6 @@ func validateAddress(address string) error {
 	return nil
 }
 
-// validateEnv validates the ENV environment variable
-func validateEnv(env string) error {
-	if env == "" {
-		return fmt.Errorf("ENV cannot be empty")
-	}
-
-	validEnvs := []string{"dev", "staging", "prod", "test"}
-	env = strings.ToLower(env)
-
-	for _, validEnv := range validEnvs {
-		if env == validEnv {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("ENV must be one of: %v, got: %s", validEnvs, env)
-}
-
 // validateLogLevel validates the LOG_LEVEL environment variable
 func validateLogLevel(logLevel string) error {
 	if logLevel == "" {
@@ -162,10 +218,8 @@ func validateLogLevel(logLevel string) error {
 	validLevels := []string{"debug", "info", "warn", "error"}
 	logLevel = strings.ToLower(logLevel)
 
-	for _, level := range validLevels {
-		if logLevel == level {
-			return nil
-		}
+	if slices.Contains(validLevels, logLevel) {
+		return nil
 	}
 
 	return fmt.Errorf("LOG_LEVEL must be one of: %v, got: %s", validLevels, logLevel)
