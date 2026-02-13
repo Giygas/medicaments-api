@@ -31,7 +31,7 @@ L'API délivre des performances exceptionnelles grâce à des optimisations cont
 | `/v1/medicaments/{cis}`           | Recherche CIS (O(1) lookup)        | 12h   | 10   | ETag/LM/RL | 1 ≤ CIS ≤ 999,999,999   |
 | `/v1/medicaments?cip={code}`      | Recherche CIP via présentation     | 12h   | 10   | ETag/LM/RL | 7 ou 13 chiffres        |
 | `/v1/generiques?libelle={nom}`    | Génériques multi-mots (1-6 mots, 3-50 chars) | 1h    | 30   | ETag/CC/RL | 1-6 mots alphanumériques (séparés par + ou espace)       |
-| `/v1/generiques?group={id}`       | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ ID ≤ 99,999         |
+| `/v1/generiques/{groupID}`        | Groupe générique par ID            | 12h   | 5    | ETag/LM/RL | 1 ≤ groupID ≤ 99,999         |
 | `/v1/presentations/{cip}`          | Présentations par CIP              | 12h   | 5    | ETag/LM/RL | 1 ≤ CIP ≤ 9,999,999,999 |
 | `/v1/diagnostics`                | Diagnostics système (détails)    | 10s   | 30   | CC         | -                       |
 | `/`                               | Accueil (SPA)                      | 1h    | 0    | CC         | -                       |
@@ -66,11 +66,11 @@ Les endpoints v1 utilisent des paramètres de requête au lieu de paramètres de
 | `GET /database/1`             | `GET /v1/medicaments?page=1`             |
 | `GET /database`               | `GET /v1/medicaments/export`              |
 | `GET /generiques/paracetamol` | `GET /v1/generiques?libelle=paracetamol` |
-| `GET /generiques/group/1234`  | `GET /v1/generiques?group=1234`          |
+| `GET /generiques/group/1234`  | `GET /v1/generiques/1234`              |
 
 **Règles v1 :**
 
-- **Un seul paramètre** par requête : page, search, cip, libelle, ou group (CIS et export utilisent des paths séparés)
+- **Un seul paramètre** par requête : page, search, cip, libelle (CIS et export utilisent des paths séparés)
 - **Maximum de 6 mots** : Les recherches multi-mots supportent jusqu'à 6 mots (logique ET)
 - **Paramètres mutuellement exclusifs** : Les requêtes avec plusieurs paramètres retournent une erreur 400
 - **Headers de dépréciation** : Les endpoints legacy renvoient les headers suivants :
@@ -116,7 +116,7 @@ Response: {...}  // Objet médicament unique ou erreur
 GET /v1/generiques?libelle={nom}
 Response: [{"groupID": ..., "libelle": ..., "medicaments": [...]}]
 
-GET /v1/generiques?group={id}
+GET /v1/generiques/{groupID}
 Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}
 ```
 

@@ -1259,7 +1259,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.85rem;
                       "
-                      >GET /v1/generiques?group={id}</code
+                      >GET /v1/generiques/{groupID}</code
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
@@ -2223,8 +2223,8 @@ Response: {...}  // Single medicament object or error</code></pre>
                 "
               ><code>GET /v1/generiques?libelle={nom}
 Response: [{"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}, ...]  // Array de groupes
-
-GET /v1/generiques?group={id}
+ 
+GET /v1/generiques/{groupID}
 Response: {"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}  // Objet unique</code></pre>
             </div>
             <div>
