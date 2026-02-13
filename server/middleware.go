@@ -19,7 +19,7 @@ import (
 
 var (
 	medicamentsParams = []string{"search", "page", "cip"}
-	generiquesParams  = []string{"libelle", "group"}
+	generiquesParams  = []string{"libelle"}
 )
 
 // RealIPMiddleware extracts the real IP from X-Forwarded-For header
@@ -195,6 +195,7 @@ func getTokenCost(r *http.Request) int64 {
 		const (
 			v1MedicamentsPrefix   = "/v1/medicaments/"
 			v1PresentationsPrefix = "/v1/presentations/"
+			v1GeneriquesPrefix    = "/v1/generiques/"
 		)
 
 		// Match /v1/presentations/{id}
@@ -208,6 +209,12 @@ func getTokenCost(r *http.Request) int64 {
 			requestPath[:len(v1MedicamentsPrefix)] == v1MedicamentsPrefix &&
 			!strings.HasPrefix(requestPath[len(v1MedicamentsPrefix):], "export") {
 			return 10
+		}
+
+		// Matches /v1/generiques/{groupID}
+		if len(requestPath) > len(v1GeneriquesPrefix) &&
+			requestPath[:len(v1GeneriquesPrefix)] == v1GeneriquesPrefix {
+			return 5
 		}
 
 		switch requestPath {
@@ -242,9 +249,7 @@ func getTokenCost(r *http.Request) int64 {
 			if q.Get("libelle") != "" {
 				return 30
 			}
-			if q.Get("group") != "" {
-				return 5
-			}
+
 			return 5 // Default for /v1/generiques without recognized params
 		case "/v1/health", "/health":
 			// Health endpoint has no parameters

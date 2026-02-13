@@ -97,12 +97,10 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicaments by CIS", "/v1/medicaments/12345678", http.StatusOK},
 		{"Test medicaments by invalid CIS", "/v1/medicaments/99999999", http.StatusNotFound},
 		{"Test generiques by libelle", "/v1/generiques?libelle=Test Group", http.StatusOK},
-		{"Test generiques by group", "/v1/generiques?group=100", http.StatusOK},
+		{"Test generiques by group ID", "/v1/generiques/100", http.StatusOK},
 		{"Test generiques with no params", "/v1/generiques", http.StatusBadRequest},
-		{"Test generiques with invalid group (negative)", "/v1/generiques?group=-1", http.StatusBadRequest},
-		{"Test generiques with invalid group (zero)", "/v1/generiques?group=0", http.StatusBadRequest},
-		{"Test generiques with invalid group (too high)", "/v1/generiques?group=999999", http.StatusBadRequest},
-		{"Test generiques with valid boundary (not in map)", "/v1/generiques?group=9999", http.StatusNotFound},
+		{"Test generiques with invalid group ID", "/v1/generiques/invalid", http.StatusBadRequest},
+		{"Test generiques with not found group ID", "/v1/generiques/99999", http.StatusNotFound},
 		{"Test medicaments no params", "/v1/medicaments", http.StatusBadRequest},
 		{"Test medicaments multiple params", "/v1/medicaments?page=1&search=test", http.StatusBadRequest},
 		{"Test medicaments invalid page", "/v1/medicaments?page=0", http.StatusBadRequest},
@@ -118,6 +116,7 @@ func TestEndpoints(t *testing.T) {
 	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
 	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
 	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
+	router.Get("/v1/generiques/{groupID}", httpHandler.FindGeneriquesByGroupID)
 	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
 	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
 	router.Get("/health", httpHandler.HealthCheck)

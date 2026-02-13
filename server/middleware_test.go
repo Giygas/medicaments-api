@@ -28,7 +28,7 @@ func TestGetTokenCost(t *testing.T) {
 
 		// V1 Generiques endpoint
 		{"V1 generiques libelle", "/v1/generiques", "libelle=paracetamol", 30},
-		{"V1 generiques group", "/v1/generiques", "group=1", 5},
+		{"V1 generiques by group ID (path param)", "/v1/generiques/1", "", 5},
 		{"V1 generiques default", "/v1/generiques", "", 5},
 
 		// V1 Presentations endpoint (now uses path parameter)
@@ -48,10 +48,10 @@ func TestGetTokenCost(t *testing.T) {
 
 		// ===== EDGE CASES =====
 		// Multi-parameter scenarios (should return default 5)
-		// Invalid param with valid CIP param should cost 10 (CIP is the only valid param)
+		// Invalid param with valid CIP param should cost 10 (CIP is only valid param)
 		{"V1 medicaments export query+CIP (CIP wins)", "/v1/medicaments", "export=all&cip=1234567", 10},
 		{"V1 medicaments page+search", "/v1/medicaments", "page=1&search=test", 5},
-		{"V1 generiques libelle+group", "/v1/generiques", "libelle=test&group=1", 5},
+		{"V1 generiques unknown param", "/v1/generiques", "unknown=value", 5},
 
 		// Invalid parameter values (cost based on param type, handler validates value)
 		{"V1 export invalid value (query param)", "/v1/medicaments", "export=invalid", 5}, // Falls to default
@@ -67,7 +67,6 @@ func TestGetTokenCost(t *testing.T) {
 
 		// Unknown parameters on valid endpoints (should return default 5)
 		{"V1 medicaments unknown param", "/v1/medicaments", "unknown=value", 5},
-		{"V1 generiques unknown param", "/v1/generiques", "unknown=value", 5},
 	}
 
 	for _, tt := range tests {

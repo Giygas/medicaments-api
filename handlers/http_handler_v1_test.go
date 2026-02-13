@@ -237,6 +237,81 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 // GENERIQUES V1 TESTS
 // ============================================================================
 
+// TestServeGeneriqueByGroupIDV1 tests the v1 path-based group ID lookup
+func TestServeGeneriqueByGroupIDV1(t *testing.T) {
+	generiquesMap := map[int]entities.GeneriqueList{
+		100: {
+			GroupID:           100,
+			Libelle:           "Test Generique",
+			LibelleNormalized: "test generique",
+			Medicaments:       []entities.GeneriqueMedicament{},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		path           string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "Valid group ID",
+			path:           "/v1/generiques/100",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Invalid group ID - non-numeric",
+			path:           "/v1/generiques/invalid",
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Invalid group ID",
+		},
+		{
+			name:           "Invalid group ID - not found",
+			path:           "/v1/generiques/99999",
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   "Generique group not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewHTTPHandler(
+				NewMockDataStoreBuilder().
+					WithGeneriquesMap(generiquesMap).
+					Build(),
+				NewMockDataValidatorBuilder().Build(),
+			)
+
+			router := chi.NewRouter()
+			router.Get("/v1/generiques/{groupID}", handler.FindGeneriquesByGroupID)
+
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			if tt.expectedBody != "" {
+				body := w.Body.String()
+				if !strings.Contains(body, tt.expectedBody) {
+					t.Errorf("Expected body to contain %q, got %q", tt.expectedBody, body)
+				}
+			}
+
+			// Verify no deprecation headers on v1 path
+			if strings.HasPrefix(tt.path, "/v1/") {
+				deprecation := w.Header().Get("Deprecation")
+				if deprecation != "" {
+					t.Error("V1 endpoint should not have deprecation headers")
+				}
+			}
+		})
+	}
+}
+
 // TestServeGeneriquesV1_Success tests successful generic lookups
 func TestServeGeneriquesV1_Success(t *testing.T) {
 	genericList := []entities.GeneriqueList{
@@ -260,30 +335,15 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 		},
 	}
 
-	generiquesMap := map[int]entities.GeneriqueList{
-		1: {
-			GroupID:           1,
-			Libelle:           "Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg",
-			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Paracetamol 500 mg + Codeine (Phosphate) hemihydrate 30 mg"), "+", " "),
-		},
-		2: {
-			GroupID:           2,
-			Libelle:           "Ibuprofene 400 mg",
-			LibelleNormalized: strings.ReplaceAll(strings.ToLower("Ibuprofene 400 mg"), "+", " "),
-		},
-	}
-
 	tests := []struct {
 		name         string
 		queryParams  string
-		checkGroupID int
 		checkLibelle string
 	}{
-		{"valid group ID", "?group=1", 1, ""},
-		{"exact libelle match", "?libelle=Paracetamol+500+mg+%2B+Codeine", 0, "Paracetamol 500 mg + Codeine"},
-		{"case-insensitive libelle", "?libelle=paracetamol+500+mg+%2B+codeine", 0, "Paracetamol 500 mg + Codeine"},
-		{"partial libelle match", "?libelle=Ibuprofene", 0, "Ibuprofene"},
-		{"partial libelle lowercase", "?libelle=ibuprofene", 0, "Ibuprofene"},
+		{"exact libelle match", "?libelle=Paracetamol+500+mg+%2B+Codeine", "Paracetamol 500 mg + Codeine"},
+		{"case-insensitive libelle", "?libelle=paracetamol+500+mg+%2B+codeine", "Paracetamol 500 mg + Codeine"},
+		{"partial libelle match", "?libelle=Ibuprofene", "Ibuprofene"},
+		{"partial libelle lowercase", "?libelle=ibuprofene", "Ibuprofene"},
 	}
 
 	for _, tt := range tests {
@@ -291,7 +351,6 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 			handler := NewHTTPHandler(
 				NewMockDataStoreBuilder().
 					WithGeneriques(genericList).
-					WithGeneriquesMap(generiquesMap).
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
 			)
@@ -306,59 +365,26 @@ func TestServeGeneriquesV1_Success(t *testing.T) {
 				t.Errorf("Expected 200 OK, got %d", rr.Code)
 			}
 
-			// Group search: verify ETag headers
-			if tt.checkGroupID != 0 {
-				etag := rr.Header().Get("ETag")
-				if etag == "" {
-					t.Error("ETag header should be present for group search")
-				}
-				if !hasQuotedETag(etag) {
-					t.Errorf("ETag should be quoted, got: %s", etag)
-				}
-				if rr.Header().Get("Cache-Control") != "public, max-age=3600" {
-					t.Error("Expected Cache-Control 'public, max-age=3600'")
-				}
-				if rr.Header().Get("Last-Modified") == "" {
-					t.Error("Expected Last-Modified header")
-				}
-
-				var response entities.GeneriqueList
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Fatalf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if response.GroupID != tt.checkGroupID {
-					t.Errorf("Expected group ID %d, got %d", tt.checkGroupID, response.GroupID)
-				}
-
-				if response.Libelle == "" {
-					t.Error("Response should contain Libelle field")
-				}
+			// Libelle search: verify array response
+			var response []entities.GeneriqueList
+			err := json.Unmarshal(rr.Body.Bytes(), &response)
+			if err != nil {
+				t.Fatalf("Failed to unmarshal JSON: %v", err)
 			}
 
-			// Libelle search: verify array response
-			if tt.checkLibelle != "" {
-				var response []entities.GeneriqueList
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Fatalf("Failed to unmarshal JSON: %v", err)
-				}
+			if len(response) == 0 {
+				t.Error("Expected at least one result, got empty array")
+			}
 
-				if len(response) == 0 {
-					t.Error("Expected at least one result, got empty array")
+			found := false
+			for _, gen := range response {
+				if containsSubstring(gen.Libelle, tt.checkLibelle) {
+					found = true
+					break
 				}
-
-				found := false
-				for _, gen := range response {
-					if containsSubstring(gen.Libelle, tt.checkLibelle) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected to find libelle containing '%s', got %v", tt.checkLibelle, response)
-				}
+			}
+			if !found {
+				t.Errorf("Expected to find libelle containing '%s', got %v", tt.checkLibelle, response)
 			}
 		})
 	}
@@ -378,16 +404,10 @@ func TestServeGeneriquesV1_Errors(t *testing.T) {
 		expectedCode  int
 		expectError   string
 	}{
-		{"no parameters", "", false, http.StatusBadRequest, "Needs libelle or group param"},
-		{"empty group", "?group=", false, http.StatusBadRequest, "Needs libelle or group param"},
-		{"invalid group", "?group=abc", false, http.StatusBadRequest, "Invalid group ID"},
-		{"negative group ID", "?group=-1", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
-		{"zero group ID", "?group=0", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
-		{"group ID too high", "?group=10000", false, http.StatusBadRequest, "Group ID should be between 1 and 9999"},
-		{"valid boundary group ID", "?group=9999", false, http.StatusNotFound, "Generique group not found"},
-		{"not found", "?group=999", false, http.StatusNotFound, "Generique group not found"},
-		{"empty libelle", "?libelle=", false, http.StatusBadRequest, "Needs libelle or group param"},
+		{"no parameters", "", false, http.StatusBadRequest, "Needs libelle param"},
+		{"empty libelle", "?libelle=", false, http.StatusBadRequest, "Needs libelle param"},
 		{"invalid libelle", "?libelle=test@123", true, http.StatusBadRequest, "input must be between"},
+		{"not found", "?libelle=xyz123", false, http.StatusNotFound, "No generiques found"},
 	}
 
 	for _, tt := range tests {
@@ -429,71 +449,6 @@ func TestServeGeneriquesV1_Errors(t *testing.T) {
 				t.Errorf("Expected error containing '%s', got '%v'", tt.expectError, message)
 			}
 		})
-	}
-}
-
-// TestServeGeneriquesV1_ETagCaching tests ETag caching for group search
-func TestServeGeneriquesV1_ETagCaching(t *testing.T) {
-	genericList := []entities.GeneriqueList{
-		{
-			GroupID: 1,
-			Libelle: "Paracetamol 500 mg",
-			Medicaments: []entities.GeneriqueMedicament{
-				{Cis: 1, Denomination: "PARACETAMOL BIOGARAN"},
-			},
-		},
-	}
-
-	handler := NewHTTPHandler(
-		NewMockDataStoreBuilder().
-			WithGeneriques(genericList).
-			WithGeneriquesMap(map[int]entities.GeneriqueList{
-				1: {GroupID: 1, Libelle: "Paracetamol 500 mg"},
-			}).
-			Build(),
-		NewMockDataValidatorBuilder().Build(),
-	).(*HTTPHandlerImpl)
-
-	// First request - generate ETag
-	req1 := httptest.NewRequest("GET", "/v1/generiques?group=1", nil)
-	rr1 := httptest.NewRecorder()
-	handler.ServeGeneriquesV1(rr1, req1)
-
-	if rr1.Code != http.StatusOK {
-		t.Errorf("Expected 200, got %d", rr1.Code)
-	}
-
-	etag := rr1.Header().Get("ETag")
-	if etag == "" {
-		t.Error("ETag header should be present")
-	}
-
-	if !hasQuotedETag(etag) {
-		t.Errorf("ETag should be quoted, got: %s", etag)
-	}
-
-	// Second request with matching ETag - return 304
-	req2 := httptest.NewRequest("GET", "/v1/generiques?group=1", nil)
-	req2.Header.Set("If-None-Match", etag)
-	rr2 := httptest.NewRecorder()
-	handler.ServeGeneriquesV1(rr2, req2)
-
-	if rr2.Code != http.StatusNotModified {
-		t.Errorf("Expected 304 Not Modified, got %d", rr2.Code)
-	}
-
-	// Third request with different ETag - return 200
-	req3 := httptest.NewRequest("GET", "/v1/generiques?group=1", nil)
-	req3.Header.Set("If-None-Match", `"different-etag"`)
-	rr3 := httptest.NewRecorder()
-	handler.ServeGeneriquesV1(rr3, req3)
-
-	if rr3.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK, got %d", rr3.Code)
-	}
-
-	if rr3.Body.Len() == 0 {
-		t.Error("Response body should be present")
 	}
 }
 

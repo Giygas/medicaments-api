@@ -374,16 +374,25 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 
 // FindGeneriquesByGroupID finds generiques by group ID
 func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
-	groupIDStr := r.PathValue("groupId")
+	// Support both v1 path parameter (groupID) and legacy path parameter (groupId)
+	groupIDStr := r.PathValue("groupID")
+	if groupIDStr == "" {
+		groupIDStr = r.PathValue("groupId")
+	}
+
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
 		h.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
 		return
 	}
 
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/generiques?group=%v", groupID)
-	h.AddDeprecationHeaders(w, r, newPath)
+	path := r.URL.Path
+
+	// Add deprecation headers for legacy endpoint only
+	if strings.HasPrefix(path, "/generiques/group/") {
+		newPath := fmt.Sprintf("/v1/generiques/%v", groupID)
+		h.AddDeprecationHeaders(w, r, newPath)
+	}
 
 	generiquesMap := h.dataStore.GetGeneriquesMap()
 	gen, exists := generiquesMap[groupID]
@@ -560,78 +569,49 @@ func (h *HTTPHandlerImpl) ServePresentationsV1(w http.ResponseWriter, r *http.Re
 }
 
 func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
-
-	groupStr := r.URL.Query().Get("group")
 	libelle := r.URL.Query().Get("libelle")
 
-	if groupStr == "" && libelle == "" {
-		h.RespondWithError(w, http.StatusBadRequest, "Needs libelle or group param")
+	if libelle == "" {
+		h.RespondWithError(w, http.StatusBadRequest, "Needs libelle param")
 		return
 	}
 
-	// GroupID block
-	if groupStr != "" {
-		groupID, err := strconv.Atoi(groupStr)
-		if err != nil {
-			h.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
-			return
-		}
-
-		if groupID <= 0 || groupID > 9999 {
-			h.RespondWithError(w, http.StatusBadRequest, "Group ID should be between 1 and 9999")
-			return
-		}
-
-		// Get the generiques group map for the group ID param
-		generiquesGroupMap, exists := h.dataStore.GetGeneriquesMap()[groupID]
-		if exists {
-			h.RespondWithJSONAndETag(w, r, http.StatusOK, generiquesGroupMap)
-			return
-		}
-
-		h.RespondWithError(w, http.StatusNotFound, "Generique group not found")
+	// Validate user input using the validator
+	if err := h.validator.ValidateInput(libelle); err != nil {
+		h.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
-	// Libelle block
-	if libelle != "" {
-		// Validate user input using the validator
-		if err := h.validator.ValidateInput(libelle); err != nil {
-			h.RespondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
+	// Sanitize input and convert to lowercase for case-insensitive search
+	sanitizedLibelle := strings.ToLower(libelle)
+	// Normalize: replace + with space for flexible matching
+	sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
 
-		// Sanitize input and convert to lowercase for case-insensitive search
-		sanitizedLibelle := strings.ToLower(libelle)
-		// Normalize: replace + with space for flexible matching
-		sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
+	// Split search query into individual words for multi-word search
+	searchWords := strings.Fields(sanitizedLibelle)
 
-		// Split search query into individual words for multi-word search
-		searchWords := strings.Fields(sanitizedLibelle)
+	generiques := h.dataStore.GetGeneriques()
+	var results []entities.GeneriqueList
 
-		generiques := h.dataStore.GetGeneriques()
-		var results []entities.GeneriqueList
-
-		for _, gen := range generiques {
-			// Check if ALL search words exist in libelle (AND logic)
-			allMatch := true
-			for _, word := range searchWords {
-				if !strings.Contains(gen.LibelleNormalized, word) {
-					allMatch = false
-					break // Early termination - skip this generique immediately
-				}
-			}
-			if allMatch {
-				results = append(results, gen)
+	for _, gen := range generiques {
+		// Check if ALL search words exist in libelle (AND logic)
+		allMatch := true
+		for _, word := range searchWords {
+			if !strings.Contains(gen.LibelleNormalized, word) {
+				allMatch = false
+				break
 			}
 		}
-
-		if len(results) != 0 {
-			h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
-			return
+		if allMatch {
+			results = append(results, gen)
 		}
-		h.RespondWithError(w, http.StatusNotFound, "No generiques found")
-
 	}
+
+	if len(results) != 0 {
+		h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
+		return
+	}
+	h.RespondWithError(w, http.StatusNotFound, "No generiques found")
 }
 
 func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
