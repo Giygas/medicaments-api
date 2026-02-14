@@ -14,12 +14,18 @@ import (
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/metrics"
 	"github.com/juju/ratelimit"
 )
 
 var (
 	medicamentsParams = []string{"search", "page", "cip"}
 	generiquesParams  = []string{"libelle"}
+)
+
+const (
+	cleanupInterval          = 5 * time.Minute
+	metricsCollectionInteval = 30 * time.Second
 )
 
 // RealIPMiddleware extracts the real IP from X-Forwarded-For header
@@ -174,17 +180,21 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 }
 
 // cleanup starts a background goroutine that manages rate limiter memory.
-// Executes every 30 minutes to remove inactive clients (those with full buckets).
+// Executes every 5 minutes to remove inactive clients (those with full buckets).
+// Updates the rate limiter buckets total metric every 30 seconds.
 // Continues until shutdown signal is received via stopChan.
 // Called once at application startup via init().
 func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(30 * time.Minute)
+	cleanupTicker := time.NewTicker(cleanupInterval)
+	metricsTicker := time.NewTicker(metricsCollectionInteval)
 	rl.wg.Add(1)
 	go func() {
 		defer rl.wg.Done()
+		defer cleanupTicker.Stop()
+		defer metricsTicker.Stop()
 		for {
 			select {
-			case <-ticker.C:
+			case <-cleanupTicker.C:
 				rl.mu.Lock()
 				// Remove clients with full buckets
 				for ip, bucket := range rl.clients {
@@ -193,8 +203,12 @@ func (rl *RateLimiter) cleanup() {
 					}
 				}
 				rl.mu.Unlock()
+			case <-metricsTicker.C:
+				rl.mu.RLock()
+				// Update the metrics
+				metrics.RateLimiterBucketsTotal.Set(float64(len(rl.clients)))
+				rl.mu.RUnlock()
 			case <-rl.stopChan:
-				ticker.Stop()
 				return
 			}
 		}
@@ -205,7 +219,7 @@ var globalRateLimiter = NewRateLimiter()
 
 // StopRateLimiter stops the rate limiter cleanup goroutine.
 // Must be called during application shutdown to prevent goroutine leaks.
-// Stops the 30-minute cleanup ticker and ensures all goroutines exit cleanly.
+// Stops the 5-minute cleanup ticker and ensures all goroutines exit cleanly.
 // Safe to call multiple times - first call stops the goroutine, subsequent calls are no-ops.
 func StopRateLimiter() {
 	rl := globalRateLimiter
