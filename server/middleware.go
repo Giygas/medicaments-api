@@ -36,7 +36,13 @@ func RealIPMiddleware(next http.Handler) http.Handler {
 			if idx := strings.Index(xff, ","); idx != -1 {
 				xff = xff[:idx]
 			}
-			r.RemoteAddr = strings.TrimSpace(xff)
+
+			xff = strings.TrimSpace(xff)
+			// Only use this if is a valid ip
+			if net.ParseIP(xff) != nil {
+				r.RemoteAddr = xff
+
+			}
 		}
 
 		// Strip port from RemoteAddr (whether from XFF or original)
