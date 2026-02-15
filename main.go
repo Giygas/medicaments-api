@@ -42,6 +42,7 @@ func main() {
 		"address", cfg.Address,
 		"env", cfg.Env.String(),
 		"log_level", cfg.LogLevel,
+		"allow_direct_access", cfg.AllowDirectAccess,
 		"max_request_body", cfg.MaxRequestBody,
 		"max_header_size", cfg.MaxHeaderSize)
 

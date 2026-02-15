@@ -32,6 +32,12 @@ func RealIPMiddleware(next http.Handler) http.Handler {
 			}
 			r.RemoteAddr = strings.TrimSpace(xff)
 		}
+
+		// Strip port from RemoteAddr (whether from XFF or original)
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			r.RemoteAddr = host
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -61,7 +67,7 @@ func BlockDirectAccessMiddleware(allowDirectAccess bool) func(http.Handler) http
 					return
 				}
 
-				logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"))
+				logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"), "x_real_ip", r.Header.Get("X-Real-IP"), "x_forwarded_for", r.Header.Get("X-Forwarded-For"), "host_header", r.Host, "allow_direct_access", allowDirectAccess)
 				http.Error(w, "Direct access not allowed", http.StatusForbidden)
 				return
 			}
