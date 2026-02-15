@@ -78,3 +78,5 @@ observability/
 !observability/alloy/config.alloy
 !observability/loki/config.yaml
 !observability/prometheus/prometheus.yml
+!observability/grafana/provisioning/**
+!observability/grafana/dashboards/*.json

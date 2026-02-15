@@ -181,13 +181,20 @@ func (s *Server) startMetricsServer() {
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())
 
+	metricsAddr := func() string {
+		if s.config.AllowDirectAccess {
+			return "0.0.0.0:9090"
+		}
+		return "127.0.0.1:9090"
+	}()
+
 	s.metricsServer = &http.Server{
-		Addr:              "127.0.0.1:9090",
+		Addr:              metricsAddr,
 		Handler:           metricsMux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	logging.Info("Metrics: http://127.0.0.1:9090/metrics")
+	logging.Info("Metrics: http://" + metricsAddr + "/metrics")
 
 	go func() {
 		if err := s.metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -230,13 +237,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 // startProfilingServer starts the pprof profiling server in development mode
 func (s *Server) startProfilingServer() {
+	profilingAddr := func() string {
+		if s.config.AllowDirectAccess {
+			return "0.0.0.0:6060"
+		}
+		return "127.0.0.1:6060"
+	}()
+
 	s.profilingServer = &http.Server{
-		Addr:              "localhost:6060",
+		Addr:              profilingAddr,
 		Handler:           nil,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
+	logging.Info("Profiling server started at http://" + profilingAddr + "/debug/pprof/")
 
 	go func() {
 		if err := s.profilingServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
