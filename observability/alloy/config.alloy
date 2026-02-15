@@ -20,17 +20,28 @@ loki.process "parse_json" {
   forward_to = [loki.write.local_loki.receiver]
   stage.json {
     expressions = {
+      timestamp = "time",
       level  = "level",
       path   = "path",
+      msg   = "msg",
+      status_code = "status_code",
+      duration_ms = "duration_ms",
     }
+  }
+
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339Nano"
   }
 
   stage.labels {
     values = {
       level  = "level",
       path   = "path",
+      status_code = "",
     }
   }
+
 }
 
 // Write to local Loki
@@ -41,7 +52,10 @@ loki.write "local_loki" {
 }
 
 // Collect system metrics
-prometheus.exporter.unix "local_system" { }
+prometheus.exporter.unix "local_system" {
+  disable_collectors = ["thermal"]
+  enable_collectors = ["processes", "systemd"]
+}
 
 // Scrape app metrics from medicaments-api container
 prometheus.scrape "app_metrics" {
@@ -60,7 +74,7 @@ prometheus.relabel "filter_app_metrics"{
   rule {
     source_labels = ["__name__"]
     // Drop Go runtime metrics, keep HTTP metrics
-    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_info|process_open_fds|process_max_fds|process_virtual_memory_bytes|process_virtual_memory_max_bytes|process_start_time_seconds|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_duration_seconds|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
+    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_memstats_lookups_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_gc_cycles_automatic_gc_cycles_total|go_gc_cycles_forced_gc_cycles_total|go_info|process_virtual_memory_bytes|process_virtual_memory_max_bytes|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
     action = "drop"
   }
 
@@ -80,7 +94,7 @@ prometheus.relabel "filter_system_metrics" {
   rule {
     action = "replace"
     target_label = "job"
-    replacement = "medicaments-api"
+    replacement = "node"
   }
 
   // Add instance name
@@ -88,14 +102,6 @@ prometheus.relabel "filter_system_metrics" {
     action = "replace"
     target_label = "instance"
     replacement = "docker-container"
-  }
-
-
-  // Drop Go runtime metrics from system scraper
-  rule {
-    source_labels = ["__name__"]
-    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_info|process_open_fds|process_max_fds|process_virtual_memory_bytes|process_virtual_memory_max_bytes|process_start_time_seconds|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_duration_seconds|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
-    action = "drop"
   }
 
   forward_to = [prometheus.remote_write.local_prometheus.receiver]
