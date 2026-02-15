@@ -523,14 +523,14 @@ docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medic
 
 ### Observability Configuration Files
 
-| File                                                            | Purpose                                                                     |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection)                             |
+| File                                                            | Purpose                                                                                               |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection)                                                       |
 | `observability/loki/config.yaml`                                | Loki configuration (log storage, filesystem ruler storage, 30-day retention, 16MB/sec ingestion rate) |
-| `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention)                 |
-| `observability/grafana/provisioning/datasources/loki.yml`       | Auto-configure Loki datasource                                              |
-| `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource                                        |
-| `observability/grafana/provisioning/dashboards/dashboard.yml`   | Auto-import Grafana dashboards                                              |
+| `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention)                                           |
+| `observability/grafana/provisioning/datasources/loki.yml`       | Auto-configure Loki datasource                                                                        |
+| `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource                                                                  |
+| `observability/grafana/provisioning/dashboards/dashboard.yml`   | Auto-import Grafana dashboards                                                                        |
 
 ---
 

@@ -49,9 +49,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check using the /health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8000/health || exit 1
-
 # Run the application
 ENTRYPOINT ["./medicaments-api"]
