@@ -260,21 +260,22 @@ grafana-alloy (collector)
 
 ### Port Architecture
 
-| Service         | Container Port | Host Port | External Access                | Internal Communication |
-| --------------- | -------------- | --------- | ------------------------------ | ---------------------- |
-| medicaments-api | 8000 (API)     | 8030      | http://localhost:8030          | medicaments-api:8000   |
-| medicaments-api | 9090 (metrics) | 9090      | http://localhost:9090/metrics  | medicaments-api:9090   |
-| grafana-alloy   | 12345          | 12345     | http://localhost:12345/metrics | grafana-alloy:12345    |
-| loki            | 3100           | 3150      | http://localhost:3150          | loki:3100              |
-| prometheus      | 9090           | 9091      | http://localhost:9091          | prometheus:9090        |
-| grafana         | 3000           | 3000      | http://localhost:3000          | grafana:3000           |
+| Service         | Container Port | Host Port       | External Access                | Internal Communication |
+| --------------- | -------------- | -------------- | ------------------------------ | ---------------------- |
+| medicaments-api | 8000 (API)     | 8030           | http://localhost:8030          | medicaments-api:8000   |
+| medicaments-api | 9090 (metrics) | internal        | N/A                           | medicaments-api:9090   |
+| grafana-alloy   | 12345          | 12345           | http://localhost:12345/metrics | grafana-alloy:12345    |
+| loki            | 3100           | internal        | N/A                           | loki:3100              |
+| prometheus      | 9090           | 9090           | http://localhost:9090          | prometheus:9090        |
+| grafana         | 3000           | 3000           | http://localhost:3000          | grafana:3000           |
 
 **Key Points:**
 
 - Grafana connects to Prometheus at `prometheus:9090` (container port)
-- External access to Prometheus is via `localhost:9091` (host port mapping)
+- External access to Prometheus is via `localhost:9090` (host port mapping)
 - All service-to-service communication uses container ports within Docker network
 - Host ports are only for accessing services from the host machine
+- Some services (medicaments-api metrics, Loki) are only exposed internally to the Docker network for security
 
 ### Observability Services
 
@@ -299,7 +300,7 @@ Log aggregation and storage.
 
 - **Image**: `grafana/loki:2.9.10`
 - **Configuration**: `loki/config.yaml`
-- **Port**: 3150
+- **Port**: 3100 (internal only - exposed to Docker network)
 - **Storage**: Filesystem (chunks in `/loki/chunks`, rules in `/loki/rules`)
 - **Retention**: 30 days
 - **Data Volume**: `loki-data`
@@ -311,8 +312,8 @@ Metric storage and querying.
 
 - **Image**: `prom/prometheus:v2.48.0`
 - **Configuration**: `prometheus/prometheus.yml`
-- **Port**: 9091 (host) → 9090 (container)
-  - Host port 9091 provides external access to Prometheus UI
+- **Port**: 9090 (host and container)
+  - Host port 9090 provides external access to Prometheus UI
   - Container port 9090 is used for service-to-service communication
 - **Retention**: 15 days (default)
 - **Data Volume**: `prometheus-data`
@@ -336,17 +337,18 @@ Visualization for logs and metrics.
 open http://localhost:3000
 
 # Prometheus UI (metrics browsing)
-open http://localhost:9091
+open http://localhost:9090
 
-# Loki API (log queries)
-curl http://localhost:3150/loki/api/v1/labels
+# medicaments-api metrics (application metrics)
+# Available only via Docker network for internal scraping
+curl http://localhost:9090/metrics
 
 # Alloy metrics (collector status)
 curl http://localhost:12345/metrics
-
-# medicaments-api metrics (application metrics)
-curl http://localhost:9090/metrics
 ```
+
+**Note**: Loki and medicaments-api metrics are only exposed internally to the Docker network.
+They are scraped by Alloy and not directly accessible from the host machine for security.
 
 ### Observability Log Format
 
@@ -450,11 +452,8 @@ docker-compose exec grafana-alloy ls -la /var/log/app/
 # Check Loki is receiving logs
 docker-compose logs loki | grep -i received
 
-# Test Loki query
-curl -G 'http://localhost:3150/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="medicaments_api"}' \
-  --data-urlencode 'start=1699488000000000000' \
-  --data-urlencode 'end=1699491600000000000'
+# Query logs from within the Docker network
+docker-compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
 ```
 
 #### Metrics not appearing in Grafana
@@ -470,7 +469,7 @@ docker-compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
 docker-compose logs prometheus | grep -i received
 
 # Test Prometheus query
-curl 'http://localhost:9091/api/v1/query?query=http_request_total'
+curl 'http://localhost:9090/api/v1/query?query=http_request_total'
 ```
 
 #### Loki fails to start with storage error
@@ -809,7 +808,7 @@ cat observability/grafana/provisioning/datasources/prometheus.yml
 
 # Ensure it uses container port (9090)
 # Correct: url: http://prometheus:9090
-# Wrong:   url: http://prometheus:9091
+# Wrong:   url: http://prometheus:9090
 
 # Restart Grafana to reload datasource config
 docker-compose restart grafana
@@ -831,7 +830,7 @@ curl http://localhost:9090/metrics
 docker-compose logs prometheus | grep -i "received from Alloy"
 
 # Test Prometheus query for app metrics
-curl 'http://localhost:9091/api/v1/query?query=http_request_total'
+curl 'http://localhost:9090/api/v1/query?query=http_request_total'
 ```
 
 ---
@@ -919,6 +918,35 @@ docker-compose exec medicaments-api whoami
 
 # Check user ID
 docker-compose exec medicaments-api id
+```
+
+### Port Exposure Strategy
+
+For security, some services are only exposed internally to the Docker network:
+
+| Service         | Exposure Level | Rationale |
+| --------------- | ------------- | ----------- |
+| medicaments-api (API) | Host + Network | Required for external API access |
+| medicaments-api (metrics) | Network only | Scraped by Alloy internally |
+| loki            | Network only | Scraped by Alloy internally |
+| grafana-alloy   | Host + Network | Optional debugging endpoint |
+| prometheus      | Host + Network | Required for Grafana UI and external queries |
+| grafana         | Host + Network | Required for dashboard access |
+
+**Benefits of internal-only exposure:**
+- Reduces attack surface from external access
+- Prevents unauthorized direct scraping of metrics/logs
+- Forces access through controlled Grafana UI
+- Maintains observability functionality within Docker network
+
+**To access internal-only services for debugging:**
+```bash
+# Access Loki from within Docker network
+docker-compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
+
+# Check logs inside containers
+docker-compose logs loki
+docker-compose logs grafana-alloy
 ```
 
 ### Network Isolation
