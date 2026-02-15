@@ -146,7 +146,9 @@ docker system prune -a           # Remove all unused Docker resources
 The following files were added to set up your Docker staging environment:
 
 #### 1. **Dockerfile**
+
 Multi-stage Docker build optimized for production:
+
 - **Stage 1 - Builder**: `golang:1.24-alpine`
 - **Stage 2 - Runtime**: `alpine:3.20` (~15-20MB final image)
 - **Security**: Non-root user (appuser:1000)
@@ -154,7 +156,9 @@ Multi-stage Docker build optimized for production:
 - **Files**: Copies binary and HTML documentation
 
 #### 2. **docker-compose.yml**
+
 Docker Compose orchestration:
+
 - **Port Mapping**: 8030 (host) → 8000 (container)
 - **Environment**: Variables from `.env.staging`
 - **Logs**: Persistent via volume mount (`./logs:/app/logs`)
@@ -164,12 +168,15 @@ Docker Compose orchestration:
 - **Network**: Custom bridge network for isolation
 
 #### 3. **.dockerignore**
+
 Optimizes Docker build context:
-- Excludes: logs, git, vendor, test files, *.md (except README.md)
+
+- Excludes: logs, git, vendor, test files, \*.md (except README.md)
 - Keeps: source code and HTML docs
 - Reduces: build time and image size
 
 #### 4. **.env.staging**
+
 Staging environment configuration:
 | Variable | Value | Description |
 |----------|-------|-------------|
@@ -183,7 +190,9 @@ Staging environment configuration:
 | `MAX_HEADER_SIZE` | `2097152` | 2MB max header size |
 
 #### 5. **docker-staging.sh**
+
 Interactive quick-start script:
+
 - Validates Docker/Docker Compose installation
 - Creates logs directory
 - Provides menu for common operations
@@ -191,6 +200,7 @@ Interactive quick-start script:
 - Shows health check on startup
 
 #### 6. **.gitignore** (updated)
+
 Added `.env.staging` to prevent committing staging configuration.
 
 ### Project Structure
@@ -240,13 +250,31 @@ The staging setup includes a complete observability stack with Grafana, Loki, Pr
 
 ```
 medicaments-api (logs + metrics)
-         ↓
+          ↓
 grafana-alloy (collector)
-         ↓         ↓
-      loki    prometheus
-         ↓         ↓
-         grafana (visualization)
+          ↓         ↓
+       loki    prometheus
+          ↓         ↓
+          grafana (visualization)
 ```
+
+### Port Architecture
+
+| Service         | Container Port | Host Port | External Access                | Internal Communication |
+| --------------- | -------------- | --------- | ------------------------------ | ---------------------- |
+| medicaments-api | 8000 (API)     | 8030      | http://localhost:8030          | medicaments-api:8000   |
+| medicaments-api | 9090 (metrics) | 9090      | http://localhost:9090/metrics  | medicaments-api:9090   |
+| grafana-alloy   | 12345          | 12345     | http://localhost:12345/metrics | grafana-alloy:12345    |
+| loki            | 3100           | 3150      | http://localhost:3150          | loki:3100              |
+| prometheus      | 9090           | 9091      | http://localhost:9091          | prometheus:9090        |
+| grafana         | 3000           | 3000      | http://localhost:3000          | grafana:3000           |
+
+**Key Points:**
+
+- Grafana connects to Prometheus at `prometheus:9090` (container port)
+- External access to Prometheus is via `localhost:9091` (host port mapping)
+- All service-to-service communication uses container ports within Docker network
+- Host ports are only for accessing services from the host machine
 
 ### Observability Services
 
@@ -281,6 +309,8 @@ Metric storage and querying.
 - **Image**: `prom/prometheus:v2.48.0`
 - **Configuration**: `prometheus/prometheus.yml`
 - **Port**: 9091 (host) → 9090 (container)
+  - Host port 9091 provides external access to Prometheus UI
+  - Container port 9090 is used for service-to-service communication
 - **Retention**: 15 days (default)
 - **Data Volume**: `prometheus-data`
 - **Resource Usage**: ~150MB RAM + ~200MB disk
@@ -356,23 +386,25 @@ From your `/metrics` endpoint (via `metrics/metrics.go`):
 ### Observability Default Credentials
 
 **Grafana**:
+
 - Username: `admin`
 - Password: `admin`
 - **Important**: Change password after first login (Configuration → Users → Change Password)
 
 **Other Services**:
+
 - No authentication required (local network only)
 
 ### Observability Resource Usage
 
-| Service | RAM | Disk | Retention |
-|----------|------|-------|-----------|
-| medicaments-api | ~50MB | ~20MB | N/A |
-| grafana-alloy | ~150MB | ~10MB | N/A |
-| loki | ~100MB | ~100MB (data) | 30 days |
-| prometheus | ~150MB | ~200MB (data) | 30 days |
-| grafana | ~200MB | ~50MB | N/A |
-| **Total** | **~650MB** | **~380MB** | 30 days (both) |
+| Service         | RAM        | Disk          | Retention      |
+| --------------- | ---------- | ------------- | -------------- |
+| medicaments-api | ~50MB      | ~20MB         | N/A            |
+| grafana-alloy   | ~150MB     | ~10MB         | N/A            |
+| loki            | ~100MB     | ~100MB (data) | 30 days        |
+| prometheus      | ~150MB     | ~200MB (data) | 30 days        |
+| grafana         | ~200MB     | ~50MB         | N/A            |
+| **Total**       | **~650MB** | **~380MB**    | 30 days (both) |
 
 ### Observability Troubleshooting
 
@@ -383,11 +415,16 @@ From your `/metrics` endpoint (via `metrics/metrics.go`):
 docker-compose ps
 
 # Verify network connectivity
+# Note: Grafana connects to Prometheus on container port 9090
 docker-compose exec grafana wget -O- http://loki:3100/ready
 docker-compose exec grafana wget -O- http://prometheus:9090/-/ready
 
 # Check datasource configuration
 docker-compose logs grafana | grep -i datasource
+
+# Verify Prometheus datasource configuration
+cat observability/grafana/provisioning/datasources/prometheus.yml
+# Should show: url: http://prometheus:9090
 ```
 
 #### Logs not appearing in Grafana
@@ -455,14 +492,14 @@ docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medic
 
 ### Observability Configuration Files
 
-| File | Purpose |
-|-------|---------|
-| `observability/alloy/config.alloy` | Alloy configuration (logs + metrics collection) |
-| `observability/loki/config.yaml` | Loki configuration (log storage, 30-day retention, 16MB/sec ingestion rate) |
-| `observability/prometheus/prometheus.yml` | Prometheus configuration (metric storage, 30-day retention) |
-| `observability/grafana/provisioning/datasources/loki.yml` | Auto-configure Loki datasource |
-| `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource |
-| `observability/grafana/provisioning/dashboards/dashboard.yml` | Auto-import Grafana dashboards |
+| File                                                            | Purpose                                                                     |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection)                             |
+| `observability/loki/config.yaml`                                | Loki configuration (log storage, 30-day retention, 16MB/sec ingestion rate) |
+| `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention)                 |
+| `observability/grafana/provisioning/datasources/loki.yml`       | Auto-configure Loki datasource                                              |
+| `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource                                        |
+| `observability/grafana/provisioning/dashboards/dashboard.yml`   | Auto-import Grafana dashboards                                              |
 
 ---
 
@@ -731,6 +768,41 @@ ports:
 lsof -i :8030
 ```
 
+### Service Communication Issues
+
+**Grafana can't connect to Prometheus:**
+
+```bash
+# Check Grafana datasource configuration
+cat observability/grafana/provisioning/datasources/prometheus.yml
+
+# Ensure it uses container port (9090)
+# Correct: url: http://prometheus:9090
+# Wrong:   url: http://prometheus:9091
+
+# Restart Grafana to reload datasource config
+docker-compose restart grafana
+
+# Verify connectivity from Grafana container
+docker-compose exec grafana wget -O- http://prometheus:9090/-/ready
+```
+
+**Metrics not appearing in Grafana:**
+
+```bash
+# Check if Alloy is scraping metrics from medicaments-api
+docker-compose logs grafana-alloy | grep -i "medicaments-api:9090"
+
+# Verify medicaments-api metrics endpoint is accessible
+curl http://localhost:9090/metrics
+
+# Check if Prometheus is receiving metrics from Alloy
+docker-compose logs prometheus | grep -i "received from Alloy"
+
+# Test Prometheus query for app metrics
+curl 'http://localhost:9091/api/v1/query?query=http_request_total'
+```
+
 ---
 
 ## Advanced Usage
@@ -925,15 +997,15 @@ docker system prune -a --volumes
 
 ## Production Differences
 
-| Feature | Staging | Production |
-|---------|---------|------------|
-| **Deployment** | Docker Compose | SSH + systemd |
-| **Port** | 8030 | 8000 (configurable) |
-| **LOG_LEVEL** | info | info |
-| **LOG_RETENTION_WEEKS** | 2 | 4 |
-| **MAX_LOG_FILE_SIZE** | 50MB | 100MB |
-| **Resource Limits** | 512MB/0.5CPU | None (systemd) |
-| **Logs Location** | `./logs/` | Server logs |
+| Feature                 | Staging        | Production          |
+| ----------------------- | -------------- | ------------------- |
+| **Deployment**          | Docker Compose | SSH + systemd       |
+| **Port**                | 8030           | 8000 (configurable) |
+| **LOG_LEVEL**           | info           | info                |
+| **LOG_RETENTION_WEEKS** | 2              | 4                   |
+| **MAX_LOG_FILE_SIZE**   | 50MB           | 100MB               |
+| **Resource Limits**     | 512MB/0.5CPU   | None (systemd)      |
+| **Logs Location**       | `./logs/`      | Server logs         |
 
 ---
 
@@ -980,12 +1052,12 @@ For issues or questions:
 
 ### File Locations
 
-| Type | Location |
-|------|----------|
-| **Binary** | `/app/medicaments-api` |
-| **HTML Docs** | `/app/html/` |
-| **Logs** | `/app/logs/` (mounted to `./logs/`) |
-| **Config** | Environment variables |
+| Type          | Location                            |
+| ------------- | ----------------------------------- |
+| **Binary**    | `/app/medicaments-api`              |
+| **HTML Docs** | `/app/html/`                        |
+| **Logs**      | `/app/logs/` (mounted to `./logs/`) |
+| **Config**    | Environment variables               |
 
 ### Startup Process
 
