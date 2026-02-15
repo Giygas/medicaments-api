@@ -5,7 +5,7 @@ local.file_match "medicaments_api_logs" {
   path_targets = [{
     __path__ = "/var/log/app/*.log",
     service = "log_collector",
-    app = "medicaments_api",
+    job = "medicaments-api",
   }]
 }
 
@@ -47,8 +47,8 @@ prometheus.exporter.unix "local_system" { }
 prometheus.scrape "app_metrics" {
   targets = [{
     __address__ = "medicaments-api:9090",
-    job         = "medicaments_api",
-    app = "medicaments_api",
+    job         = "medicaments-api",
+    instance = "docker-container",
   }]
 
   forward_to      = [prometheus.relabel.filter_app_metrics.receiver]
@@ -80,8 +80,16 @@ prometheus.relabel "filter_system_metrics" {
   rule {
     action = "replace"
     target_label = "job"
-    replacement = "system_scrapper"
+    replacement = "medicaments-api"
   }
+
+  // Add instance name
+  rule {
+    action = "replace"
+    target_label = "instance"
+    replacement = "docker-container"
+  }
+
 
   // Drop Go runtime metrics from system scraper
   rule {

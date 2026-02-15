@@ -8,6 +8,7 @@ logs/
 extras/
 main
 *.log
+logs*/
 **/files/*.txt
 */files/*.txt
 files/

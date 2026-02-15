@@ -38,6 +38,7 @@ services:
     volumes:
       - ./logs:/var/log/app:ro
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command: ["run", "/etc/alloy/config.alloy", "--server.http.listen-addr=0.0.0.0:12345"]
     restart: unless-stopped
     networks:
       - medicaments-network

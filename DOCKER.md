@@ -280,15 +280,17 @@ grafana-alloy (collector)
 
 #### grafana-alloy
 
-Collects logs and metrics from medicaments-api.
+Collects logs and metrics from medicaments-api and system metrics.
 
 - **Image**: `grafana/alloy:v1.4.0`
 - **Configuration**: `alloy/config.alloy`
 - **Port**: 12345 (Alloy's own metrics)
 - **Functions**:
   - Read logs from `./logs/` directory
-  - Scrape metrics from `medicaments-api:9090/metrics`
+  - Scrape application metrics from `medicaments-api:9090/metrics` (every 30s)
+  - Collect system metrics via Unix exporter (every 60s)
   - Forward to local Loki and Prometheus
+  - Filter out Go runtime metrics (keep only HTTP and system metrics)
 - **Resource Usage**: ~150MB RAM
 
 #### loki
@@ -382,7 +384,15 @@ From your `/metrics` endpoint (via `metrics/metrics.go`):
   - Type: Gauge
   - Example: `http_request_in_flight`
 
-**Note**: Alloy configuration filters out Go runtime metrics, keeping only HTTP metrics.
+From system metrics via `prometheus.exporter.unix`:
+
+- **CPU metrics**: Process and system CPU usage
+- **Memory metrics**: Process and system memory usage
+- **File descriptors**: Open file descriptors
+- **Network metrics**: Network I/O statistics
+- **Disk metrics**: Disk I/O and filesystem statistics
+
+**Note**: Alloy configuration filters out Go runtime metrics from both application and system scrapers, keeping only HTTP and relevant system metrics.
 
 ### Observability Default Credentials
 
