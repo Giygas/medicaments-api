@@ -25,7 +25,10 @@ schema_config:
         period: 24h
 
 ruler:
-  # alertmanager_url: http://alertmanager:9093  # Uncomment if using alertmanager service
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
 
 
 limits_config:

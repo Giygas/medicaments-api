@@ -298,6 +298,7 @@ Log aggregation and storage.
 - **Image**: `grafana/loki:2.9.10`
 - **Configuration**: `loki/config.yaml`
 - **Port**: 3150
+- **Storage**: Filesystem (chunks in `/loki/chunks`, rules in `/loki/rules`)
 - **Retention**: 30 days
 - **Data Volume**: `loki-data`
 - **Resource Usage**: ~100MB RAM + ~100MB disk
@@ -462,6 +463,26 @@ docker-compose logs prometheus | grep -i received
 curl 'http://localhost:9091/api/v1/query?query=http_request_total'
 ```
 
+#### Loki fails to start with storage error
+
+```bash
+# Check Loki logs for storage configuration errors
+docker-compose logs loki | grep -i "storage\|ruler"
+
+# Common error: "field filesystem not found in type base.RuleStoreConfig"
+# This occurs in Loki 2.9+ when ruler storage type is not explicitly specified
+
+# Fix: Ensure loki/config.yaml ruler section has explicit local storage:
+#   ruler:
+#     storage:
+#       type: local
+#       local:
+#         directory: /loki/rules
+
+# Restart Loki after fixing config
+docker-compose restart loki
+```
+
 #### High resource usage
 
 ```bash
@@ -495,7 +516,7 @@ docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medic
 | File                                                            | Purpose                                                                     |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection)                             |
-| `observability/loki/config.yaml`                                | Loki configuration (log storage, 30-day retention, 16MB/sec ingestion rate) |
+| `observability/loki/config.yaml`                                | Loki configuration (log storage, filesystem ruler storage, 30-day retention, 16MB/sec ingestion rate) |
 | `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention)                 |
 | `observability/grafana/provisioning/datasources/loki.yml`       | Auto-configure Loki datasource                                              |
 | `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource                                        |
