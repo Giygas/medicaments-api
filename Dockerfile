@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates
@@ -16,38 +16,42 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary
-# -ldflags="-s -w" strips debug info for smaller binary
+# Build binary with static linking
+# CGO_ENABLED=0: Disable CGO for static binary (required for scratch)
+# GOOS=linux: Target Linux OS
+# GOARCH=amd64: Target AMD64 architecture (or arm64 for ARM)
+# -ldflags="-s -w -extldflags '-static'": Strip debug info and force static linking
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-s -w" \
-    -o medicaments-api .
+    -ldflags="-s -w -extldflags '-static'" \
+    -trimpath \
+    -o /app/medicaments-api .
 
-# Stage 2: Runtime
-FROM alpine:3.20
+# Stage 2: Runtime (scratch - empty filesystem)
+FROM scratch
 
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata wget
+# Metadata labels for security scanning and documentation
+LABEL org.opencontainers.image.source="https://github.com/giygas/medicaments-api" \
+      org.opencontainers.image.description="French medicaments API - High-performance JSON API for BDPM data" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.title="medicaments-api" \
+      org.opencontainers.image.authors="giygas@example.com"
 
-# Create app user and directories
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    mkdir -p /app/logs && \
-    chown -R appuser:appuser /app
+# Copy CA certificates for HTTPS requests (required for BDPM downloads)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Set working directory
-WORKDIR /app
+# Copy app directory from builder (includes binary and pre-created directories)
+# Use --chown to set ownership for scratch container
+COPY --from=builder --chown=65534:65534 /app /app
 
-# Copy binary from builder
-COPY --from=builder /build/medicaments-api .
-
-# Copy html directory for documentation
-COPY --from=builder /build/html ./html
-
-# Switch to non-root user
-USER appuser
+# Use non-root user (nobody user with UID 65534)
+USER 65534:65534
 
 # Expose port
 EXPOSE 8000
 
-# Run the application
-ENTRYPOINT ["./medicaments-api"]
+# Add health check using binary's built-in healthcheck subcommand
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/app/medicaments-api", "healthcheck"]
+
+# Run application
+ENTRYPOINT ["/app/medicaments-api"]

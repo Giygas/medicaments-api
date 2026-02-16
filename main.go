@@ -20,6 +20,16 @@ import (
 )
 
 func main() {
+	// Check if running in healthcheck mode (for Docker HEALTHCHECK)
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		resp, err := http.Get("http://localhost:8000/health")
+		if err != nil || resp.StatusCode != 200 {
+			os.Exit(1)
+		}
+		resp.Body.Close()
+		os.Exit(0)
+	}
+
 	// Load environment variables first
 	if err := loadEnvironment(); err != nil {
 		fmt.Printf("Failed to load environment: %v\n", err)
