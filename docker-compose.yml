@@ -3,32 +3,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: medicaments-api-staging
+    container_name: medicaments-api
     ports:
       - "8030:8000"
     expose:
-      - "9090"
+      - "9090" # Metrics endpoint for Prometheus to scrap
     env_file:
       - .env.staging
+    read_only: true
+    tmpfs:
+      - /app/files:size=30M,uid=65534,gid=65534
     volumes:
-      # Persist logs outside container
-      - ./logs:/app/logs
+      # Persist logs outside container using named volume
+      - logs_data:/app/logs
     restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "-O",
-          "/dev/null",
-          "http://localhost:8000/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
     networks:
       - medicaments-network
     deploy:
@@ -52,14 +42,12 @@ services:
     ports:
       - "12345:12345"
     volumes:
-      - ./logs:/var/log/app:ro
+      - logs_data:/var/log/app:ro
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
     command:
-      [
-        "run",
-        "/etc/alloy/config.alloy",
-        "--server.http.listen-addr=0.0.0.0:12345",
-      ]
+      - "run"
+      - "/etc/alloy/config.alloy"
+      - "--server.http.listen-addr=0.0.0.0:12345"
     restart: unless-stopped
     networks:
       - medicaments-network
@@ -209,3 +197,4 @@ volumes:
   loki-data:
   prometheus-data:
   grafana-data:
+  logs_data:

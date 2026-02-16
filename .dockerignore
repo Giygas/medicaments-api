@@ -23,8 +23,6 @@ coverage.html
 # Documentation
 *.md
 !README.md
-CODE_REVIEW.md
-AGENTS.md
 
 # IDEs and editors
 .vscode/
@@ -49,6 +47,7 @@ workspaces/
 .env
 .env.local
 .env.*.local
+.env.*
 
 # Build artifacts
 medicaments-api

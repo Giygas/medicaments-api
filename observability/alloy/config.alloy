@@ -54,7 +54,7 @@ loki.write "local_loki" {
 // Collect system metrics
 prometheus.exporter.unix "local_system" {
   disable_collectors = ["thermal"]
-  enable_collectors = ["processes", "systemd"]
+  enable_collectors = ["processes"]
 }
 
 // Scrape app metrics from medicaments-api container
@@ -74,7 +74,7 @@ prometheus.relabel "filter_app_metrics"{
   rule {
     source_labels = ["__name__"]
     // Drop Go runtime metrics, keep HTTP metrics
-    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_mallocs_total|go_memstats_lookups_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_gc_cycles_automatic_gc_cycles_total|go_gc_cycles_forced_gc_cycles_total|go_info|process_virtual_memory_bytes|process_virtual_memory_max_bytes|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
+    regex = "go_memstats_heap_idle_bytes|go_memstats_heap_released_bytes|go_memstats_heap_sys_bytes|go_memstats_gc_sys_bytes|go_memstats_stack_inuse_bytes|go_memstats_stack_sys_bytes|go_memstats_mcache_inuse_bytes|go_memstats_mcache_sys_bytes|go_memstats_mspan_inuse_bytes|go_memstats_mspan_sys_bytes|go_memstats_other_sys_bytes|go_memstats_sys_bytes|go_memstats_buck_hash_sys_bytes|go_memstats_next_gc_bytes|go_threads|go_gc_gogc_percent|go_gc_gomemlimit_bytes|go_memstats_frees_total|go_memstats_lookups_total|go_sched_gomaxprocs_threads|go_memstats_last_gc_time_seconds|go_memstats_heap_objects|go_memstats_heap_inuse_bytes|go_gc_duration_seconds_count|go_gc_duration_seconds_sum|go_gc_cycles_automatic_gc_cycles_total|go_gc_cycles_forced_gc_cycles_total|go_info|process_virtual_memory_bytes|process_virtual_memory_max_bytes|promhttp_metric_handler_requests_in_flight|promhttp_metric_handler_requests_total|scrape_samples_post_metric_relabeling|scrape_samples_scraped|scrape_series_added"
     action = "drop"
   }
 
