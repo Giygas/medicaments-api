@@ -43,10 +43,8 @@ Thumbs.db
 # Workspaces
 workspaces/
 
-# Environment files (use .env.staging)
+# Environment files (use .env.docker)
 .env
-.env.local
-.env.*.local
 .env.*
 
 # Build artifacts

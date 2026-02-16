@@ -167,9 +167,11 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_password
       - GF_INSTALL_PLUGINS=
     restart: unless-stopped
+    secrets:
+      - grafana_password
     networks:
       - medicaments-network
     depends_on:
@@ -201,3 +203,7 @@ volumes:
   prometheus-data:
   grafana-data:
   logs_data:
+
+secrets:
+  grafana_password:
+    file: ./secrets/grafana_password.txt
