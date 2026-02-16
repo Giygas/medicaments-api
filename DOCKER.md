@@ -86,10 +86,10 @@ docker-compose down
 ### What Happens on First Run
 
 1. **Docker builds image** (~1-2 minutes)
-2. **Container starts** as non-root user (appuser:1000)
+2. **Container starts** as non-root user (UID 65534/nobody)
 3. **BDPM data downloads** from external sources (~10-30 seconds)
 4. **HTTP server starts** on port 8000
-5. **Health check begins** after 40-second start period
+5. **Health check begins** after 10-second start period
 6. **API is ready** at http://localhost:8030
 
 ---
@@ -118,7 +118,7 @@ docker-compose logs | grep error   # Search for errors
 ```bash
 docker-compose ps                 # Container status
 curl http://localhost:8030/health # Health check
-docker stats medicaments-api-staging # Resource usage
+docker stats medicaments-api # Resource usage
 ```
 
 ### 🛠️ Build & Rebuild
@@ -149,59 +149,80 @@ The following files were added to set up your Docker staging environment:
 
 Multi-stage Docker build optimized for production:
 
-- **Stage 1 - Builder**: `golang:1.24-alpine`
-- **Stage 2 - Runtime**: `alpine:3.20` (~15-20MB final image)
-- **Security**: Non-root user (appuser:1000)
-- **Health Check**: Built-in using `/health` endpoint
-- **Files**: Copies binary and HTML documentation
+- **Stage 1 - Builder**: `golang:1.26-alpine`
+  - Uses `syntax=docker/dockerfile:1` for buildkit support
+  - Cache mounts for Go packages and build cache (faster rebuilds)
+  - Copies HTML documentation from `/build/html`
+- **Stage 2 - Runtime**: `scratch` (~8-10MB final image, minimal attack surface)
+- **Security**: Non-root user (UID 65534/nobody)
+- **Health Check**: Built-in using HEALTHCHECK instruction with healthcheck subcommand
+- **Files**: Copies binary, CA certificates, and HTML documentation
+- **Build Dependencies**: Only `ca-certificates`
 
 #### 2. **docker-compose.yml**
 
 Docker Compose orchestration:
 
 - **Port Mapping**: 8030 (host) → 8000 (container)
-- **Environment**: Variables from `.env.staging`
-- **Logs**: Persistent via volume mount (`./logs:/app/logs`)
-- **Resources**: 512MB RAM, 0.5 CPU limits
-- **Health Check**: 30s interval, 10s timeout, 3 retries
+- **Environment**: Variables from `.env.docker`
+- **Logs**: Persistent via named volume (`logs_data:/app/logs`)
+- **Security**: Read-only filesystem, no-new-privileges, tmpfs for /app/files
+- **Resources**:
+  - medicaments-api: 512MB/0.5CPU limits, 256MB/0.25CPU reservations
+  - grafana-alloy: 256MB/0.5CPU limits, 128MB/0.1CPU reservations
+  - loki: 512MB/1.0CPU limits, 256MB/0.2CPU reservations
+  - prometheus: 1G/1.0CPU limits, 512MB/0.3CPU reservations
+  - grafana: 512MB/0.5CPU limits, 256MB/0.1CPU reservations
+- **Health Check**: Delegated to Dockerfile (30s interval, 5s timeout, 10s start period, 3 retries)
 - **Restart**: Policy `unless-stopped`
 - **Network**: Custom bridge network for isolation
+- **Container Labels**: Metadata for identification and management
 
 #### 3. **.dockerignore**
 
 Optimizes Docker build context:
 
-- Excludes: logs, git, vendor, test files, \*.md (except README.md)
+- Excludes: logs, git, vendor, test files, \*.md (except README.md), observability/ (except config files)
 - Keeps: source code and HTML docs
 - Reduces: build time and image size
+- Observability configs: Explicitly includes necessary config files from observability/
 
-#### 4. **.env.staging**
+#### 4. **.env.docker**
 
-Staging environment configuration:
+Docker environment configuration:
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `ADDRESS` | `0.0.0.0` | Listen on all interfaces in container |
 | `PORT` | `8000` | Port inside container |
-| `ENV` | `staging` | Environment mode |
+| `ENV` | `production` | Environment mode |
+| `ALLOW_DIRECT_ACCESS` | `true` | Allow binding to all interfaces (Docker only) |
 | `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) |
 | `LOG_RETENTION_WEEKS` | `2` | Keep logs for 2 weeks |
 | `MAX_LOG_FILE_SIZE` | `52428800` | Rotate at 50MB |
 | `MAX_REQUEST_BODY` | `2097152` | 2MB max request body |
 | `MAX_HEADER_SIZE` | `2097152` | 2MB max header size |
+| `GRAFANA_ADMIN_USER` | `giygas` | Grafana admin username |
+| `GRAFANA_ADMIN_PASSWORD` | `paquito` | Grafana admin password |
 
 #### 5. **docker-staging.sh**
 
 Interactive quick-start script:
 
 - Validates Docker/Docker Compose installation
-- Creates logs directory
-- Provides menu for common operations
-- Waits for application to be ready
-- Shows health check on startup
+- Checks for `.env.docker` file
+- Creates logs directory with proper permissions
+- Provides menu for common operations (build, start, stop, logs, restart, cleanup)
+- Waits for application to be ready (with health check polling)
+- Displays health check results on startup
 
 #### 6. **.gitignore** (updated)
 
-Added `.env.staging` to prevent committing staging configuration.
+Added comprehensive exclusions including:
+
+- `.env.docker` and other environment files
+- `observability/` directory (with exceptions for config files)
+- Standard Git, CI/CD, IDE, and OS files
+- Test artifacts and build files
 
 ### Project Structure
 
@@ -210,7 +231,7 @@ medicaments-api/
 ├── Dockerfile              # Multi-stage Docker build
 ├── docker-compose.yml      # Docker Compose orchestration (includes observability stack)
 ├── .dockerignore          # Files excluded from build context
-├── .env.staging           # Staging environment variables
+├── .env.docker             # Docker environment variables
 ├── docker-staging.sh      # Interactive quick-start script
 ├── logs/                  # Persistent logs directory
 ├── html/                  # Documentation files (served by API)
@@ -218,10 +239,12 @@ medicaments-api/
 │   ├── alloy/              # Alloy config
 │   ├── loki/               # Loki config
 │   ├── prometheus/          # Prometheus config
+│   │   └── alerts/          # Prometheus alert rules
 │   └── grafana/             # Grafana config
-│       └── provisioning/      # Auto-provisioning
-│           ├── datasources/   # Loki & Prometheus datasources
-│           └── dashboards/     # Dashboard imports
+│       ├── provisioning/      # Auto-provisioning
+│       │   ├── datasources/   # Loki & Prometheus datasources
+│       │   └── dashboards/     # Dashboard provisioning
+│       └── dashboards/        # Dashboard JSON files
 ```
 
 ### Configuration
@@ -260,14 +283,14 @@ grafana-alloy (collector)
 
 ### Port Architecture
 
-| Service         | Container Port | Host Port       | External Access                | Internal Communication |
-| --------------- | -------------- | -------------- | ------------------------------ | ---------------------- |
-| medicaments-api | 8000 (API)     | 8030           | http://localhost:8030          | medicaments-api:8000   |
-| medicaments-api | 9090 (metrics) | internal        | N/A                           | medicaments-api:9090   |
-| grafana-alloy   | 12345          | 12345           | http://localhost:12345/metrics | grafana-alloy:12345    |
-| loki            | 3100           | internal        | N/A                           | loki:3100              |
-| prometheus      | 9090           | 9090           | http://localhost:9090          | prometheus:9090        |
-| grafana         | 3000           | 3000           | http://localhost:3000          | grafana:3000           |
+| Service         | Container Port | Host Port | External Access                | Internal Communication |
+| --------------- | -------------- | --------- | ------------------------------ | ---------------------- |
+| medicaments-api | 8000 (API)     | 8030      | http://localhost:8030          | medicaments-api:8000   |
+| medicaments-api | 9090 (metrics) | internal  | N/A                            | medicaments-api:9090   |
+| grafana-alloy   | 12345          | 12345     | http://localhost:12345/metrics | grafana-alloy:12345    |
+| loki            | 3100           | internal  | N/A                            | loki:3100              |
+| prometheus      | 9090           | 9090      | http://localhost:9090          | prometheus:9090        |
+| grafana         | 3000           | 3000      | http://localhost:3000          | grafana:3000           |
 
 **Key Points:**
 
@@ -302,9 +325,10 @@ Log aggregation and storage.
 - **Configuration**: `loki/config.yaml`
 - **Port**: 3100 (internal only - exposed to Docker network)
 - **Storage**: Filesystem (chunks in `/loki/chunks`, rules in `/loki/rules`)
-- **Retention**: 30 days
+- **Retention**: 30 days (720 hours)
 - **Data Volume**: `loki-data`
 - **Resource Usage**: ~100MB RAM + ~100MB disk
+- **Health Check**: Available via `/ready` endpoint
 
 #### prometheus
 
@@ -315,9 +339,10 @@ Metric storage and querying.
 - **Port**: 9090 (host and container)
   - Host port 9090 provides external access to Prometheus UI
   - Container port 9090 is used for service-to-service communication
-- **Retention**: 15 days (default)
+- **Retention**: 30 days (720 hours)
 - **Data Volume**: `prometheus-data`
 - **Resource Usage**: ~150MB RAM + ~200MB disk
+- **Scraping**: Receives metrics via `remote_write` from Grafana Alloy (no `scrape_configs` needed)
 
 #### grafana
 
@@ -325,7 +350,7 @@ Visualization for logs and metrics.
 
 - **Image**: `grafana/grafana:10.2.4`
 - **Port**: 3000
-- **Default Credentials**: admin/admin (change after first login)
+- **Default Credentials**: giygas/paquito (change after first login)
 - **Data Volume**: `grafana-data`
 - **Resource Usage**: ~200MB RAM + ~50MB disk
 - **Auto-Provisioning**: Datasources configured automatically
@@ -400,8 +425,8 @@ From system metrics via `prometheus.exporter.unix`:
 
 **Grafana**:
 
-- Username: `admin`
-- Password: `admin`
+- Username: `giygas`
+- Password: `paquito`
 - **Important**: Change password after first login (Configuration → Users → Change Password)
 
 **Other Services**:
@@ -415,7 +440,7 @@ From system metrics via `prometheus.exporter.unix`:
 | medicaments-api | ~50MB      | ~20MB         | N/A            |
 | grafana-alloy   | ~150MB     | ~10MB         | N/A            |
 | loki            | ~100MB     | ~100MB (data) | 30 days        |
-| prometheus      | ~150MB     | ~200MB (data) | 30 days        |
+| prometheus      | ~150MB     | ~200MB (data) | 30 days (720h) |
 | grafana         | ~200MB     | ~50MB         | N/A            |
 | **Total**       | **~650MB** | **~380MB**    | 30 days (both) |
 
@@ -524,12 +549,14 @@ docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medic
 
 | File                                                            | Purpose                                                                                               |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection)                                                       |
+| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection, filters Go runtime metrics)                           |
 | `observability/loki/config.yaml`                                | Loki configuration (log storage, filesystem ruler storage, 30-day retention, 16MB/sec ingestion rate) |
-| `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention)                                           |
+| `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention, alert rules)                              |
+| `observability/prometheus/alerts/medicaments-api.yml`           | Prometheus alert rules (service down, high error rate, high latency)                                  |
 | `observability/grafana/provisioning/datasources/loki.yml`       | Auto-configure Loki datasource                                                                        |
 | `observability/grafana/provisioning/datasources/prometheus.yml` | Auto-configure Prometheus datasource                                                                  |
 | `observability/grafana/provisioning/dashboards/dashboard.yml`   | Auto-import Grafana dashboards                                                                        |
+| `observability/grafana/dashboards/api-health.json`              | Pre-configured API health dashboard                                                                   |
 
 ---
 
@@ -563,9 +590,9 @@ docker-compose logs --tail=100
 # View logs with timestamps
 docker-compose logs -f -t
 
-# View persistent logs from volume
-ls -la logs/
-tail -f logs/app-*.log
+# View persistent logs from named volume
+docker-compose exec medicaments-api ls -la /app/logs/
+docker-compose exec medicaments-api tail -f /app/logs/app-*.log
 ```
 
 ### Container Management
@@ -575,10 +602,10 @@ tail -f logs/app-*.log
 docker-compose ps
 
 # View detailed container info
-docker inspect medicaments-api-staging
+docker inspect medicaments-api
 
 # View resource usage
-docker stats medicaments-api-staging
+docker stats medicaments-api
 
 # Restart container
 docker-compose restart
@@ -670,9 +697,9 @@ curl http://localhost:8030/health | jq '.data'
 The container includes a health check using `/health` endpoint:
 
 - **Interval**: 30 seconds
-- **Timeout**: 10 seconds
+- **Timeout**: 5 seconds
 - **Retries**: 3
-- **Start Period**: 40 seconds
+- **Start Period**: 10 seconds
 
 Check health status:
 
@@ -737,7 +764,7 @@ docker-compose up -d
 docker-compose ps
 
 # View health check logs
-docker inspect medicaments-api-staging | jq '.[0].State.Health'
+docker inspect medicaments-api | jq '.[0].State.Health'
 
 # Test health endpoint manually
 docker-compose exec medicaments-api wget -O- http://localhost:8000/health
@@ -763,7 +790,7 @@ docker-compose restart
 
 ```bash
 # Check volume mount
-docker inspect medicaments-api-staging | jq '.[0].Mounts'
+docker inspect medicaments-api | jq '.[0].Mounts'
 
 # Verify logs directory permissions
 ls -la logs/
@@ -776,7 +803,7 @@ docker-compose exec medicaments-api ls -la /app/logs/
 
 ```bash
 # Check current memory usage
-docker stats medicaments-api-staging
+docker stats medicaments-api
 
 # View memory metrics
 curl http://localhost:8030/health | jq '.system.memory'
@@ -872,17 +899,17 @@ docker-compose -f docker-compose.staging.yml up -d
 
 ```bash
 # Run with debug logging
-# Edit .env.staging: LOG_LEVEL=debug
+# Edit .env.docker: LOG_LEVEL=debug
 docker-compose restart
 
 # View real-time logs
 docker-compose logs -f
 
-# Enter container shell
-docker-compose exec medicaments-api sh
+# Enter container shell (scratch image has no shell - use logs only)
+# docker-compose exec medicaments-api sh  # Not available
 
-# Check processes
-docker-compose exec medicaments-api ps aux
+# Check processes (scratch image has no ps - use health endpoint)
+# docker-compose exec medicaments-api ps aux  # Not available
 
 # Monitor file changes
 docker-compose exec medicaments-api ls -la /app/logs/
@@ -910,11 +937,11 @@ hey -n 100 -c 5 http://localhost:8030/v1/medicaments?search=paracetamol
 
 ### Non-Root User
 
-Container runs as non-root user (`appuser:1000`) for security:
+Container runs as non-root user (`UID 65534` / `nobody`) for security:
 
 ```bash
-# Verify user
-docker-compose exec medicaments-api whoami
+# Verify user (scratch image may not have whoami)
+# docker-compose exec medicaments-api whoami  # May not be available
 
 # Check user ID
 docker-compose exec medicaments-api id
@@ -924,22 +951,24 @@ docker-compose exec medicaments-api id
 
 For security, some services are only exposed internally to the Docker network:
 
-| Service         | Exposure Level | Rationale |
-| --------------- | ------------- | ----------- |
-| medicaments-api (API) | Host + Network | Required for external API access |
-| medicaments-api (metrics) | Network only | Scraped by Alloy internally |
-| loki            | Network only | Scraped by Alloy internally |
-| grafana-alloy   | Host + Network | Optional debugging endpoint |
-| prometheus      | Host + Network | Required for Grafana UI and external queries |
-| grafana         | Host + Network | Required for dashboard access |
+| Service                   | Exposure Level | Rationale                                    |
+| ------------------------- | -------------- | -------------------------------------------- |
+| medicaments-api (API)     | Host + Network | Required for external API access             |
+| medicaments-api (metrics) | Network only   | Scraped by Alloy internally                  |
+| loki                      | Network only   | Scraped by Alloy internally                  |
+| grafana-alloy             | Host + Network | Optional debugging endpoint                  |
+| prometheus                | Host + Network | Required for Grafana UI and external queries |
+| grafana                   | Host + Network | Required for dashboard access                |
 
 **Benefits of internal-only exposure:**
+
 - Reduces attack surface from external access
 - Prevents unauthorized direct scraping of metrics/logs
 - Forces access through controlled Grafana UI
 - Maintains observability functionality within Docker network
 
 **To access internal-only services for debugging:**
+
 ```bash
 # Access Loki from within Docker network
 docker-compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
@@ -981,10 +1010,10 @@ sudo chown -R 1000:1000 logs/
 
 ```bash
 # Real-time stats
-docker stats medicaments-api-staging
+docker stats medicaments-api
 
 # Specific metrics
-docker stats --no-stream medicaments-api-staging
+docker stats --no-stream medicaments-api
 ```
 
 ### Application Metrics
@@ -1015,6 +1044,68 @@ docker-compose logs -f | grep -i update
 # Count log entries
 docker-compose logs | wc -l
 ```
+
+### Prometheus Alerting
+
+The monitoring stack includes Prometheus alerting rules that automatically detect issues and display alerts in Grafana.
+
+**Alert Rules Location:** `observability/prometheus/alerts/medicaments-api.yml`
+
+**Critical Alerts:**
+
+| Alert              | Description             | Threshold          | Duration |
+| ------------------ | ----------------------- | ------------------ | -------- |
+| ServiceDown        | Service unreachable     | `up == 0`          | 5m       |
+| High5xxErrorRate   | Too many server errors  | 5xx rate > 5%      | 5m       |
+| HighTotalErrorRate | Too many errors overall | 4xx+5xx rate > 10% | 5m       |
+
+**Warning Alerts:**
+
+| Alert            | Description            | Threshold               | Duration |
+| ---------------- | ---------------------- | ----------------------- | -------- |
+| HighLatencyP95   | Slow response times    | P95 latency > 200ms     | 10m      |
+| HighRequestRate  | High traffic volume    | Request rate > 1000/sec | 5m       |
+| Sustained4xxRate | High client error rate | 4xx rate > 5%           | 10m      |
+
+**Viewing Alerts in Grafana:**
+
+1. Navigate to `http://localhost:3000`
+2. Go to **Alerting** → **Alert Rules** (in the left sidebar)
+3. Filter by job `medicaments-api`
+4. View active alerts, silenced alerts, and alert history
+
+**Customizing Alert Thresholds:**
+
+Edit `observability/prometheus/alerts/medicaments-api.yml` to adjust thresholds:
+
+```yaml
+# Example: Change P95 latency threshold
+- alert: HighLatencyP95
+  expr: |
+    histogram_quantile(0.95,
+      rate(http_request_duration_seconds_bucket{job="medicaments-api"}[10m])
+    ) > 0.5  # Change from 0.2 (200ms) to 0.5 (500ms)
+  for: 10m
+```
+
+After editing, reload Prometheus configuration:
+
+```bash
+# Restart Prometheus to apply changes
+docker-compose restart prometheus
+
+# Or use SIGHUP for hot reload (if configured)
+docker exec prometheus kill -HUP 1
+```
+
+**Health Check Monitoring:**
+
+For monitoring the `/health` endpoint (data age, medicaments count, etc.), create a Grafana alert panel:
+
+1. Go to **Dashboards** → **medicaments-api Health**
+2. Add a new panel or edit existing
+3. Set up an alert based on health status or data age
+4. Configure alert conditions (e.g., `data_age_hours > 24`)
 
 ---
 
@@ -1104,39 +1195,42 @@ For issues or questions:
 
 ### Docker Image Details
 
-- **Base Image**: `alpine:3.20` (~5MB)
-- **Builder Image**: `golang:1.24-alpine`
-- **Final Image Size**: ~15-20MB
-- **Binary Size**: ~8-10MB (stripped)
+- **Base Image**: `scratch` (empty filesystem, minimal attack surface)
+- **Builder Image**: `golang:1.26-alpine`
+- **Final Image Size**: ~8-10MB
+- **Binary Size**: ~8-10MB (statically linked, stripped)
 
 ### File Locations
 
-| Type          | Location                            |
-| ------------- | ----------------------------------- |
-| **Binary**    | `/app/medicaments-api`              |
-| **HTML Docs** | `/app/html/`                        |
-| **Logs**      | `/app/logs/` (mounted to `./logs/`) |
-| **Config**    | Environment variables               |
+| Type          | Location                              |
+| ------------- | ------------------------------------- |
+| **Binary**    | `/app/medicaments-api`                |
+| **HTML Docs** | `/app/html/`                          |
+| **Logs**      | `/app/logs/` (mounted to `logs_data`) |
+| **Config**    | Environment variables                 |
 
 ### Startup Process
 
-1. Container starts as `appuser`
-2. Application loads environment variables
+1. Container starts as non-root user (UID 65534/nobody)
+2. Application loads environment variables from `.env.docker`
 3. Logging system initialized
 4. Data container and parser created
 5. Scheduler starts (6h/18h updates)
-6. BDPM data downloaded
+6. BDPM data downloaded from external sources
 7. HTTP server starts on port 8000
-8. Health check begins after 40s
+8. Docker healthcheck begins after 10s start period
+9. Grafana Alloy starts collecting logs and metrics
+10. Loki and Prometheus begin receiving data
 
 ### Tips
 
 - Container downloads BDPM data on first startup (10-30s)
-- Health check passes after ~40s start period
+- Health check passes after ~10s start period
 - Logs persist even after container removal (volume mount)
-- Use `docker-compose exec medicaments-api sh` to enter container
+- Use `docker-compose exec medicaments-api sh` to enter container (if available)
+- Use `docker-staging.sh` for interactive management
 - Check the [troubleshooting section](#troubleshooting) for detailed help
 
 ---
 
-**Last updated: 2026-02-11**
+**Last updated: 2026-02-16**
