@@ -1,8 +1,10 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: Builder
 FROM golang:1.26-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache ca-certificates
 
 # Set working directory
 WORKDIR /build
@@ -10,8 +12,10 @@ WORKDIR /build
 # Copy go mod files first for caching
 COPY go.mod go.sum ./
 
-# Download dependencies
-RUN go mod download
+# Cache mounts
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
 
 # Copy source code
 COPY . .
@@ -42,6 +46,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy app directory from builder (includes binary and pre-created directories)
 # Use --chown to set ownership for scratch container
 COPY --from=builder --chown=65534:65534 /app /app
+
+# Copy HTML documentation and assets
+COPY --from=builder --chown=65534:65534 /build/html /app/html
 
 # Use non-root user (nobody user with UID 65534)
 USER 65534:65534
