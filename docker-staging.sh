@@ -28,15 +28,15 @@ if [ ! -d "logs" ]; then
     chmod 755 logs
 fi
 
-# Check if .env.staging exists
-if [ ! -f ".env.staging" ]; then
-    echo "❌ Error: .env.staging file not found"
-    echo "Please create .env.staging from .env.example"
+# Check if .env.docker exists
+if [ ! -f ".env.docker" ]; then
+    echo "❌ Error: .env.docker file not found"
+    echo "Please create .env.docker from .env.example"
     exit 1
 fi
 
 echo "✅ Docker and Docker Compose are installed"
-echo "📝 Using .env.staging configuration"
+echo "📝 Using .env.docker configuration"
 echo "🌐 API will be available at: http://localhost:8030"
 echo ""
 
@@ -133,6 +133,3 @@ case $choice in
         exit 1
         ;;
 esac
-
-echo ""
-echo "📚 Full documentation: DOCKER_STAGING.md"
