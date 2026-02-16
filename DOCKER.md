@@ -67,10 +67,7 @@
 ### Get Started Immediately
 
 ```bash
-# Option 1: Interactive script (recommended)
-./docker-staging.sh
-
-# Option 2: Docker Compose
+# Docker Compose (recommended)
 docker-compose up -d
 
 # View logs
@@ -99,7 +96,6 @@ docker-compose down
 ### 🚀 Start & Stop
 
 ```bash
-./docker-staging.sh              # Interactive menu
 docker-compose up -d             # Start detached
 docker-compose down               # Stop & remove containers
 docker-compose restart            # Restart container
@@ -129,13 +125,33 @@ docker-compose up -d --build     # Rebuild & start
 docker-compose build --no-cache  # Clean build (no cache)
 ```
 
-### 🗑️ Cleanup
+### 🏗️ Multi-Architecture Builds
 
 ```bash
-docker-compose down -v           # Stop, remove containers & volumes
-docker-compose down -v --rmi all # Remove everything (including images)
-docker system prune -a           # Remove all unused Docker resources
+# Interactive build script (recommended)
+./docker-build.sh
+# Select: 1) amd64, 2) arm64
+
+# Direct Docker commands
+docker buildx build --platform linux/amd64 -t medicaments-api:amd64 --load .
+docker buildx build --platform linux/arm64 -t medicaments-api:arm64 --load .
 ```
+
+**Docker Compose (auto-detects platform):**
+
+```bash
+docker-compose up -d    # Builds for your native platform
+docker-compose build      # Builds for your native platform
+```
+
+**Supported Platforms:**
+
+| Architecture | Description | Target Platforms |
+|--------------|-------------|------------------|
+| **amd64** | Intel/AMD x86_64 | Intel/AMD servers, cloud instances, Intel Macs |
+| **arm64** | ARM 64-bit | Apple Silicon (M1/M2/M3), Raspberry Pi 4, AWS Graviton |
+
+**Note:** Use `--load` flag to make image available locally. Without it, image only exists in BuildKit cache.
 
 ---
 
@@ -152,6 +168,7 @@ Multi-stage Docker build optimized for production:
 - **Stage 1 - Builder**: `golang:1.26-alpine`
   - Uses `syntax=docker/dockerfile:1` for buildkit support
   - Cache mounts for Go packages and build cache (faster rebuilds)
+  - Multi-architecture support via `$TARGETARCH` BuildKit variable
   - Copies HTML documentation from `/build/html`
 - **Stage 2 - Runtime**: `scratch` (~8-10MB final image, minimal attack surface)
 - **Security**: Non-root user (UID 65534/nobody)
@@ -204,16 +221,15 @@ Docker environment configuration:
 | `GRAFANA_ADMIN_USER` | `giygas` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `paquito` | Grafana admin password |
 
-#### 5. **docker-staging.sh**
+#### 5. **docker-build.sh**
 
-Interactive quick-start script:
+Multi-architecture build script:
 
-- Validates Docker/Docker Compose installation
-- Checks for `.env.docker` file
-- Creates logs directory with proper permissions
-- Provides menu for common operations (build, start, stop, logs, restart, cleanup)
-- Waits for application to be ready (with health check polling)
-- Displays health check results on startup
+- Interactive menu to select platform (amd64 or arm64)
+- Builds single-architecture image for deployment
+- Uses Docker BuildKit with `--platform` flag
+- Tags images as `medicaments-api:amd64` or `medicaments-api:arm64`
+- Use for explicit architecture control when docker-compose auto-detection isn't needed
 
 #### 6. **.gitignore** (updated)
 
@@ -232,7 +248,7 @@ medicaments-api/
 ├── docker-compose.yml      # Docker Compose orchestration (includes observability stack)
 ├── .dockerignore          # Files excluded from build context
 ├── .env.docker             # Docker environment variables
-├── docker-staging.sh      # Interactive quick-start script
+├── docker-build.sh         # Multi-arch build script
 ├── logs/                  # Persistent logs directory
 ├── html/                  # Documentation files (served by API)
 ├── observability/         # Grafana stack configuration
@@ -1199,6 +1215,8 @@ For issues or questions:
 - **Builder Image**: `golang:1.26-alpine`
 - **Final Image Size**: ~8-10MB
 - **Binary Size**: ~8-10MB (statically linked, stripped)
+- **Supported Architectures**: amd64, arm64
+- **Build Tool**: Docker BuildKit with automatic platform detection ($TARGETOS/$TARGETARCH)
 
 ### File Locations
 
@@ -1228,9 +1246,8 @@ For issues or questions:
 - Health check passes after ~10s start period
 - Logs persist even after container removal (volume mount)
 - Use `docker-compose exec medicaments-api sh` to enter container (if available)
-- Use `docker-staging.sh` for interactive management
 - Check the [troubleshooting section](#troubleshooting) for detailed help
 
 ---
 
-**Last updated: 2026-02-16**
+**Last updated: 2026-02-17**

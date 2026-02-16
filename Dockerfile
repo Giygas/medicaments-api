@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Builder
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26.0-alpine3.23 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache ca-certificates
@@ -12,7 +12,7 @@ WORKDIR /build
 # Copy go mod files first for caching
 COPY go.mod go.sum ./
 
-# Cache mounts
+# Cache mounts for downloads
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go mod download
@@ -20,12 +20,14 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Copy source code
 COPY . .
 
-# Build binary with static linking
+# Build binary with static linking and cache
 # CGO_ENABLED=0: Disable CGO for static binary (required for scratch)
 # GOOS=linux: Target Linux OS
-# GOARCH=amd64: Target AMD64 architecture (or arm64 for ARM)
+# GOARCH=$TARGETARCH: Target architecture (amd64/arm64) - auto-detected by BuildKit
 # -ldflags="-s -w -extldflags '-static'": Strip debug info and force static linking
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build \
     -ldflags="-s -w -extldflags '-static'" \
     -trimpath \
     -o /app/medicaments-api .
@@ -52,6 +54,9 @@ COPY --from=builder --chown=65534:65534 /build/html /app/html
 
 # Use non-root user (nobody user with UID 65534)
 USER 65534:65534
+
+# Set working directory
+WORKDIR /app
 
 # Expose port
 EXPOSE 8000
