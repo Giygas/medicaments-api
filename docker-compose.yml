@@ -9,7 +9,7 @@ services:
     expose:
       - "9090" # Metrics endpoint for Prometheus to scrap
     env_file:
-      - .env.staging
+      - .env.docker
     read_only: true
     tmpfs:
       - /app/files:size=30M,uid=65534,gid=65534
@@ -124,6 +124,7 @@ services:
       - "9090:9090"
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts:/etc/prometheus/alerts:ro
       - prometheus-data:/prometheus
     restart: unless-stopped
     networks:

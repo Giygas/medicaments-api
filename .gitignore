@@ -15,9 +15,12 @@ files/
 src/
 **src/*.json
 src/*
+
+# Environment variables
 .env
-.env.staging
-.env.*.local
+.env.*
+.env.example!
+
 .DS_Store
 /medicaments-api
 medicamentsparser/files
