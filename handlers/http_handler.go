@@ -85,6 +85,30 @@ func CheckETag(r *http.Request, etag string) bool {
 	return clientETag == etag
 }
 
+// findMedicamentByCIP searches for a medicament by CIP7 or CIP13
+// Returns (medicament, true) if found, (nil, false) if not found
+func (h *HTTPHandlerImpl) findMedicamentByCIP(cip int) (*entities.Medicament, bool) {
+	medicamentsMap := h.dataStore.GetMedicamentsMap()
+
+	// Search in CIP7 map first (O(1) lookup)
+	presentationsCIP7 := h.dataStore.GetPresentationsCIP7Map()
+	if pres, ok := presentationsCIP7[cip]; ok {
+		if med, exists := medicamentsMap[pres.Cis]; exists {
+			return &med, true
+		}
+	}
+
+	// If not found, try CIP13 map (O(1) lookup)
+	presentationsCIP13 := h.dataStore.GetPresentationsCIP13Map()
+	if pres, ok := presentationsCIP13[cip]; ok {
+		if med, exists := medicamentsMap[pres.Cis]; exists {
+			return &med, true
+		}
+	}
+
+	return nil, false
+}
+
 // RespondWithJSONAndETag writes a JSON response with ETag and cache validation
 func (h *HTTPHandlerImpl) RespondWithJSONAndETag(w http.ResponseWriter, r *http.Request, code int, payload any) {
 	data, err := json.Marshal(payload)
@@ -273,9 +297,7 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIS(w http.ResponseWriter, r *http.Req
 // FindMedicamentByCIP finds a medicament by its presentation cip7 or cip13
 func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
 	cipStr := r.PathValue("cip")
-
 	cip, err := h.validator.ValidateCIP(cipStr)
-
 	if err != nil {
 		h.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -285,27 +307,13 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Req
 	newPath := fmt.Sprintf("/v1/medicament?cip=%v", cip)
 	h.AddDeprecationHeaders(w, r, newPath)
 
-	medicamentsMap := h.dataStore.GetMedicamentsMap()
-
-	// Search in CIP7 map first (O(1) lookup)
-	presentationsCIP7 := h.dataStore.GetPresentationsCIP7Map()
-	if pres, ok := presentationsCIP7[cip]; ok {
-		if med, exists := medicamentsMap[pres.Cis]; exists {
-			h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
-			return
-		}
+	med, found := h.findMedicamentByCIP(cip)
+	if !found {
+		h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
+		return
 	}
 
-	// If not found, try CIP13 map (O(1) lookup)
-	presentationsCIP13 := h.dataStore.GetPresentationsCIP13Map()
-	if pres, ok := presentationsCIP13[cip]; ok {
-		if med, exists := medicamentsMap[pres.Cis]; exists {
-			h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
-			return
-		}
-	}
-
-	h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
+	h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
 }
 
 // FindGeneriques searches for generiques by libelle (case-insensitive partial match)
@@ -666,27 +674,13 @@ func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		medicamentsMap := h.dataStore.GetMedicamentsMap()
-
-		// Search in CIP7 map first (O(1) lookup)
-		presentationsCIP7 := h.dataStore.GetPresentationsCIP7Map()
-		if pres, ok := presentationsCIP7[cip]; ok {
-			if med, exists := medicamentsMap[pres.Cis]; exists {
-				h.RespondWithJSON(w, http.StatusOK, med)
-				return
-			}
+		med, found := h.findMedicamentByCIP(cip)
+		if !found {
+			h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
+			return
 		}
 
-		// If not found, try CIP13 map (O(1) lookup)
-		presentationsCIP13 := h.dataStore.GetPresentationsCIP13Map()
-		if pres, ok := presentationsCIP13[cip]; ok {
-			if med, exists := medicamentsMap[pres.Cis]; exists {
-				h.RespondWithJSON(w, http.StatusOK, med)
-				return
-			}
-		}
-
-		h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
+		h.RespondWithJSON(w, http.StatusOK, med)
 		return
 	}
 
