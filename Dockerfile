@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 
+ARG VERSION=latest
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
 # Stage 1: Builder
 FROM golang:1.26.0-alpine3.23 AS builder
 
@@ -28,7 +32,10 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build \
-    -ldflags="-s -w -extldflags '-static'" \
+    -ldflags="-s -w -extldflags '-static' \
+    -X main.Version=${VERSION} \
+    -X main.GitCommit=${GIT_COMMIT} \
+    -X main.BuildDate=${BUILD_DATE}" \
     -trimpath \
     -o /app/medicaments-api .
 
@@ -40,7 +47,10 @@ LABEL org.opencontainers.image.source="https://github.com/giygas/medicaments-api
       org.opencontainers.image.description="French medicaments API - High-performance JSON API for BDPM data" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.title="medicaments-api" \
-      org.opencontainers.image.authors="giygas@example.com"
+      org.opencontainers.image.authors="giygas@example.com" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
 
 # Copy CA certificates for HTTPS requests (required for BDPM downloads)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
