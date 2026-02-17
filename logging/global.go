@@ -19,7 +19,14 @@ type LoggingService struct {
 var (
 	DefaultLoggingService *LoggingService
 	initOnce              sync.Once
+	fallbackLogger        *slog.Logger
 )
+
+func init() {
+	fallbackLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+}
 
 // InitLogger initializes global logger instance
 func InitLogger(logDir string) {
@@ -269,11 +276,7 @@ func Close() {
 
 func Info(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-		fallback.Info(msg, args...)
+		fallbackLogger.Info(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Info(msg, args...)
@@ -281,11 +284,7 @@ func Info(msg string, args ...any) {
 
 func Error(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelError,
-		}))
-		fallback.Error(msg, args...)
+		fallbackLogger.Error(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Error(msg, args...)
@@ -293,11 +292,7 @@ func Error(msg string, args ...any) {
 
 func Warn(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelWarn,
-		}))
-		fallback.Warn(msg, args...)
+		fallbackLogger.Warn(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Warn(msg, args...)
@@ -305,11 +300,7 @@ func Warn(msg string, args ...any) {
 
 func Debug(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		}))
-		fallback.Debug(msg, args...)
+		fallbackLogger.Debug(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Debug(msg, args...)
