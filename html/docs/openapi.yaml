@@ -981,7 +981,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1166,7 +1166,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1352,7 +1352,7 @@ components:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
     QueryCip:
       name: cip
       in: query
@@ -1375,7 +1375,7 @@ components:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
     QueryGroup:
       name: group
       in: query

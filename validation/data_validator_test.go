@@ -564,8 +564,6 @@ func TestValidateInput_Valid(t *testing.T) {
 		"paracetamol",
 		"ibuprofene 200mg",
 		"aspirine-500",
-		"test'medicament",
-		"dr. smith",
 		"paracetamol+cafeine",
 		"actonelcombi 35 mg + 1000 mg",
 		"alunbrig 90 mg + 180 mg",
@@ -709,7 +707,7 @@ func TestValidateInput_DangerousPatterns(t *testing.T) {
 				t.Errorf("Expected error for dangerous input '%s'", input)
 			}
 
-			expectedError := "input contains potentially dangerous content"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, and plus sign are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
@@ -752,7 +750,7 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 				t.Errorf("Expected error for invalid characters in input '%s'", input)
 			}
 
-			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, and plus sign are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}

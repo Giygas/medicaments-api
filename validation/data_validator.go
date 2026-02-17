@@ -16,7 +16,7 @@ import (
 // Compiled once at package initialization and reused for all validations
 var (
 	// Input validation: alphanumeric + safe punctuation (ASCII-only)
-	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-\.\+']+$`)
+	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\+\.\-]+$`)
 
 	// This whitelist regex already blocks:
 	// <script	| (contains < and >)
@@ -26,7 +26,6 @@ var (
 	// {$ne:	| (contains {, $, :)
 
 )
-
 
 // DataValidatorImpl implements the interfaces.DataValidator interface
 type DataValidatorImpl struct{}
@@ -329,15 +328,11 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')")
 	}
 
-	// Check that the user input contains only accepted characters
-	if !inputRegex.MatchString(input) {
-		return fmt.Errorf("input contains potentially dangerous content")
-	}
-
+	// Check that user input contains only accepted characters
 	// Allow only alphanumeric characters, spaces, and safe punctuation
-	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign
+	// Pattern: letters, numbers, spaces, hyphens, periods, and plus sign
 	if !inputRegex.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed")
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, and plus sign are allowed")
 	}
 
 	// Additional checks for repeated characters (potential DoS)

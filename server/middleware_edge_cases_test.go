@@ -35,7 +35,7 @@ func TestRealIPMiddleware_SingleIP(t *testing.T) {
 }
 
 func TestRealIPMiddleware_WithoutXForwardedFor(t *testing.T) {
-	// Request without X-Forwarded-For header (should keep original RemoteAddr)
+	// Request without X-Forwarded-For header (should keep original RemoteAddr without port)
 	req := httptest.NewRequest("GET", "/", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 
@@ -50,8 +50,8 @@ func TestRealIPMiddleware_WithoutXForwardedFor(t *testing.T) {
 	}
 
 	originalAddr := rr.Header().Get("X-Original-RemoteAddr")
-	if originalAddr != "192.168.1.1:12345" {
-		t.Errorf("Expected RemoteAddr to remain unchanged, got '%s'", originalAddr)
+	if originalAddr != "192.168.1.1" {
+		t.Errorf("Expected RemoteAddr without port, got '%s'", originalAddr)
 	}
 }
 

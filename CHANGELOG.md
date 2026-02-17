@@ -130,9 +130,9 @@ Combined optimizations resulted in significant performance gains across all endp
 
 ### Security
 
-- **Input validation pattern**: `^[a-zA-Z0-9\s\-\.\+']+$` (ASCII-only)
-  - Rejects accented characters with helpful error message
-  - Supports alphanumeric + spaces + hyphen/apostrophe/period/plus sign
+ - **Input validation pattern**: `^[a-zA-Z0-9\s\-\.\+]+$` (ASCII-only)
+   - Rejects accented characters with helpful error message
+   - Supports alphanumeric + spaces + hyphen/period/plus sign
 - **Multi-word search limit**: Maximum 6 words (DoS prevention)
 - **Variable rate limiting**: 5-200 tokens per endpoint (1,000 tokens, 3/sec recharge)
 - **Dangerous pattern detection**: SQL injection, XSS, command injection, path traversal (5-10x faster than regex)
