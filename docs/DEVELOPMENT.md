@@ -417,21 +417,21 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 - Suivre les conventions Go standard
 - Séparer clairement les responsabilités
 - Utiliser les interfaces définies dans `interfaces/`
-- Écrire des tests pour chaque nouvelle fonctionnalité
 
 ### Tests
 
-- Écrire des tests unitaires pour la logique business
-- Écrire des tests d'intégration pour les pipelines
+- Écrire des tests pour chaque nouvelle fonctionnalité
 - Maintenir une couverture de code ≥ 75%
 - Exécuter `go test -race` avant de commiter
+
+**Pour les bonnes pratiques de tests détaillées, voir [Guide de tests - Bonnes Pratiques](TESTING.md#bonnes-pratiques).**
 
 ### Performance
 
 - Profiler le code avec pprof pour identifier les goulots d'étranglement
-- Utiliser des benchmarks pour valider les améliorations
-- Éviter les allocations inutiles dans les chemins chauds
-- Utiliser les maps pour les lookups O(1)
+- Utiliser les benchmarks pour valider les améliorations
+
+**Pour les bonnes pratiques de performance détaillées, voir [Performance et benchmarks - Bonnes Pratiques de Performance](PERFORMANCE.md#bonnes-pratiques-de-performance).**
 
 ### Documentation
 

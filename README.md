@@ -204,11 +204,7 @@ Pour la documentation complète Docker, voir [DOCKER.md](DOCKER.md)
 
 ## Développement Local
 
-### Prérequis
-
-- **Go 1.26+** avec support des modules
-- **2GB RAM** recommandé pour le développement
-- **Connexion internet** pour les mises à jour BDPM
+Pour le guide de développement complet, voir [Guide de développement](docs/DEVELOPMENT.md).
 
 ### Démarrage Rapide
 
@@ -217,35 +213,29 @@ Pour la documentation complète Docker, voir [DOCKER.md](DOCKER.md)
 git clone https://github.com/giygas/medicaments-api.git
 cd medicaments-api
 
-# Installer les dépendances
+# Installer les dépendances et configurer l'environnement
 go mod tidy
-
-# Configurer l'environnement
 cp .env.example .env
-# Éditer .env avec vos paramètres
 
 # Lancer le serveur de développement
 go run .
 ```
 
-### Commandes de Développement
+### Commandes Principales
 
 ```bash
 # Build
 go build -o medicaments-api .
-GOOS=linux GOARCH=amd64 go build -o medicaments-api-linux .
 
-# Tests et qualité
+# Tests
 go test -v ./...
-go test -race -v
-go test -coverprofile=coverage.out -v && go tool cover -html=coverage.out -o coverage.html
-go test -bench=. -benchmem
 
 # Formatage et analyse
 gofmt -w .
 go vet ./...
-golangci-lint run  # si installé
 ```
+
+**Pour plus de détails sur le développement, les tests et les benchmarks, voir [Guide de développement](docs/DEVELOPMENT.md).**
 
 ### Fonctionnalités du serveur de développement
 
