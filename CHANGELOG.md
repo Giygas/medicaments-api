@@ -1,63 +1,63 @@
-# Changelog
+# Journal des modifications
 
-All notable changes to this project will be documented in this file.
+Tous les changements notables de ce projet seront documentés dans ce fichier.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Non publié]
 
 ## [1.1.0] - 2026-02-13
 
-### Added
+### Ajouté
 
-- **RESTful v1 API** with 9 new endpoints using path-based routing
-  - Medicament lookup by CIS, CIP, or multi-word search
-  - Presentation and generique group endpoints
-  - `/v1/diagnostics` for system metrics and data quality reports
-- **Prometheus metrics** on port 9090 (request counter, duration histogram, in-flight gauge)
-- **Multi-word search** with AND logic (up to 6 words)
-- **ETag caching** with SHA256-based validation
-- **Sequential log numbering** to prevent unbounded growth (`_01`, `_02`, etc.)
-- **Orphaned presentations tracking** in `/v1/diagnostics`
-  - Shows CIP codes for presentations with non-existent CIS
-- **New documentation structure** with `docs/` folder for improved organization
-  - `docs/ARCHITECTURE.md` - System architecture, interfaces, middleware, memory layout
-  - `docs/DEVELOPMENT.md` - Build, test, lint, and development guide
-  - `docs/PERFORMANCE.md` - Benchmarks, optimizations, and profiling
-  - `docs/MIGRATION.md` - v1 migration guide with breaking changes and examples
-  - `docs/TESTING.md` - Test strategies, benchmarks, and coverage guide
+- **API RESTful v1** avec 9 nouveaux endpoints utilisant le routage par chemin
+  - Recherche de médicaments par CIS, CIP ou recherche multi-mots
+  - Endpoints de présentation et de groupes génériques
+  - `/v1/diagnostics` pour les métriques système et les rapports de qualité des données
+- **Métriques Prometheus** sur le port 9090 (compteur de requêtes, histogramme de durée, jauge en cours)
+- **Recherche multi-mots** avec logique AND (jusqu'à 6 mots)
+- **Cache ETag** avec validation basée sur SHA256
+- **Numérotation séquentielle des journaux** pour éviter une croissance non bornée (`_01`, `_02`, etc.)
+- **Suivi des présentations orphelines** dans `/v1/diagnostics`
+  - Affiche les codes CIP pour les présentations avec CIS inexistant
+- **Nouvelle structure de documentation** avec le dossier `docs/` pour une meilleure organisation
+  - `docs/ARCHITECTURE.md` - Architecture système, interfaces, middleware, disposition mémoire
+  - `docs/DEVELOPMENT.md` - Guide de construction, test, lint et développement
+  - `docs/PERFORMANCE.md` - Benchmarks, optimisations et profilage
+  - `docs/MIGRATION.md` - Guide de migration v1 avec changements majeurs et exemples
+  - `docs/TESTING.md` - Stratégies de test, benchmarks et guide de couverture
 
-### Changed
+### Modifié
 
-- **Documentation reorganization**: README.md simplified from 1,196 to 328 lines (-73%)
-  - Better separation of concerns: landing page vs. detailed docs
-  - Improved navigation for end users and contributors
-  - Endpoint reference moved to OpenAPI spec
-  - Architecture and performance details moved to dedicated docs
-- **OpenAPI spec updated**: Added external documentation links for migration guide
-- **Pre-computed normalized names**: 5x faster search, 170x fewer allocations
-  - Medicaments search: 3,500ns → 750ns (4.7x faster)
-  - Generiques search: 3,500ns → 75ns (46.7x faster)
-- **Input validation optimization**: 5-10x faster via string.Contains() and regex pre-compilation
-- **Response writer pooling** reduces allocations by 2.2MB/sec at high throughput
-- **Fast-path logging** for /health and /metrics endpoints
-- **LOG_LEVEL now functional** with environment-based fallback (console only)
-- **Endpoint costs updated** for rate limiting (5-200 tokens per request)
-- **Go version requirement**: 1.21 → 1.26+ (latest stable)
+- **Réorganisation de la documentation** : README.md simplifié de 1 196 à 328 lignes (-73 %)
+  - Meilleure séparation des préoccupations : page d'accueil vs documentation détaillée
+  - Navigation améliorée pour les utilisateurs finaux et les contributeurs
+  - Référence des endpoints déplacée vers la spécification OpenAPI
+  - Détails de l'architecture et des performances déplacés vers des docs dédiés
+- **Spécification OpenAPI mise à jour** : Ajout de liens vers la documentation externe pour le guide de migration
+- **Noms normalisés pré-calculés** : recherche 5x plus rapide, 170x moins d'allocations
+  - Recherche de médicaments : 3 500ns → 750ns (4,7x plus rapide)
+  - Recherche de génériques : 3 500ns → 75ns (46,7x plus rapide)
+- **Optimisation de la validation des entrées** : 5-10x plus rapide via string.Contains() et pré-compilation de regex
+- **Mise en pool des rédacteurs de réponse** réduit les allocations de 2,2 Mo/s à haut débit
+- **Journalisation rapide** pour les endpoints /health et /metrics
+- **LOG_LEVEL maintenant fonctionnel** avec repli basé sur l'environnement (console uniquement)
+- **Coûts des endpoints mis à jour** pour le rate limiting (5-200 tokens par requête)
+- **Version Go requise** : 1.21 → 1.26+ (dernière version stable)
 
-### Deprecated
+### Déprécié
 
-- **Legacy API endpoints** (Sunset date: 2026-07-31)
-  - `/database` → Use `/v1/medicaments/export`
-  - `/database/{page}` → Use `/v1/medicaments?page={n}`
-  - `/medicament/{nom}` → Use `/v1/medicaments?search={nom}`
-  - `/medicament/id/{cis}` → Use `/v1/medicaments/{cis}`
-  - `/medicament/cip/{cip}` → Use `/v1/medicaments?cip={cip}`
-  - `/generiques/{libelle}` → Use `/v1/generiques?libelle={libelle}`
-  - `/generiques/group/{id}` → Use `/v1/generiques/{id}`
+- **Endpoints d'API hérités** (Date de fin de vie : 2026-07-31)
+  - `/database` → Utiliser `/v1/medicaments/export`
+  - `/database/{page}` → Utiliser `/v1/medicaments?page={n}`
+  - `/medicament/{nom}` → Utiliser `/v1/medicaments?search={nom}`
+  - `/medicament/id/{cis}` → Utiliser `/v1/medicaments/{cis}`
+  - `/medicament/cip/{cip}` → Utiliser `/v1/medicaments?cip={cip}`
+  - `/generiques/{libelle}` → Utiliser `/v1/generiques?libelle={libelle}`
+  - `/generiques/group/{id}` → Utiliser `/v1/generiques/{id}`
 
-**Deprecation headers returned**:
+**En-têtes de dépréciation renvoyés** :
 
 ```
 Deprecation: true
@@ -66,55 +66,55 @@ Link: </v1/...>; rel="successor-version"
 Warning: 299 - "Deprecated endpoint..."
 ```
 
-### Fixed
+### Corrigé
 
-- **Race conditions in rotating logger** (resource leaks + concurrency issues)
-- **/v1/medicaments returns 404** when not found (instead of empty array)
-- **Validation genériques**: groupID range 1-9999 with clear error messages
-- **ASCII-only input validation** with helpful rejection messages for accented characters
-- **Server shutdown logging** fixed
-- **TSV edge case handling** with skip statistics for malformed lines
-- **Validation off-by-one bug** corrected
-- **Charset encoding**: Automatic UTF-8/ISO8859-1 detection in downloader
-- **HTTP timeout and scanner error handling** (5-minute download timeout for BDPM files,
-  1MB scanner buffer for robust parsing, error checking after each file)
-- **Graceful shutdown for metrics/profiling servers** (context cancellation,
-  prevents goroutine leaks, cleaner shutdowns with 5-second timeout)
+- **Conditions de course dans le logger rotatif** (fuites de ressources + problèmes de concurrence)
+- **/v1/medicaments retourne 404** lorsqu'il n'est pas trouvé (au lieu d'un tableau vide)
+- **Validation des génériques** : plage groupID 1-9999 avec messages d'erreur clairs
+- **Validation des entrées ASCII uniquement** avec messages de rejet utiles pour les caractères accentués
+- **Journalisation de l'arrêt du serveur** corrigée
+- **Gestion des cas limites TSV** avec statistiques de saut pour les lignes malformées
+- **Bug de décalage de 1 dans la validation** corrigé
+- **Encodage de jeu de caractères** : Détection automatique UTF-8/ISO8859-1 dans le téléchargeur
+- **Gestion des erreurs de timeout HTTP et scanner** (timeout de téléchargement de 5 minutes pour les fichiers BDPM,
+  tampon de scanner de 1 Mo pour un parsing robuste, vérification des erreurs après chaque fichier)
+- **Arrêt gracieux des serveurs de métriques/profilage** (annulation de contexte,
+  évite les fuites de goroutine, arrêts plus propres avec timeout de 5 secondes)
 
 ### Performance
 
-#### HTTP Throughput: 13K to 80K+ req/s (significant performance improvements)
+#### Débit HTTP : 13K à 80K+ req/s (améliorations significatives des performances)
 
-##### Optimization: Pre-computed Normalized Names
+##### Optimisation : Noms normalisés pré-calculés
 
-Eliminated runtime string normalization by computing once during parsing. This optimization reduces per-request allocations and improves search latency significantly.
+Élimination de la normalisation de chaînes à l'exécution en calculant une fois lors du parsing. Cette optimisation réduit les allocations par requête et améliore considérablement la latence de recherche.
 
-| Metric                        | Before      | After        | Improvement    |
-| ----------------------------- | ----------- | ------------ | -------------- |
-| **HTTP Throughput**           |             |              |                |
-| └ Médicaments search          | 1,000 req/s | 5,000 req/s  | 5x (+400%)     |
-| └ Génériques search           | 5,000 req/s | 20,000 req/s | 4x (+300%)     |
-| **Algorithmic Benchmarks**    |             |              |                |
-| └ Médicaments - Reqs/sec      | 250         | 1,250        | 5x             |
-| └ Médicaments - Latence       | 3,500µs     | 750µs        | 4.7x faster    |
-| └ Génériques - Reqs/sec       | 1,500       | 15,000       | 10x            |
-| └ Génériques - Latence        | 3,500µs     | 75µs         | 46.7x faster   |
-| **Allocations par recherche** | 16,000      | 94           | 170x reduction |
+| Metric                        | Avant       | Après       | Amélioration |
+| ----------------------------- | ----------- | ----------- | ------------ |
+| **Débit HTTP**                |             |             |              |
+| └ Médicaments search          | 1,000 req/s | 5,000 req/s | 5x (+400%)   |
+| └ Génériques search           | 5,000 req/s | 20,000 req/s| 4x (+300%)   |
+| **Benchmarks algorithmiques**  |             |             |              |
+| └ Médicaments - Reqs/sec      | 250         | 1,250       | 5x           |
+| └ Médicaments - Latence       | 3,500µs     | 750µs       | 4.7x plus rapide|
+| └ Génériques - Reqs/sec       | 1,500       | 15,000      | 10x          |
+| └ Génériques - Latence        | 3,500µs     | 75µs        | 46.7x plus rapide|
+| **Allocations par recherche** | 16,000      | 94          | 170x réduction|
 
-**Memory trade-off**: Additional 0.75MB for storing pre-computed normalized strings
+**Compromis mémoire** : 0,75 Mo supplémentaire pour stocker les chaînes normalisées pré-calculées
 
-##### Optimization: Input Validation
+##### Optimisation : Validation des entrées
 
-- Response writer pooling reduces allocations by 2.2MB/sec at high throughput
-- Fast-path logging skips expensive operations for health/metrics endpoints
-- Constant-time (O(1)) CIP/CIS search using hash maps
-- Regex pre-compilation at package level
-- String-based dangerous pattern detection (5-10x faster than regex)
-- Direct CIP/CIS validation via strconv.Atoi() without regex
+- Mise en pool des rédacteurs de réponse réduit les allocations de 2,2 Mo/s à haut débit
+- Journalisation rapide saute les opérations coûteuses pour les endpoints health/metrics
+- Recherche CIP/CIS à temps constant (O(1)) en utilisant des hash maps
+- Pré-compilation de regex au niveau du package
+- Détection de motifs dangereux basée sur des chaînes (5-10x plus rapide que regex)
+- Validation CIP/CIS directe via strconv.Atoi() sans regex
 
-##### Final HTTP Throughput
+##### Débit HTTP final
 
-Combined optimizations resulted in significant performance gains across all endpoints:
+Les optimisations combinées ont entraîné des gains de performance significatifs sur tous les endpoints :
 
 | Endpoint                         | Avant     | Après      | Amélioration |
 | -------------------------------- | --------- | ---------- | ------------ |
@@ -128,21 +128,21 @@ Combined optimizations resulted in significant performance gains across all endp
 
 **Memory** : 55-80MB stable (67.5MB median)
 
-### Security
+### Sécurité
 
- - **Input validation pattern**: `^[a-zA-Z0-9\s\-\.\+]+$` (ASCII-only)
-   - Rejects accented characters with helpful error message
-   - Supports alphanumeric + spaces + hyphen/period/plus sign
-- **Multi-word search limit**: Maximum 6 words (DoS prevention)
-- **Variable rate limiting**: 5-200 tokens per endpoint (1,000 tokens, 3/sec recharge)
-- **Dangerous pattern detection**: SQL injection, XSS, command injection, path traversal (5-10x faster than regex)
-- **Direct CIP/CIS validation** via strconv.Atoi() without regex
+  - **Motif de validation des entrées** : `^[a-zA-Z0-9\s\-\.\+]+$` (ASCII uniquement)
+    - Rejette les caractères accentués avec un message d'erreur utile
+    - Prend en charge alphanumérique + espaces + trait d'union/point/signe plus
+- **Limite de recherche multi-mots** : Maximum 6 mots (prévention DoS)
+- **Rate limiting variable** : 5-200 tokens par endpoint (1 000 tokens, recharge 3/sec)
+- **Détection de motifs dangereux** : injection SQL, XSS, injection de commande, traversal de chemin (5-10x plus rapide que regex)
+- **Validation CIP/CIS directe** via strconv.Atoi() sans regex
 
-### Breaking Changes
+### Changements majeurs
 
-**1. Generique group response structure** (MAJOR)
+**1. Structure de réponse du groupe générique** (MAJEUR)
 
-Before (`GET /generiques/group/{id}`):
+Avant (`GET /generiques/group/{id}`) :
 
 ```json
 {
@@ -153,7 +153,7 @@ Before (`GET /generiques/group/{id}`):
 }
 ```
 
-After (`GET /v1/generiques/{groupID}`):
+Après (`GET /v1/generiques/{groupID}`) :
 
 ```json
 {
@@ -172,49 +172,49 @@ After (`GET /v1/generiques/{groupID}`):
 }
 ```
 
-**Field mappings**:
+**Mappage des champs** :
 
-- `group` → `groupID` (renamed)
-- `cis` → removed (now in medicaments array)
-- `type` → removed (now in each medicament in array)
-- NEW: `medicaments` array with full composition data
-- NEW: `orphanCIS` array for data quality tracking
+- `group` → `groupID` (renommé)
+- `cis` → supprimé (maintenant dans le tableau medicaments)
+- `type` → supprimé (maintenant dans chaque médicament du tableau)
+- NOUVEAU : tableau `medicaments` avec les données complètes de composition
+- NOUVEAU : tableau `orphanCIS` pour le suivi de la qualité des données
 
-**Impact**: Clients expecting old structure will break. Must migrate to new structure.
+**Impact** : Les clients s'attendant à l'ancienne structure cesseront de fonctionner. Doivent migrer vers la nouvelle structure.
 
-**2. Health endpoint simplified**
+**2. Endpoint de santé simplifié**
 
-System metrics moved from `/health` to `/v1/diagnostics`
+Les métriques système ont été déplacées de `/health` vers `/v1/diagnostics`
 
-- `/health`: Returns basic status only (fast endpoint)
-- `/v1/diagnostics`: Detailed system metrics and data quality reports
+- `/health` : Retourne uniquement le statut de base (endpoint rapide)
+- `/v1/diagnostics` : Métriques système détaillées et rapports de qualité des données
 
-**3. Go version requirement**
+**3. Version Go requise**
 
-Minimum Go version: 1.21 → 1.26+ (latest stable)
+Version Go minimum : 1.21 → 1.26+ (dernière version stable)
 
-### Migration Guide
+### Guide de migration
 
-**Complete migration guide available in `docs/MIGRATION.md`** with breaking changes, examples, and checklist
+**Guide de migration complet disponible dans `docs/MIGRATION.md`** avec les changements majeurs, les exemples et la liste de contrôle
 
-**Quick reference**:
+**Référence rapide** :
 
 ```javascript
-// Legacy
+// Hérité
 fetch("https://medicaments-api.giygas.dev/medicament/paracetamol");
 
 // V1
 fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 ```
 
-### Testing & Quality
+### Tests et Qualité
 
-- **Overall coverage**: 78.5%
-- **Handlers**: 85.6%
-- **Medicaments Parser**: 84.2%
-- **New test files**: Smoke tests, ETag validation, v1 endpoints, cross-file consistency
-- **CI benchmarks**: Non-blocking with 25% variance tolerance
+- **Couverture globale** : 78,5 %
+- **Handlers** : 85,6 %
+- **Parser de médicaments** : 84,2 %
+- **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
+- **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Unreleased]: https://github.com/giygas/medicaments-api/compare/v1.1.0...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/giygas/medicaments-api/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/giygas/medicaments-api/releases/tag/v1.0.0
