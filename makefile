@@ -42,6 +42,42 @@ help: ## Display this help message
 
 ##@ Docker Operations
 
+.PHONY: validate-secrets
+validate-secrets: ## Validate required secrets files exist
+	@if [ ! -f ./secrets/grafana_password.txt ]; then \
+		echo "❌ Error: secrets/grafana_password.txt not found"; \
+		echo ""; \
+		echo "Required secrets are missing. Please run:"; \
+		echo "  make setup-secrets"; \
+		echo ""; \
+		echo "Or create manually:"; \
+		echo "  mkdir -p secrets"; \
+		echo "  echo 'your-secure-password' > secrets/grafana_password.txt"; \
+		echo "  chmod 600 secrets/grafana_password.txt"; \
+		exit 1; \
+	fi
+	@if [ ! -r ./secrets/grafana_password.txt ]; then \
+		echo "❌ Error: secrets/grafana_password.txt is not readable"; \
+		echo "Run: chmod 644 secrets/grafana_password.txt"; \
+		exit 1; \
+	fi
+	@echo "✓ Secrets validated successfully"
+
+.PHONY: setup-secrets
+setup-secrets: ## Set up required secrets files
+	@echo "Setting up secrets..."
+	@mkdir -p secrets
+	@if [ ! -f ./secrets/grafana_password.txt ]; then \
+		read -sp "Enter Grafana admin password: " password; \
+		echo ""; \
+		echo "$$password" > ./secrets/grafana_password.txt; \
+		chmod 600 ./secrets/grafana_password.txt; \
+		echo "✓ Created secrets/grafana_password.txt"; \
+	else \
+		echo "✓ secrets/grafana_password.txt already exists"; \
+	fi
+	@echo "✓ Secrets setup complete"
+
 .PHONY: build
 build: ## Build Docker image (auto-detects host arch)
 	@echo "Building $(IMAGE_TAG) ($(GIT_COMMIT)) for $(PLATFORM)..."
@@ -70,7 +106,7 @@ build-arm64: ## Force arm64 build
 	@echo "$(GREEN)✓ Build complete: $(IMAGE_NAME):arm64$(RESET)"
 
 .PHONY: up
-up: ## Start all services in detached mode
+up: validate-secrets ## Start all services in detached mode
 	@echo "Starting services..."
 	@APP_VERSION=$(APP_VERSION) \
 		docker compose --env-file $(ENV_FILE) up -d
@@ -112,10 +148,10 @@ stats: ## Show resource usage
 ##@ Maintenance
 
 .PHONY: clean
-clean: ## Remove containers only
-	@echo "Removing containers..."
-	@docker compose --env-file $(ENV_FILE) down
-	@echo "$(GREEN)✓ Containers removed$(RESET)"
+clean: ## Remove containers, networks, volumes, and images
+	@echo "Removing all Docker resources..."
+	@docker compose --env-file $(ENV_FILE) down --volumes --rmi all
+	@echo "$(GREEN)✓ All Docker resources removed$(RESET)"
 
 .PHONY: export
 export: ## Export Docker image as tar file (optional: IMAGE=tag)

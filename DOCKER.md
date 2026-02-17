@@ -35,6 +35,7 @@
   - [Logs Not Persisting](#logs-not-persisting)
   - [High Memory Usage](#high-memory-usage)
   - [Port Conflicts](#port-conflicts)
+  - [Secrets File Missing](#secrets-file-missing)
 - [Advanced Usage](#advanced-usage)
   - [Custom Environment Variables](#custom-environment-variables)
   - [Running Multiple Instances](#running-multiple-instances)
@@ -63,6 +64,30 @@
 - Docker Engine 20.10+ or Docker Desktop 4.0+
 - At least 1GB available disk space
 - Network connection for BDPM data download
+- Secrets setup: Run `make setup-secrets` (creates `secrets/grafana_password.txt`)
+
+### Secrets Setup (Required First Step)
+
+Before running Docker services, you need to set up the Grafana password secret:
+
+```bash
+# Create Grafana password secret
+make setup-secrets
+
+# This prompts for a password and creates secrets/grafana_password.txt with secure permissions (600)
+```
+
+**Why Secrets?**
+- Grafana requires an admin password for secure access
+- Storing passwords in environment variables or configuration files is insecure
+- Docker secrets provide a secure way to manage sensitive data
+- The `secrets/` directory is excluded from version control (`.gitignore`)
+
+**Security Best Practices:**
+- ✅ Use strong passwords (minimum 12 characters, mixed case, numbers, symbols)
+- ✅ Never commit secrets to version control
+- ✅ Set restrictive file permissions (600)
+- ❌ Don't reuse passwords across services
 
 ### Get Started Immediately
 
@@ -256,6 +281,8 @@ medicaments-api/
 ├── Makefile               # Unified build and development commands
 ├── logs/                  # Persistent logs directory
 ├── html/                  # Documentation files (served by API)
+├── secrets/              # Docker secrets (gitignored)
+│   └── grafana_password.txt
 ├── observability/         # Grafana stack configuration
 │   ├── alloy/              # Alloy config
 │   ├── loki/               # Loki config
@@ -446,8 +473,8 @@ From system metrics via `prometheus.exporter.unix`:
 
 **Grafana**:
 
-- Username: `giygas`
-- Password: `paquito`
+- Username: `giygas` (from `.env.docker`)
+- Password: Stored in `secrets/grafana_password.txt` (created via `make setup-secrets`)
 - **Important**: Change password after first login (Configuration → Users → Change Password)
 
 **Other Services**:
@@ -898,6 +925,36 @@ ports:
 
 # Or stop conflicting service
 lsof -i :8030
+```
+
+### Secrets File Missing
+
+If you encounter this error:
+```
+ERROR: for grafana  Cannot create container for service grafana:
+stat /path/to/secrets/grafana_password.txt: no such file or directory
+```
+
+**Solution:**
+```bash
+# Option 1: Use Make (recommended)
+make setup-secrets
+
+# Option 2: Create manually
+mkdir -p secrets
+echo "your-secure-password" > secrets/grafana_password.txt
+chmod 600 secrets/grafana_password.txt
+
+# Option 3: Validate existing secrets
+make validate-secrets
+```
+
+**Verify secrets are working:**
+```bash
+# Check file exists with correct permissions
+ls -la secrets/grafana_password.txt
+
+# Expected: -rw------- 1 user group date secrets/grafana_password.txt
 ```
 
 ### Service Communication Issues
