@@ -731,24 +731,78 @@ curl http://localhost:8030/health
   "status": "healthy",
   "last_update": "2025-02-08T12:00:00+01:00",
   "data_age_hours": 0.5,
+  "medicaments": 15822,
+  "generiques": 1645,
+  "is_updating": false
+}
+```
+
+### Diagnostics
+
+For detailed system metrics and data integrity information, use the `/v1/diagnostics` endpoint:
+
+**What it returns:**
+- System metrics: uptime, goroutines, memory usage
+- Data age and next scheduled update
+- Data integrity checks: orphaned records, missing associations
+- Sample CIS codes for troubleshooting
+
+**Example usage:**
+
+```bash
+# Get full diagnostics
+curl http://localhost:8030/v1/diagnostics | jq
+
+# System metrics only
+curl http://localhost:8030/v1/diagnostics | jq '.system'
+
+# Memory usage
+curl http://localhost:8030/v1/diagnostics | jq '.system.memory'
+
+# Data integrity summary
+curl http://localhost:8030/v1/diagnostics | jq '.data_integrity'
+
+# Uptime
+curl http://localhost:8030/v1/diagnostics | jq '.uptime_seconds'
+```
+
+**Response example:**
+
+```json
+{
+  "timestamp": "2025-02-08T13:00:00+01:00",
   "uptime_seconds": 3600,
-  "data": {
-    "api_version": "1.0",
-    "generiques": 1628,
-    "is_updating": false,
-    "medicaments": 15803,
-    "next_update": "2025-02-08T18:00:00+01:00"
-  },
+  "next_update": "2025-02-08T18:00:00+01:00",
+  "data_age_hours": 0.3,
   "system": {
     "goroutines": 16,
     "memory": {
       "alloc_mb": 45,
       "num_gc": 20,
-      "sys_mb": 65,
-      "total_alloc_mb": 150
+      "sys_mb": 65
     }
+  },
+  "data_integrity": {
+    "medicaments_without_conditions": {"count": 3368, "sample_cis": [...]},
+    "medicaments_without_generiques": {"count": 7714, "sample_cis": [...]},
+    "medicaments_without_presentations": {"count": 1267, "sample_cis": [...]},
+    "medicaments_without_compositions": {"count": 2, "sample_cis": [...]},
+    "generique_only_cis": {"count": 2440, "sample_cis": [...]},
+    "presentations_with_orphaned_cis": {"count": 6, "sample_cip": [...]}
   }
 }
+```
+
+**Data Integrity Checks:**
+
+| Check | Description | Sample Field |
+|--------|-------------|---------------|
+| `medicaments_without_conditions` | Medicaments missing condition data | `sample_cis` |
+| `medicaments_without_generiques` | Medicaments not in generic groups | `sample_cis` |
+| `medicaments_without_presentations` | Medicaments missing presentation data | `sample_cis` |
+| `medicaments_without_compositions` | Medicaments missing composition data | `sample_cis` |
+| `generique_only_cis` | CIS codes only in generic groups | `sample_cis` |
+| `presentations_with_orphaned_cis` | Presentations referencing non-existent medicaments | `sample_cip` |
 ```
 
 ---
@@ -822,7 +876,7 @@ docker-compose exec medicaments-api ls -la /app/logs/
 docker stats medicaments-api
 
 # View memory metrics
-curl http://localhost:8030/health | jq '.system.memory'
+curl http://localhost:8030/v1/diagnostics | jq '.system.memory'
 
 # Restart to clear memory
 docker-compose restart
@@ -1039,7 +1093,7 @@ docker stats --no-stream medicaments-api
 curl http://localhost:8030/health | jq
 
 # Memory usage only
-curl -s http://localhost:8030/health | jq '.system.memory'
+curl -s http://localhost:8030/v1/diagnostics | jq '.system.memory'
 
 # Data age
 curl -s http://localhost:8030/health | jq '.data_age_hours'
@@ -1116,12 +1170,18 @@ docker exec prometheus kill -HUP 1
 
 **Health Check Monitoring:**
 
-For monitoring the `/health` endpoint (data age, medicaments count, etc.), create a Grafana alert panel:
+For monitoring system metrics and data integrity, use the `/v1/diagnostics` endpoint in Grafana alerts. The `/health` endpoint is used for data health status only.
+
+Create a Grafana alert panel based on diagnostics data:
 
 1. Go to **Dashboards** → **medicaments-api Health**
 2. Add a new panel or edit existing
 3. Set up an alert based on health status or data age
 4. Configure alert conditions (e.g., `data_age_hours > 24`)
+
+**Endpoint Usage:**
+- `/health` → Data health status (medicaments count, generiques count, data age)
+- `/v1/diagnostics` → System metrics + data integrity (uptime, memory, data integrity checks)
 
 ---
 
