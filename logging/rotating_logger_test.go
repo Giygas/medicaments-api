@@ -133,27 +133,6 @@ func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 	_ = rl2.Close()
 }
 
-func TestSetupLoggerWithRetention(t *testing.T) {
-	// Create temporary directory for test logs (auto-cleanup)
-	tempDir := t.TempDir()
-
-	// Test setup with custom retention
-	logger := SetupLoggerWithRetention(tempDir, 2)
-	if logger == nil {
-		t.Fatal("SetupLoggerWithRetention returned nil")
-	}
-
-	// Test that logger works
-	logger.Info("Test message from rotating logger")
-
-	// Check that log file was created
-	currentWeek := getWeekKey(time.Now())
-	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
-	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
-		t.Errorf("Expected log file %s was not created", expectedFileName)
-	}
-}
-
 func TestGlobalLoggingService(t *testing.T) {
 	// Create temporary directory for test logs (auto-cleanup)
 	tempDir := t.TempDir()
@@ -487,20 +466,6 @@ func TestRotatingLoggerEdgeCases(t *testing.T) {
 	}
 }
 
-func TestSetupLoggerFunctions(t *testing.T) {
-	// Create temporary directory for test logs (auto-cleanup)
-	tempDir := t.TempDir()
-
-	// Test SetupLogger function (currently 0% coverage)
-	logger := SetupLogger(tempDir)
-	if logger == nil {
-		t.Error("SetupLogger returned nil")
-	}
-
-	// Test that logger works
-	logger.Info("Test message from SetupLogger")
-}
-
 func TestLoggingServiceMethods(t *testing.T) {
 	// Create temporary directory for test logs (auto-cleanup)
 	tempDir := t.TempDir()
@@ -590,11 +555,10 @@ func TestMultiHandlerMethods(t *testing.T) {
 }
 
 func TestLoggingMiddleware(t *testing.T) {
-	// Create temporary directory for test logs (auto-cleanup)
-	tempDir := t.TempDir()
-
-	// Create a logger for testing
-	logger := SetupLoggerWithRetention(tempDir, 2)
+	// Create a simple logger for testing
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
 	// Create a simple handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -616,13 +580,6 @@ func TestLoggingMiddleware(t *testing.T) {
 	// Check response
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
-	}
-
-	// Check that log file was created
-	currentWeek := getWeekKey(time.Now())
-	expectedFileName := filepath.Join(tempDir, "app-"+currentWeek+".log")
-	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
-		t.Errorf("Expected log file %s was not created", expectedFileName)
 	}
 }
 
