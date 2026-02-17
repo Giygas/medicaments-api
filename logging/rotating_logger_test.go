@@ -22,6 +22,7 @@ func TestRotatingLogger(t *testing.T) {
 
 	// Create rotating logger with 1 week retention
 	rl := NewRotatingLogger(tempDir, 1)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 
 	// Test initial rotation
 	rl.mu.Lock()
@@ -80,15 +81,153 @@ func TestGetWeekKey(t *testing.T) {
 	}
 }
 
+// TestWeekKeyFromFilename tests week key parsing from various filename formats
+func TestWeekKeyFromFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		want     string
+		wantOK   bool
+	}{
+		{
+			name:     "base file",
+			filename: "app-2024-W03.log",
+			want:     "2024-W03",
+			wantOK:   true,
+		},
+		{
+			name:     "numbered file",
+			filename: "app-2024-W03_01.log",
+			want:     "2024-W03",
+			wantOK:   true,
+		},
+		{
+			name:     "numbered file two digits",
+			filename: "app-2024-W03_12.log",
+			want:     "2024-W03",
+			wantOK:   true,
+		},
+		{
+			name:     "invalid format no week",
+			filename: "app-2024-03.log",
+			want:     "",
+			wantOK:   false,
+		},
+		{
+			name:     "invalid format wrong prefix",
+			filename: "log-2024-W03.log",
+			want:     "",
+			wantOK:   false,
+		},
+		{
+			name:     "invalid format no app prefix",
+			filename: "2024-W03.log",
+			want:     "",
+			wantOK:   false,
+		},
+		{
+			name:     "invalid format wrong extension",
+			filename: "app-2024-W03.txt",
+			want:     "",
+			wantOK:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotOK := weekKeyFromFilename(tt.filename)
+			if gotOK != tt.wantOK {
+				t.Errorf("weekKeyFromFilename() ok = %v, want %v", gotOK, tt.wantOK)
+			}
+			if got != tt.want {
+				t.Errorf("weekKeyFromFilename() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestWeekKeyToTime tests week key to time conversion with valid and invalid inputs
+func TestWeekKeyToTime(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		wantErr bool
+	}{
+		{
+			name:    "valid week 03",
+			key:     "2024-W03",
+			wantErr: false,
+		},
+		{
+			name:    "valid week 01",
+			key:     "2024-W01",
+			wantErr: false,
+		},
+		{
+			name:    "valid week 52",
+			key:     "2024-W52",
+			wantErr: false,
+		},
+		{
+			name:    "invalid format no W separator",
+			key:     "2024-03",
+			wantErr: true,
+		},
+		{
+			name:    "invalid format missing week",
+			key:     "2024-W",
+			wantErr: true,
+		},
+		{
+			name:    "invalid year not number",
+			key:     "abcd-W03",
+			wantErr: true,
+		},
+		{
+			name:    "invalid week not number",
+			key:     "2024-Wab",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := weekKeyToTime(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("weekKeyToTime() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestWeekKeyToTimeWeek01(t *testing.T) {
+	// Verify week 01 is calculated correctly
+	// Week 01 is the week containing the first Thursday of the year
+	// In 2024, January 1 was a Monday, so week 1 started on December 31, 2023 (Sunday)
+	// But ISO week 1 of 2024 started on January 1, 2024 (Monday)
+	weekTime, err := weekKeyToTime("2024-W01")
+	if err != nil {
+		t.Fatalf("weekKeyToTime() error = %v", err)
+	}
+
+	// Verify the Monday of week 1
+	expectedMonday := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if weekTime != expectedMonday {
+		t.Errorf("weekKeyToTime() = %v, want %v", weekTime, expectedMonday)
+	}
+}
+
 func TestRotatingLoggerWithDifferentWeeks(t *testing.T) {
 	// Create temporary directory for test logs (auto-cleanup)
 	tempDir := t.TempDir()
 
 	// Test creating two different rotating loggers for different weeks
 	rl1 := NewRotatingLogger(tempDir, 1)
+	rl1.SetShutdownTimeout(100 * time.Millisecond)
 	rl1.currentWeek = "2025-W40"
 
 	rl2 := NewRotatingLogger(tempDir, 1)
+	rl2.SetShutdownTimeout(100 * time.Millisecond)
 	rl2.currentWeek = "2025-W41"
 
 	// Create files for both weeks
@@ -162,12 +301,14 @@ func TestCleanupOldLogs(t *testing.T) {
 	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1) // 1 week retention
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 
-	// Create some old log files
+	// Create some old log files with old week keys
+	// Week key "2025-W30" should be considered old and deleted
 	oldFile := filepath.Join(tempDir, "app-2025-W30.log")
 	newFile := filepath.Join(tempDir, "app-"+getWeekKey(time.Now())+".log")
 
-	// Create old file with old modification time
+	// Create old file with old week key
 	oldLogFile, err := os.Create(oldFile)
 	if err != nil {
 		t.Fatalf("Failed to create old log file: %v", err)
@@ -175,12 +316,8 @@ func TestCleanupOldLogs(t *testing.T) {
 	_, _ = oldLogFile.WriteString("Old log content")
 	_ = oldLogFile.Close()
 
-	// Set modification time to 3 weeks ago
-	threeWeeksAgo := time.Now().AddDate(0, 0, -21)
-	err = os.Chtimes(oldFile, threeWeeksAgo, threeWeeksAgo)
-	if err != nil {
-		t.Fatalf("Failed to set old file modification time: %v", err)
-	}
+	// Note: We no longer set modification time since cleanup uses filename date
+	// The filename "app-2025-W30.log" will be parsed to determine the week date
 
 	// Create new file
 	newLogFile, err := os.Create(newFile)
@@ -199,7 +336,7 @@ func TestCleanupOldLogs(t *testing.T) {
 		t.Fatalf("Failed to cleanup old logs: %v", err)
 	}
 
-	// Check that old file was deleted
+	// Check that old file was deleted (based on week key in filename)
 	if _, err := os.Stat(oldFile); !os.IsNotExist(err) {
 		t.Errorf("Old log file %s was not deleted", oldFile)
 	}
@@ -216,6 +353,7 @@ func TestRotatingLoggerWithSizeLimit(t *testing.T) {
 
 	// Create rotating logger with very small size limit (100 bytes)
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 100)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 
 	// Initialize rotation
 	err := rl.doRotate(getWeekKey(time.Now()))
@@ -285,6 +423,7 @@ func TestRotatingLoggerErrorCases(t *testing.T) {
 	// Test with invalid directory
 	invalidDir := "/invalid/directory/that/does/not/exist"
 	rl := NewRotatingLogger(invalidDir, 1)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 
 	// Try to rotate with invalid directory
 	err := rl.doRotate(getWeekKey(time.Now()))
@@ -310,6 +449,7 @@ func TestRotatingLoggerConcurrentWrites(t *testing.T) {
 	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() { _ = rl.Close() }()
 
 	// Initialize rotation
@@ -360,6 +500,7 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 
 	// Create rotating logger with small size limit to trigger frequent rotations
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, 1000)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() {
 		if err := rl.Close(); err != nil {
 			t.Logf("Failed to close logger: %v", err)
@@ -421,11 +562,172 @@ func TestRotatingLoggerConcurrentRotation(t *testing.T) {
 	}
 }
 
+// setupTestLoggerWithRotation creates a configured rotating logger and performs initial rotation.
+// Helper for large-scale rotation tests.
+func setupTestLoggerWithRotation(t *testing.T, logDir string, maxFileSize int64) *RotatingLogger {
+	t.Helper()
+
+	rl := NewRotatingLoggerWithSizeLimit(logDir, 1, maxFileSize)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
+
+	rl.mu.Lock()
+	err := rl.doRotate(getWeekKey(time.Now()))
+	rl.mu.Unlock()
+	if err != nil {
+		t.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	return rl
+}
+
+// writeLargeStream writes specified bytes to the rotating logger in 1MB chunks
+// and reports performance metrics.
+// Helper for large-scale rotation tests.
+func writeLargeStream(t *testing.T, rl *RotatingLogger, totalBytes int64) {
+	t.Helper()
+
+	const chunkSize = 1 * 1024 * 1024 // 1MB
+	numChunks := totalBytes / chunkSize
+
+	chunk := make([]byte, chunkSize)
+	for i := range chunk {
+		chunk[i] = byte('x')
+	}
+
+	startTime := time.Now()
+	for i := int64(0); i < numChunks; i++ {
+		_, err := rl.Write(chunk)
+		if err != nil {
+			t.Fatalf("Failed to write chunk %d: %v", i, err)
+		}
+	}
+	duration := time.Since(startTime)
+	t.Logf("Wrote %d MB in %v (%.2f MB/s)", totalBytes/(1024*1024), duration, float64(totalBytes)/(1024*1024)/duration.Seconds())
+}
+
+// verifyRotationOccurred checks that rotation created both base and numbered files
+// with correct naming conventions.
+// Helper for large-scale rotation tests.
+func verifyRotationOccurred(t *testing.T, logDir string, week string) {
+	t.Helper()
+
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		t.Fatalf("Failed to read log directory: %v", err)
+	}
+
+	baseFileName := fmt.Sprintf("app-%s.log", week)
+	numberedFileName := fmt.Sprintf("app-%s_01.log", week)
+
+	hasBaseFile := false
+	hasNumberedFile := false
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") || !strings.HasSuffix(entry.Name(), ".log") {
+			continue
+		}
+
+		if entry.Name() == baseFileName {
+			hasBaseFile = true
+		} else if entry.Name() == numberedFileName {
+			hasNumberedFile = true
+		}
+	}
+
+	if !hasBaseFile {
+		t.Errorf("Expected base file %s to exist", baseFileName)
+	}
+	if !hasNumberedFile {
+		t.Errorf("Expected numbered file %s to exist", numberedFileName)
+	}
+}
+
+// verifyFileSizes checks that base and numbered files have expected sizes
+// within 1MB tolerance.
+// Helper for large-scale rotation tests.
+func verifyFileSizes(t *testing.T, logDir string, week string, expectedBaseSize, expectedNumberedSize int64) {
+	t.Helper()
+
+	const tolerance = 1024 * 1024 // 1MB tolerance
+
+	baseFileName := fmt.Sprintf("app-%s.log", week)
+	numberedFileName := fmt.Sprintf("app-%s_01.log", week)
+
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		t.Fatalf("Failed to read log directory: %v", err)
+	}
+
+	var baseFileSize, numberedFileSize int64
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") || !strings.HasSuffix(entry.Name(), ".log") {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			t.Fatalf("Failed to get file info for %s: %v", entry.Name(), err)
+		}
+
+		if entry.Name() == baseFileName {
+			baseFileSize = info.Size()
+		} else if entry.Name() == numberedFileName {
+			numberedFileSize = info.Size()
+		}
+	}
+
+	if baseFileSize < expectedBaseSize-tolerance || baseFileSize > expectedBaseSize+tolerance {
+		t.Errorf("Base file size %d differs from expected %d by more than 1MB", baseFileSize, expectedBaseSize)
+	}
+	if numberedFileSize < expectedNumberedSize-tolerance || numberedFileSize > expectedNumberedSize+tolerance {
+		t.Errorf("Numbered file size %d differs from expected %d by more than 1MB", numberedFileSize, expectedNumberedSize)
+	}
+
+	totalWritten := baseFileSize + numberedFileSize
+	expectedTotal := expectedBaseSize + expectedNumberedSize
+	if totalWritten < expectedTotal-tolerance || totalWritten > expectedTotal+tolerance {
+		t.Errorf("Total written size %d differs from expected %d by more than 1MB", totalWritten, expectedTotal)
+	}
+}
+
+// TestRotatingLoggerWithLargeSizeStream tests rotation with a 110MB log stream.
+// This test is skipped by default (use -short flag) and writes 110MB of data
+// to verify that size-based rotation works correctly with large data volumes.
+// The default 100MB limit should trigger rotation, creating a second file (_01).
+func TestRotatingLoggerWithLargeSizeStream(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping large-size stream test (use -short to skip)")
+	}
+
+	// Setup
+	tempDir := t.TempDir()
+	const maxFileSize = 100 * 1024 * 1024 // 100MB
+	rl := setupTestLoggerWithRotation(t, tempDir, maxFileSize)
+
+	// Execute: Write 110MB to trigger rotation
+	const totalSize = 110 * 1024 * 1024 // 110MB
+	writeLargeStream(t, rl, totalSize)
+
+	// Verify: Check rotation occurred correctly
+	currentWeek := getWeekKey(time.Now())
+	verifyRotationOccurred(t, tempDir, currentWeek)
+
+	// Verify: Check file sizes are correct
+	const expectedBaseSize = 100 * 1024 * 1024    // ~100MB
+	const expectedNumberedSize = 10 * 1024 * 1024 // ~10MB
+	verifyFileSizes(t, tempDir, currentWeek, expectedBaseSize, expectedNumberedSize)
+
+	// Cleanup
+	_ = rl.Close()
+}
+
 func TestRotatingLoggerEdgeCases(t *testing.T) {
 	// Create temporary directory for test logs (auto-cleanup)
 	tempDir := t.TempDir()
 
 	rl := NewRotatingLogger(tempDir, 1)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() { _ = rl.Close() }()
 
 	// Test writing empty message
@@ -513,6 +815,7 @@ func TestMultiHandlerMethods(t *testing.T) {
 
 	// Create a rotating logger for testing
 	rotatingLogger := NewRotatingLogger(tempDir, 1)
+	rotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() { _ = rotatingLogger.Close() }()
 
 	// Create multiHandler directly to test its methods
@@ -631,6 +934,7 @@ func TestRotatingLoggerExistingFileAtSizeLimit(t *testing.T) {
 	}
 
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, maxFileSize)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() { _ = rl.Close() }()
 
 	rl.mu.Lock()
@@ -671,6 +975,7 @@ func TestRotatingLoggerExistingFileBelowSizeLimit(t *testing.T) {
 	}
 
 	rl := NewRotatingLoggerWithSizeLimit(tempDir, 1, maxFileSize)
+	rl.SetShutdownTimeout(100 * time.Millisecond)
 	defer func() { _ = rl.Close() }()
 
 	rl.mu.Lock()

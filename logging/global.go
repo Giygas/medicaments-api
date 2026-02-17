@@ -171,7 +171,15 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 		return
 	}
 
-	// Start cleanup goroutine with proper cancellation
+	// Start cleanup goroutine with proper cancellation.
+	//
+	// Shutdown protocol:
+	// 1. Close() calls rotatingLogger.cancel() to signal shutdown
+	// 2. This goroutine receives on rotatingLogger.ctx.Done() and returns
+	// 3. defer close(cleanupDone) signals that cleanup is finished
+	// 4. Close() waits on cleanupDone with configurable timeout (default 5s)
+	// 5. Use SetShutdownTimeout() in tests to avoid slow test execution
+	rotatingLogger.cleanupStarted = true
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
@@ -231,6 +239,11 @@ func ResetForTest(t *testing.T, logDir string, env config.Environment, logLevelS
 	// Reinitialize with new settings
 	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
 
+	// Set short shutdown timeout for tests to avoid slow test execution
+	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
+	}
+
 	// Register cleanup to run after test completes
 	// This is key improvement over save/restore pattern
 	t.Cleanup(func() {
@@ -255,6 +268,11 @@ func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, logL
 
 	// Reinitialize with new settings
 	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+
+	// Set short shutdown timeout for benchmarks to avoid slow execution
+	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
+	}
 
 	// Register cleanup to run after benchmark completes
 	b.Cleanup(func() {
