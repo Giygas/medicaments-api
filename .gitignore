@@ -8,14 +8,21 @@ logs/
 extras/
 main
 *.log
+logs*/
 **/files/*.txt
 */files/*.txt
 files/
 src/
 **src/*.json
 src/*
+
+secrets/
+
+# Environment variables
 .env
-.env.staging
+.env.*
+!.env.example
+
 .DS_Store
 /medicaments-api
 medicamentsparser/files

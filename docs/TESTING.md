@@ -108,46 +108,19 @@ go test ./tests -coverprofile=tests_coverage.out
 
 ## Benchmarks
 
+Pour les commandes de benchmark détaillées, voir [Guide de développement - Benchmarks](DEVELOPMENT.md#benchmarks) et [Performance et benchmarks](PERFORMANCE.md).
+
 ### Exécuter tous les benchmarks v1
 ```bash
 go test ./handlers -bench=. -benchmem -v
 ```
 
-### Benchmark spécifique v1
-```bash
-go test ./handlers -bench=BenchmarkMedicamentByCIS -benchmem -v
-```
-
-### Benchmark avec profil CPU
-```bash
-go test ./handlers -bench=. -benchmem -cpuprofile=cpu.prof
-go tool pprof cpu.prof
-```
-
 ### Vérification des claims de documentation
 ```bash
-go test -run=TestDocumentationClaimsVerification -v
+go test ./tests -run TestDocumentationClaimsVerification -v
 ```
 
-### Benchmarks de pipeline d'intégration
-```bash
-go test ./tests -run TestIntegrationFullDataParsingPipeline -v
-```
-
-### Benchmarks complets avec sous-tests
-```bash
-# Tests algorithmiques
-go test ./tests -bench=BenchmarkAlgorithmicPerformance -benchmem -run=^$
-
-# Tests HTTP complets
-go test ./tests -bench=BenchmarkHTTPPerformance -benchmem -run=^$
-
-# Tests de recherche réels
-go test ./tests -bench=BenchmarkRealWorldSearch -benchmem -run=^$
-
-# Tests de charge soutenus
-go test ./tests -bench=BenchmarkSustainedPerformance -benchmem -run=^$
-```
+**Pour plus de détails sur les benchmarks et l'analyse des résultats, voir [Performance et benchmarks](PERFORMANCE.md).**
 
 ## Stratégie de Tests
 

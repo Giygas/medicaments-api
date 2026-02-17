@@ -196,25 +196,7 @@ Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-
 
 ## Architecture Mémoire
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     Memory Layout                           │
-├─────────────────────────────────────────────────────────────┤
-│ medicaments       │ ~20MB │ Slice des médicaments           │
-│ generiques        │ ~6MB  │ Slice des generiques            │
-│ medicamentsMap    │ ~15MB │ O(1) lookup par CIS             │
-│ generiquesMap     │ ~4MB  │ O(1) lookup par groupe ID       │
-│ Total             │ 60-90MB│ RAM usage stable (Go optimisé)  │
-│ Startup           │ ~150MB│ Pic initial après chargement     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Caractéristiques mémoire
-
-- **O(1) lookups** : Maps pour accès instantané par CIS ou group ID
-- **Stabilité** : 55-80MB stable (67.5MB médiane)
-- **Startup** : ~150MB pic initial après chargement des données
-- **Zero-downtime** : Swap atomique sans allocation de structures temporaires
+Pour les détails de l'architecture mémoire, voir [Architecture du système - Architecture Mémoire](ARCHITECTURE.md#architecture-mémoire).
 
 ## Interprétation des Résultats
 

@@ -112,7 +112,7 @@ Assainit les entrées utilisateur et valide l'intégrité des données.
 Stack Chi v5 optimisée pour la sécurité et la performance :
 
 1. **RequestID** - Traçabilité unique par requête
-2. **BlockDirectAccess** - Bloque les accès directs non autorisés
+2. **BlockDirectAccess** - Bloque les accès directs non autorisés (désactivé avec ALLOW_DIRECT_ACCESS=true pour Docker)
 3. **RealIP** - Détection IP réelle derrière les proxies
 4. **Logging structuré** - Logs avec slog pour monitoring
 5. **RedirectSlashes** - Normalisation des URLs
@@ -293,6 +293,52 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
   - `presentations_with_orphaned_cis` : Présentations référençant des CIS inexistants
 
 ## Stack Technique
+
+### Architecture Docker (Staging)
+
+Le projet inclut un environnement Docker de staging complet avec observabilité :
+
+### Conteneur medicaments-api
+
+- **Base image**: `scratch` (~8-10MB, surface d'attaque minimale)
+- **User**: Non-root (UID 65534/nobody)
+- **Healthcheck**: Endpoint `/health` (intervalle 30s)
+- **Ports**: 8000 (interne), 8030 (host)
+
+### Stack Observabilité
+
+Architecture de collecte des métriques et logs :
+
+```
+medicaments-api (logs + metrics)
+          ↓
+grafana-alloy (collector)
+          ↓         ↓
+       loki    prometheus
+          ↓         ↓
+          grafana (visualization)
+```
+
+**Services :**
+- **grafana-alloy**: Collecte logs + métriques, filtre Go runtime
+- **loki**: Stockage des logs (30 jours)
+- **prometheus**: Stockage des métriques (30 jours)
+- **grafana**: Dashboard de visualisation
+
+**Points d'accès :**
+- API: http://localhost:8030
+- Grafana: http://localhost:3000 (giygas/paquito)
+- Prometheus: http://localhost:9090
+
+### Sécurité Docker
+
+- **Non-root user**: UID 65534/nobody
+- **Filesystem read-only**: Sauf /app/logs (volume mount)
+- **Network isolation**: Bridge network personnalisé
+- **Port exposure**: Services internes (Loki, metrics) non exposés
+- **Secrets management**: Docker secrets pour le mot de passe Grafana
+
+*Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)*
 
 ### Core Technologies
 

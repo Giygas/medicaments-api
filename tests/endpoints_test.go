@@ -174,7 +174,7 @@ func TestBlockDirectAccessMiddleware(t *testing.T) {
 	fmt.Println("Testing blockDirectAccessMiddleware...")
 
 	router := chi.NewRouter()
-	router.Use(server.BlockDirectAccessMiddleware)
+	router.Use(server.BlockDirectAccessMiddleware(false))
 	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("allowed"))
 	})

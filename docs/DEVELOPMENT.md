@@ -34,6 +34,7 @@ go run .
 ADDRESS=127.0.0.1            # Adresse d'écoute (défaut: localhost)
 PORT=8000                       # Port du serveur
 ENV=dev                         # Environnement (dev/production)
+ALLOW_DIRECT_ACCESS=false       # Docker: true (autorise accès direct par IP)
 ```
 
 *Pour une vue d'ensemble de l'architecture et du rôle de chaque composant, voir [Architecture du système](ARCHITECTURE.md).*
@@ -56,10 +57,12 @@ MAX_HEADER_SIZE=1048576           # 1MB max taille headers
 
 ### Serveur de développement
 
-- **Local** : http://localhost:8000
+- **Local (Go native)** : http://localhost:8000
+- **Local (Docker)** : http://localhost:8030
 - **Profiling pprof** : http://localhost:6060 (quand ENV=dev)
-- **Documentation interactive** : http://localhost:8000/docs
-- **Health endpoint** : http://localhost:8000/health
+- **Documentation interactive** : http://localhost:8000/docs ou http://localhost:8030/docs (Docker)
+- **Health endpoint** : http://localhost:8000/health ou http://localhost:8030/health (Docker)
+- **Observabilité (Docker)** : Grafana http://localhost:3000, Prometheus http://localhost:9090
 
 ## Commandes de Build
 
@@ -69,6 +72,7 @@ go build -o medicaments-api .
 ```
 
 ### Cross-platform build
+
 ```bash
 # Linux
 GOOS=linux GOARCH=amd64 go build -o medicaments-api-linux .
@@ -82,6 +86,42 @@ GOOS=darwin GOARCH=arm64 go build -o medicaments-api-darwin-arm64 .
 ```
 
 *Pour plus d'informations sur les optimisations de performance et les benchmarks, voir [Performance et benchmarks](PERFORMANCE.md).*
+
+### Docker Staging (Optionnel)
+
+Pour un environnement de staging complet avec monitoring :
+
+```bash
+# Prérequis : Docker Engine 20.10+ ou Docker Desktop 4.0+
+
+# Setup secrets (Grafana password)
+make setup-secrets
+
+# Démarrer tous les services (API + observability)
+make up
+
+# Accéder à l'API
+curl http://localhost:8030/health
+
+# Accéder à Grafana (monitoring)
+open http://localhost:3000  # giygas/paquito
+
+# Accéder à Prometheus (métriques)
+open http://localhost:9090
+
+# Voir les logs
+make logs
+
+# Arrêter
+make down
+```
+
+**Ports mappés :**
+- API: 8030 (host) → 8000 (container)
+- Grafana: 3000
+- Prometheus: 9090
+
+*Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)*
 
 ### Cross-platform build
 
@@ -377,21 +417,21 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 - Suivre les conventions Go standard
 - Séparer clairement les responsabilités
 - Utiliser les interfaces définies dans `interfaces/`
-- Écrire des tests pour chaque nouvelle fonctionnalité
 
 ### Tests
 
-- Écrire des tests unitaires pour la logique business
-- Écrire des tests d'intégration pour les pipelines
+- Écrire des tests pour chaque nouvelle fonctionnalité
 - Maintenir une couverture de code ≥ 75%
 - Exécuter `go test -race` avant de commiter
+
+**Pour les bonnes pratiques de tests détaillées, voir [Guide de tests - Bonnes Pratiques](TESTING.md#bonnes-pratiques).**
 
 ### Performance
 
 - Profiler le code avec pprof pour identifier les goulots d'étranglement
-- Utiliser des benchmarks pour valider les améliorations
-- Éviter les allocations inutiles dans les chemins chauds
-- Utiliser les maps pour les lookups O(1)
+- Utiliser les benchmarks pour valider les améliorations
+
+**Pour les bonnes pratiques de performance détaillées, voir [Performance et benchmarks - Bonnes Pratiques de Performance](PERFORMANCE.md#bonnes-pratiques-de-performance).**
 
 ### Documentation
 

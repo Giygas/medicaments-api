@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'medicaments-staging'
+
+# Configure alerting rules
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"
+
+# No scrape_configs needed - metrics received via remote_write from Alloy

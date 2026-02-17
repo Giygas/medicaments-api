@@ -155,6 +155,7 @@ func cleanupEnv() {
 	_ = os.Unsetenv("ADDRESS")
 	_ = os.Unsetenv("ENV")
 	_ = os.Unsetenv("LOG_LEVEL")
+	_ = os.Unsetenv("ALLOW_DIRECT_ACCESS")
 }
 
 func TestParseEnvironment(t *testing.T) {
@@ -207,4 +208,155 @@ func TestEnvironmentString(t *testing.T) {
 			t.Errorf("Expected %s, got %s", tt.expected, got)
 		}
 	}
+}
+
+func TestAllowDirectAccess(t *testing.T) {
+	tests := []struct {
+		name          string
+		envValue      string
+		expectedValue bool
+	}{
+		{"ALLOW_DIRECT_ACCESS=true", "true", true},
+		{"ALLOW_DIRECT_ACCESS=TRUE", "TRUE", true},
+		{"ALLOW_DIRECT_ACCESS=1", "1", true},
+		{"ALLOW_DIRECT_ACCESS=false", "false", false},
+		{"ALLOW_DIRECT_ACCESS=FALSE", "FALSE", false},
+		{"ALLOW_DIRECT_ACCESS=0", "0", false},
+		{"ALLOW_DIRECT_ACCESS not set", "", false},
+		{"ALLOW_DIRECT_ACCESS invalid", "invalid", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_ = os.Setenv("PORT", "8002")
+			_ = os.Setenv("ADDRESS", "127.0.0.1")
+			_ = os.Setenv("ENV", "dev")
+			_ = os.Setenv("LOG_LEVEL", "info")
+			_ = os.Setenv("ALLOW_DIRECT_ACCESS", tt.envValue)
+			defer cleanupEnv()
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+
+			if cfg.AllowDirectAccess != tt.expectedValue {
+				t.Errorf("Expected AllowDirectAccess=%v for %s, got %v", tt.expectedValue, tt.name, cfg.AllowDirectAccess)
+			}
+		})
+	}
+}
+
+func TestValidateAddress_0dot0dot0dot0dot0_WithoutAllowDirectAccess(t *testing.T) {
+	cfg := &Config{
+		Address:           "0.0.0.0",
+		Port:              "8000",
+		Env:               EnvDevelopment,
+		LogLevel:          "info",
+		LogRetentionWeeks: 4,
+		MaxLogFileSize:    104857600,
+		MaxRequestBody:    1048576,
+		MaxHeaderSize:     1048576,
+		AllowDirectAccess: false,
+	}
+
+	err := validateAddress(cfg)
+
+	if err == nil {
+		t.Error("Expected error for 0.0.0.0 when AllowDirectAccess is false")
+	}
+
+	expectedMsg := "Set ALLOW_DIRECT_ACCESS=true"
+	if err != nil && !containsString(err.Error(), expectedMsg) {
+		t.Errorf("Error message should mention ALLOW_DIRECT_ACCESS=true, got: %s", err.Error())
+	}
+}
+
+func TestValidateAddress_0dot0dot0dot0dot0_WithAllowDirectAccess(t *testing.T) {
+	cfg := &Config{
+		Address:           "0.0.0.0",
+		Port:              "8000",
+		Env:               EnvDevelopment,
+		LogLevel:          "info",
+		LogRetentionWeeks: 4,
+		MaxLogFileSize:    104857600,
+		MaxRequestBody:    1048576,
+		MaxHeaderSize:     1048576,
+		AllowDirectAccess: true,
+	}
+
+	err := validateAddress(cfg)
+
+	if err != nil {
+		t.Errorf("Expected no error for 0.0.0.0 when AllowDirectAccess is true, got: %s", err.Error())
+	}
+}
+
+func TestValidateAddress_IPv6Any_WithoutAllowDirectAccess(t *testing.T) {
+	cfg := &Config{
+		Address:           "::",
+		Port:              "8000",
+		Env:               EnvDevelopment,
+		LogLevel:          "info",
+		LogRetentionWeeks: 4,
+		MaxLogFileSize:    104857600,
+		MaxRequestBody:    1048576,
+		MaxHeaderSize:     1048576,
+		AllowDirectAccess: false,
+	}
+
+	err := validateAddress(cfg)
+
+	if err == nil {
+		t.Error("Expected error for :: when AllowDirectAccess is false")
+	}
+}
+
+func TestValidateAddress_IPv6Any_WithAllowDirectAccess(t *testing.T) {
+	cfg := &Config{
+		Address:           "::",
+		Port:              "8000",
+		Env:               EnvDevelopment,
+		LogLevel:          "info",
+		LogRetentionWeeks: 4,
+		MaxLogFileSize:    104857600,
+		MaxRequestBody:    1048576,
+		MaxHeaderSize:     1048576,
+		AllowDirectAccess: true,
+	}
+
+	err := validateAddress(cfg)
+
+	if err != nil {
+		t.Errorf("Expected no error for :: when AllowDirectAccess is true, got: %s", err.Error())
+	}
+}
+
+func TestValidateAddress_127dot0dot0dot1_AlwaysAllowed(t *testing.T) {
+	cfg := &Config{
+		Address:           "127.0.0.1",
+		Port:              "8000",
+		Env:               EnvDevelopment,
+		LogLevel:          "info",
+		LogRetentionWeeks: 4,
+		MaxLogFileSize:    104857600,
+		MaxRequestBody:    1048576,
+		MaxHeaderSize:     1048576,
+		AllowDirectAccess: false,
+	}
+
+	err := validateAddress(cfg)
+
+	if err != nil {
+		t.Errorf("127.0.0.1 should always be allowed, got error: %s", err.Error())
+	}
+}
+
+func containsString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

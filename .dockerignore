@@ -1,0 +1,80 @@
+# Logs
+logs/
+tests/logs/
+*.log
+*.out
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Dependencies
+vendor/
+
+# Testing
+coverage.out
+coverage.html
+*.test
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+!README.md
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Workspaces
+workspaces/
+
+# Environment files (use .env.docker)
+.env
+.env.*
+
+# Build artifacts
+medicaments-api
+medicaments-api-*
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Extras and test data
+extras/
+files/
+$HOME/
+
+# Coverage and profiling
+*.prof
+*.trace
+cpu.prof
+mem.prof
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Observability stack (config only)
+observability/
+!observability/alloy/config.alloy
+!observability/loki/config.yaml
+!observability/prometheus/prometheus.yml
+!observability/grafana/provisioning/**
+!observability/grafana/dashboards/*.json

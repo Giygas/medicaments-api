@@ -1,0 +1,215 @@
+services:
+  medicaments-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${APP_VERSION:-1.0.0}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: medicaments-api:${APP_VERSION:-latest}
+    container_name: medicaments-api
+    ports:
+      - "8030:8000"
+    expose:
+      - "9090" # Metrics endpoint for Prometheus to scrap
+    env_file:
+      - .env.docker
+    read_only: true
+    tmpfs:
+      - /app/files:size=30M,uid=65534,gid=65534
+      - /tmp:size=10M,mode=1777
+    volumes:
+      # Persist logs outside container using named volume
+      - logs_data:/app/logs
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - medicaments-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    labels:
+      - "com.medicaments-api.description=Medicaments API - French medication data service"
+      - "com.medicaments-api.version=${APP_VERSION:-latest}"
+      - "com.medicaments-api.git.commit=${GIT_COMMIT:-unknown}"
+      - "com.medicaments-api.build.date=${BUILD_DATE:-unknown}"
+      - "com.medicaments-api.maintainer=giygas@example.com"
+      - "com.medicaments-api.environment=${ENV:-unknown}"
+      - "com.medicaments-api.service.type=application"
+
+  grafana-alloy:
+    image: grafana/alloy:v1.4.0
+    container_name: grafana-alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - logs_data:/var/log/app:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command:
+      - "run"
+      - "/etc/alloy/config.alloy"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    depends_on:
+      medicaments-api:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    labels:
+      - "com.medicaments-api.description=Grafana Alloy - Logs and metrics collector"
+      - "com.medicaments-api.version=v1.4.0"
+      - "com.medicaments-api.maintainer=giygas@example.com"
+      - "com.medicaments-api.environment=staging"
+      - "com.medicaments-api.service.type=observability"
+
+  loki:
+    image: grafana/loki:2.9.10
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    expose:
+      - "3100"
+    volumes:
+      - ./observability/loki/config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://localhost:3100/ready || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+    labels:
+      - "com.medicaments-api.description=Grafana Loki - Log aggregation system"
+      - "com.medicaments-api.version=2.9.10"
+      - "com.medicaments-api.maintainer=giygas@example.com"
+      - "com.medicaments-api.environment=staging"
+      - "com.medicaments-api.service.type=observability"
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--storage.tsdb.retention.time=720h"
+      - "--web.enable-remote-write-receiver"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks:
+      - medicaments-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://localhost:9090/-/ready || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.3"
+          memory: 512M
+    labels:
+      - "com.medicaments-api.description=Prometheus - Metrics storage and querying"
+      - "com.medicaments-api.version=v2.48.0"
+      - "com.medicaments-api.maintainer=giygas@example.com"
+      - "com.medicaments-api.environment=staging"
+      - "com.medicaments-api.service.type=observability"
+
+  grafana:
+    image: grafana/grafana:10.2.4
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_password
+      - GF_INSTALL_PLUGINS=
+    restart: unless-stopped
+    secrets:
+      - grafana_password
+    networks:
+      - medicaments-network
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 256M
+    labels:
+      - "com.medicaments-api.description=Grafana - Visualization dashboard"
+      - "com.medicaments-api.version=10.2.4"
+      - "com.medicaments-api.maintainer=giygas@example.com"
+      - "com.medicaments-api.environment=staging"
+      - "com.medicaments-api.service.type=observability"
+
+networks:
+  medicaments-network:
+    driver: bridge
+
+volumes:
+  loki-data:
+  prometheus-data:
+  grafana-data:
+  logs_data:
+
+secrets:
+  grafana_password:
+    file: ./secrets/grafana_password.txt
