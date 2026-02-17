@@ -37,11 +37,73 @@ loki.process "parse_json" {
   stage.labels {
     values = {
       level  = "level",
-      path   = "path",
       status_code = "",
+      threat = "",
     }
   }
 
+
+  // Security: All probes
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |~ \"/(\\\\.(git|env|ssh|aws)|wp-admin|phpmyadmin)\""
+    
+    stage.static_labels {
+      values = {
+        level  = "WARN",
+        threat = "probe",
+      }
+    }
+  }
+
+  // Security: Path traversal
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |~ \"(\\\\.\\\\./|%2e%2e)\""
+    
+    stage.static_labels {
+      values = {
+        level  = "WARN",
+        threat = "path-traversal",
+      }
+    }
+  }
+
+  // XSS - these all work reliably with |=
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |= \"<script\""
+    stage.static_labels {
+      values = { level = "WARN", threat = "xss" }
+    }
+  }
+
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |= \"javascript:\""
+    stage.static_labels {
+      values = { level = "WARN", threat = "xss" }
+    }
+  }
+
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |= \"onerror=\""
+    stage.static_labels {
+      values = { level = "WARN", threat = "xss" }
+    }
+  }
+
+  stage.match {
+    selector = "{job=\"medicaments-api\"} |= \"%3cscript\""
+    stage.static_labels {
+      values = { level = "WARN", threat = "xss" }
+    }
+  }
+
+  // Replace INFO with WARN on matched threats
+  stage.match {
+    selector = "{job=\"medicaments-api\", threat!=\"\"}"
+    stage.replace {
+      expression = "\"level\":\"(INFO)\""
+      replace    = "WARN"
+    }
+  }
 }
 
 // Write to local Loki
