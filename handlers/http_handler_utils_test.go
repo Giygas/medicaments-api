@@ -153,12 +153,29 @@ type MockDataStoreBuilder struct {
 func NewMockDataStoreBuilder() *MockDataStoreBuilder {
 	return &MockDataStoreBuilder{
 		mock: &MockDataStore{
-			medicaments:    []entities.Medicament{},
-			generiques:     []entities.GeneriqueList{},
-			medicamentsMap: make(map[int]entities.Medicament),
-			generiquesMap:  make(map[int]entities.GeneriqueList),
-			lastUpdated:    time.Now(),
-			updating:       false,
+			medicaments:     []entities.Medicament{},
+			generiques:      []entities.GeneriqueList{},
+			medicamentsMap:  make(map[int]entities.Medicament),
+			generiquesMap:   make(map[int]entities.GeneriqueList),
+			lastUpdated:     time.Now(),
+			updating:        false,
+			serverStartTime: time.Now().Add(-1 * time.Hour),
+			dataQualityReport: &interfaces.DataQualityReport{
+				DuplicateCIS:                        []int{},
+				DuplicateGroupIDs:                   []int{},
+				MedicamentsWithoutConditions:        0,
+				MedicamentsWithoutGeneriques:        0,
+				MedicamentsWithoutPresentations:     0,
+				MedicamentsWithoutCompositions:      0,
+				GeneriqueOnlyCIS:                    0,
+				PresentationsWithOrphanedCIS:        0,
+				MedicamentsWithoutConditionsCIS:     []int{},
+				MedicamentsWithoutGeneriquesCIS:     []int{},
+				MedicamentsWithoutPresentationsCIS:  []int{},
+				MedicamentsWithoutCompositionsCIS:   []int{},
+				GeneriqueOnlyCISList:                []int{},
+				PresentationsWithOrphanedCISCIPList: []int{},
+			},
 		},
 	}
 }
@@ -199,6 +216,16 @@ func (b *MockDataStoreBuilder) WithPresentationsCIP13Map(presentationsCIP13Map m
 
 func (b *MockDataStoreBuilder) WithGeneriquesMap(generiquesMap map[int]entities.GeneriqueList) *MockDataStoreBuilder {
 	b.mock.generiquesMap = generiquesMap
+	return b
+}
+
+func (b *MockDataStoreBuilder) WithDataQualityReport(report *interfaces.DataQualityReport) *MockDataStoreBuilder {
+	b.mock.dataQualityReport = report
+	return b
+}
+
+func (b *MockDataStoreBuilder) WithServerStartTime(startTime time.Time) *MockDataStoreBuilder {
+	b.mock.serverStartTime = startTime
 	return b
 }
 
@@ -350,6 +377,8 @@ type MockDataStore struct {
 	presentationsCIP13Map map[int]entities.Presentation
 	lastUpdated           time.Time
 	updating              bool
+	serverStartTime       time.Time
+	dataQualityReport     *interfaces.DataQualityReport
 
 	// Method call tracking
 	getMedicamentsCalled    bool
@@ -423,24 +452,11 @@ func (m *MockDataStore) EndUpdate() {
 }
 
 func (m *MockDataStore) GetServerStartTime() time.Time {
-	return time.Time{} // Return zero time for mock
+	return m.serverStartTime
 }
 
 func (m *MockDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
-	return &interfaces.DataQualityReport{
-		DuplicateCIS:                       []int{},
-		DuplicateGroupIDs:                  []int{},
-		MedicamentsWithoutConditions:       0,
-		MedicamentsWithoutGeneriques:       0,
-		MedicamentsWithoutPresentations:    0,
-		MedicamentsWithoutCompositions:     0,
-		GeneriqueOnlyCIS:                   0,
-		MedicamentsWithoutConditionsCIS:    []int{},
-		MedicamentsWithoutGeneriquesCIS:    []int{},
-		MedicamentsWithoutPresentationsCIS: []int{},
-		MedicamentsWithoutCompositionsCIS:  []int{},
-		GeneriqueOnlyCISList:               []int{},
-	}
+	return m.dataQualityReport
 }
 
 // MockDataValidator implements interfaces.DataValidator for testing
