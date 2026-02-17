@@ -128,13 +128,18 @@ docker-compose build --no-cache  # Clean build (no cache)
 ### 🏗️ Multi-Architecture Builds
 
 ```bash
-# Interactive build script (recommended)
-./docker-build.sh
-# Select: 1) amd64, 2) arm64
+# Build for host architecture (auto-detected)
+make build
 
-# Direct Docker commands
-docker buildx build --platform linux/amd64 -t medicaments-api:amd64 --load .
-docker buildx build --platform linux/arm64 -t medicaments-api:arm64 --load .
+# Force specific architecture
+make build-amd64
+make build-arm64
+
+# Start services
+make up
+
+# View all available commands
+make help
 ```
 
 **Docker Compose (auto-detects platform):**
@@ -221,15 +226,15 @@ Docker environment configuration:
 | `GRAFANA_ADMIN_USER` | `giygas` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `paquito` | Grafana admin password |
 
-#### 5. **docker-build.sh**
+#### 5. **Makefile**
 
-Multi-architecture build script:
+Unified build and development commands:
 
-- Interactive menu to select platform (amd64 or arm64)
-- Builds single-architecture image for deployment
-- Uses Docker BuildKit with `--platform` flag
-- Tags images as `medicaments-api:amd64` or `medicaments-api:arm64`
-- Use for explicit architecture control when docker-compose auto-detection isn't needed
+- Auto-detects host architecture (amd64 or arm64)
+- Provides unified interface for Docker, testing, and benchmarking
+- Supports explicit architecture targeting: `make build-amd64` or `make build-arm64`
+- Common operations: `make build`, `make up`, `make down`, `make logs`, `make test`, `make bench`
+- View all commands: `make help`
 
 #### 6. **.gitignore** (updated)
 
@@ -248,7 +253,7 @@ medicaments-api/
 ├── docker-compose.yml      # Docker Compose orchestration (includes observability stack)
 ├── .dockerignore          # Files excluded from build context
 ├── .env.docker             # Docker environment variables
-├── docker-build.sh         # Multi-arch build script
+├── Makefile               # Unified build and development commands
 ├── logs/                  # Persistent logs directory
 ├── html/                  # Documentation files (served by API)
 ├── observability/         # Grafana stack configuration
