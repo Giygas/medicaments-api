@@ -1,443 +1,447 @@
-# Docker Setup Guide
+# Guide de Configuration Docker
 
-**Complete guide for running medicaments-api in Docker**
+**Guide complet pour exécuter medicaments-api dans Docker**
 
 ---
 
-## Table of Contents
+**🇫🇷 Français** | [🇬🇧 English](DOCKER.en.md)
 
-- [Quick Start](#quick-start)
-- [Essential Commands](#essential-commands)
-- [Project Overview](#project-overview)
-  - [What Was Created](#what-was-created)
-  - [Project Structure](#project-structure)
+---
+
+## Table des Matières
+
+- [Démarrage Rapide](#démarrage-rapide)
+- [Commandes Essentielles](#commandes-essentielles)
+- [Aperçu du Projet](#aperçu-du-projet)
+  - [Ce Qui a Été Créé](#ce-qui-a-été-créé)
+  - [Structure du Projet](#structure-du-projet)
   - [Configuration](#configuration)
-- [Docker Compose Commands](#docker-compose-commands)
-  - [Build and Run](#build-and-run)
-  - [View Logs](#view-logs)
-  - [Container Management](#container-management)
-- [API Endpoints](#api-endpoints)
-- [Data Management](#data-management)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Usage](#advanced-usage)
-- [Security Considerations](#security-considerations)
-- [Monitoring](#monitoring)
-- [Cleanup](#cleanup)
-- [Production Differences](#production-differences)
-- [CI/CD Integration](#cicd-integration)
-- [Observability Stack](#observability-stack)
+- [Commandes Docker Compose](#commandes-docker-compose)
+  - [Build et Exécution](#build-et-exécution)
+  - [Voir les Logs](#voir-les-logs)
+  - [Gestion des Conteneurs](#gestion-des-conteneurs)
+- [Endpoints API](#endpoints-api)
+- [Gestion des Données](#gestion-des-données)
+- [Dépannage](#dépannage)
+- [Utilisation Avancée](#utilisation-avancée)
+- [Considérations de Sécurité](#considérations-de-sécurité)
+- [Surveillance](#surveillance)
+- [Nettoyage](#nettoyage)
+- [Différences en Production](#différences-en-production)
+- [Intégration CI/CD](#intégration-cicd)
+- [Stack d'Observabilité](#stack-dobservabilité)
 - [Support](#support)
-- [Appendix](#appendix)
+- [Annexe](#annexe)
 
 ---
 
-## Quick Start
+## Démarrage Rapide
 
-### Prerequisites
+### Prérequis
 
-- Docker Engine 20.10+ or Docker Desktop 4.0+
-- At least 1GB available disk space
-- Network connection for BDPM data download
-- Secrets setup: Run `make setup-secrets` (creates `secrets/grafana_password.txt`)
+- Docker Engine 20.10+ ou Docker Desktop 4.0+
+- Au moins 1Go d'espace disque disponible
+- Connexion réseau pour le téléchargement des données BDPM
+- Configuration des secrets : Exécuter `make setup-secrets` (crée `secrets/grafana_password.txt`)
 
-### Secrets Setup (Required First Step)
+### Configuration des Secrets (Première Étape Requise)
 
-Before running Docker services, you need to set up the Grafana password secret:
+Avant d'exécuter les services Docker, vous devez configurer le secret du mot de passe Grafana :
 
 ```bash
-# Create Grafana password secret
+# Créer le secret du mot de passe Grafana
 make setup-secrets
 
-# This prompts for a password and creates secrets/grafana_password.txt with secure permissions (600)
+# Cela demande un mot de passe et crée secrets/grafana_password.txt avec des permissions sécurisées (600)
 ```
 
-**Why Secrets?**
-- Grafana requires an admin password for secure access
-- Storing passwords in environment variables or configuration files is insecure
-- Docker secrets provide a secure way to manage sensitive data
-- The `secrets/` directory is excluded from version control (`.gitignore`)
+**Pourquoi des Secrets ?**
+- Grafana nécessite un mot de passe administrateur pour un accès sécurisé
+- Stocker les mots de passe dans des variables d'environnement ou des fichiers de configuration n'est pas sécurisé
+- Les Docker secrets fournissent un moyen sécurisé de gérer les données sensibles
+- Le répertoire `secrets/` est exclu du contrôle de version (`.gitignore`)
 
-**Security Best Practices:**
-- ✅ Use strong passwords (minimum 12 characters, mixed case, numbers, symbols)
-- ✅ Never commit secrets to version control
-- ✅ Set restrictive file permissions (600)
-- ❌ Don't reuse passwords across services
+**Bonnes Pratiques de Sécurité :**
+- ✅ Utiliser des mots de passe forts (minimum 12 caractères, majuscules/minuscules, chiffres, symboles)
+- ✅ Ne jamais committer de secrets dans le contrôle de version
+- ✅ Définir des permissions de fichiers restrictives (600)
+- ❌ Ne pas réutiliser les mots de passe sur plusieurs services
 
-### Get Started Immediately
+### Démarrage Immédiat
 
 ```bash
-# Docker Compose (recommended)
+# Docker Compose (recommandé)
 docker-compose up -d
 
-# View logs
+# Voir les logs
 docker-compose logs -f
 
-# Check health
+# Vérifier la santé
 curl http://localhost:8030/health
 
-# Stop
+# Arrêter
 docker-compose down
 ```
 
-### What Happens on First Run
+### Ce Qui se Passe au Premier Lancement
 
-1. **Docker builds image** (~1-2 minutes)
-2. **Container starts** as non-root user (UID 65534/nobody)
-3. **BDPM data downloads** from external sources (~10-30 seconds)
-4. **HTTP server starts** on port 8000
-5. **Health check begins** after 10-second start period
-6. **API is ready** at http://localhost:8030
+1. **Docker construit l'image** (~1-2 minutes)
+2. **Le conteneur démarre** en tant qu'utilisateur non-root (UID 65534/nobody)
+3. **Le téléchargement des données BDPM** depuis les sources externes (~10-30 secondes)
+4. **Le serveur HTTP démarre** sur le port 8000
+5. **Le health check commence** après une période de démarrage de 10 secondes
+6. **L'API est prête** sur http://localhost:8030
 
 ---
 
-## Essential Commands
+## Commandes Essentielles
 
-### 🚀 Start & Stop
+### 🚀 Démarrage & Arrêt
 
 ```bash
-docker-compose up -d             # Start detached
-docker-compose down               # Stop & remove containers
-docker-compose restart            # Restart container
+docker-compose up -d             # Démarrer en mode détaché
+docker-compose down               # Arrêter & supprimer les conteneurs
+docker-compose restart            # Redémarrer le conteneur
 ```
 
 ### 📋 Logs
 
 ```bash
-docker-compose logs -f           # Follow logs in real-time
-docker-compose logs --tail=100   # Last 100 lines
-docker-compose logs | grep error   # Search for errors
+docker-compose logs -f           # Suivre les logs en temps réel
+docker-compose logs --tail=100   # 100 dernières lignes
+docker-compose logs | grep error   # Rechercher les erreurs
 ```
 
-### 🔍 Status & Health
+### 🔍 Statut & Santé
 
 ```bash
-docker-compose ps                 # Container status
-curl http://localhost:8030/health # Health check
-docker stats medicaments-api # Resource usage
+docker-compose ps                 # Statut du conteneur
+curl http://localhost:8030/health # Vérification de santé
+docker stats medicaments-api # Utilisation des ressources
 ```
 
 ### 🛠️ Build & Rebuild
 
 ```bash
-docker-compose build             # Build image
-docker-compose up -d --build     # Rebuild & start
-docker-compose build --no-cache  # Clean build (no cache)
+docker-compose build             # Construire l'image
+docker-compose up -d --build     # Rebuild & démarrer
+docker-compose build --no-cache  # Build propre (sans cache)
 ```
 
-### 🏗️ Multi-Architecture Builds
+### 🏗️ Builds Multi-Architecture
 
 ```bash
-# Build for host architecture (auto-detected)
+# Build pour l'architecture hôte (auto-détecté)
 make build
 
-# Force specific architecture
+# Forcer une architecture spécifique
 make build-amd64
 make build-arm64
 
-# Start services
+# Démarrer les services
 make up
 
-# View all available commands
+# Voir toutes les commandes disponibles
 make help
 ```
 
-**Docker Compose (auto-detects platform):**
+**Docker Compose (auto-détecte la plateforme) :**
 
 ```bash
-docker-compose up -d    # Builds for your native platform
-docker-compose build      # Builds for your native platform
+docker-compose up -d    # Construit pour votre plateforme native
+docker-compose build      # Construit pour votre plateforme native
 ```
 
-**Supported Platforms:**
+**Plateformes Supportées :**
 
-| Architecture | Description | Target Platforms |
+| Architecture | Description | Plateformes Cibles |
 |--------------|-------------|------------------|
-| **amd64** | Intel/AMD x86_64 | Intel/AMD servers, cloud instances, Intel Macs |
+| **amd64** | Intel/AMD x86_64 | Serveurs Intel/AMD, instances cloud, Mac Intel |
 | **arm64** | ARM 64-bit | Apple Silicon (M1/M2/M3), Raspberry Pi 4, AWS Graviton |
 
-**Note:** Use `--load` flag to make image available locally. Without it, image only exists in BuildKit cache.
+**Note :** Utilisez l'option `--load` pour rendre l'image disponible localement. Sans cela, l'image existe uniquement dans le cache BuildKit.
 
 ---
 
-## Project Overview
+## Aperçu du Projet
 
-### What Was Created
+### Ce Qui a Été Créé
 
-The following files were added to set up your Docker environment:
+Les fichiers suivants ont été ajoutés pour configurer votre environnement Docker :
 
 #### 1. **Dockerfile**
 
-Multi-stage Docker build optimized for production:
+Build Docker multi-étapes optimisé pour la production :
 
-- **Stage 1 - Builder**: `golang:1.26-alpine`
-  - Uses `syntax=docker/dockerfile:1` for buildkit support
-  - Cache mounts for Go packages and build cache (faster rebuilds)
-  - Multi-architecture support via `$TARGETARCH` BuildKit variable
-  - Copies HTML documentation from `/build/html`
-- **Stage 2 - Runtime**: `scratch` (~8-10MB final image, minimal attack surface)
-- **Security**: Non-root user (UID 65534/nobody)
-- **Health Check**: Built-in using HEALTHCHECK instruction with healthcheck subcommand
-- **Files**: Copies binary, CA certificates, and HTML documentation
-- **Build Dependencies**: Only `ca-certificates`
+- **Étape 1 - Builder** : `golang:1.26-alpine`
+  - Utilise `syntax=docker/dockerfile:1` pour le support buildkit
+  - Montages de cache pour les packages Go et le cache de build (rebuilds plus rapides)
+  - Support multi-architecture via la variable BuildKit `$TARGETARCH`
+  - Copie la documentation HTML depuis `/build/html`
+- **Étape 2 - Runtime** : `scratch` (~8-10MB image finale, surface d'attaque minimale)
+- **Sécurité** : Utilisateur non-root (UID 65534/nobody)
+- **Health Check** : Intégré via l'instruction HEALTHCHECK avec la sous-commande healthcheck
+- **Fichiers** : Copie le binaire, les certificats CA et la documentation HTML
+- **Dépendances de Build** : Seulement `ca-certificates`
 
 #### 2. **docker-compose.yml**
 
-Docker Compose orchestration:
+Orchestration Docker Compose :
 
-- **Port Mapping**: 8030 (host) → 8000 (container)
-- **Environment**: Variables from `.env.docker`
-- **Logs**: Persistent via named volume (`logs_data:/app/logs`)
-- **Security**: Read-only filesystem, no-new-privileges, tmpfs for /app/files
-- **Resources**:
-  - medicaments-api: 512MB/0.5CPU limits, 256MB/0.25CPU reservations
-  - grafana-alloy: 256MB/0.5CPU limits, 128MB/0.1CPU reservations
-  - loki: 512MB/1.0CPU limits, 256MB/0.2CPU reservations
-  - prometheus: 1G/1.0CPU limits, 512MB/0.3CPU reservations
-  - grafana: 512MB/0.5CPU limits, 256MB/0.1CPU reservations
-- **Health Check**: Delegated to Dockerfile (30s interval, 5s timeout, 10s start period, 3 retries)
-- **Restart**: Policy `unless-stopped`
-- **Network**: Custom bridge network for isolation
-- **Container Labels**: Metadata for identification and management
+- **Mapping de Ports** : 8030 (hôte) → 8000 (conteneur)
+- **Environnement** : Variables depuis `.env.docker`
+- **Logs** : Persistants via un volume nommé (`logs_data:/app/logs`)
+- **Sécurité** : Système de fichiers en lecture seule, no-new-privileges, tmpfs pour /app/files
+- **Ressources** :
+  - medicaments-api : limites 512MB/0.5CPU, réservations 256MB/0.25CPU
+  - grafana-alloy : limites 256MB/0.5CPU, réservations 128MB/0.1CPU
+  - loki : limites 512MB/1.0CPU, réservations 256MB/0.2CPU
+  - prometheus : limites 1G/1.0CPU, réservations 512MB/0.3CPU
+  - grafana : limites 512MB/0.5CPU, réservations 256MB/0.1CPU
+- **Health Check** : Délégué au Dockerfile (intervalle 30s, timeout 5s, période de démarrage 10s, 3 tentatives)
+- **Restart** : Politique `unless-stopped`
+- **Réseau** : Réseau bridge personnalisé pour l'isolement
+- **Labels de Conteneur** : Métadonnées pour l'identification et la gestion
 
 #### 3. **.dockerignore**
 
-Optimizes Docker build context:
+Optimise le contexte de build Docker :
 
-- Excludes: logs, git, vendor, test files, \*.md (except README.md), observability/ (except config files)
-- Keeps: source code and HTML docs
-- Reduces: build time and image size
-- Observability configs: Explicitly includes necessary config files from observability/
+- Exclut : logs, git, vendor, fichiers de test, \*.md (sauf README.md), observability/ (sauf fichiers de config)
+- Garde : code source et documentation HTML
+- Réduit : temps de build et taille de l'image
+- Configs d'observabilité : Inclut explicitement les fichiers de config nécessaires depuis observability/
 
 #### 4. **.env.docker**
 
-Docker environment configuration:
-| Variable | Value | Description |
+Configuration de l'environnement Docker :
+| Variable | Valeur | Description |
 |----------|-------|-------------|
-| `ADDRESS` | `0.0.0.0` | Listen on all interfaces in container |
-| `PORT` | `8000` | Port inside container |
-| `ENV` | `production` | Environment mode |
-| `ALLOW_DIRECT_ACCESS` | `true` | Allow binding to all interfaces (Docker only) |
-| `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) |
-| `LOG_RETENTION_WEEKS` | `2` | Keep logs for 2 weeks |
-| `MAX_LOG_FILE_SIZE` | `52428800` | Rotate at 50MB |
-| `MAX_REQUEST_BODY` | `2097152` | 2MB max request body |
-| `MAX_HEADER_SIZE` | `2097152` | 2MB max header size |
-| `GRAFANA_ADMIN_USER` | `giygas` | Grafana admin username |
-| `GRAFANA_ADMIN_PASSWORD` | `paquito` | Grafana admin password |
+| `ADDRESS` | `0.0.0.0` | Écouter sur toutes les interfaces dans le conteneur |
+| `PORT` | `8000` | Port à l'intérieur du conteneur |
+| `ENV` | `production` | Mode d'environnement |
+| `ALLOW_DIRECT_ACCESS` | `true` | Autoriser la liaison à toutes les interfaces (Docker uniquement) |
+| `LOG_LEVEL` | `info` | Niveau de logging (debug/info/warn/error) |
+| `LOG_RETENTION_WEEKS` | `2` | Garder les logs pendant 2 semaines |
+| `MAX_LOG_FILE_SIZE` | `52428800` | Rotation à 50MB |
+| `MAX_REQUEST_BODY` | `2097152` | Corps de requête max 2MB |
+| `MAX_HEADER_SIZE` | `2097152` | Taille d'en-tête max 2MB |
+| `GRAFANA_ADMIN_USER` | `giygas` | Nom d'utilisateur admin Grafana |
+| `GRAFANA_ADMIN_PASSWORD` | `paquito` | Mot de passe admin Grafana |
 
 #### 5. **Makefile**
 
-Unified build and development commands:
+Commandes de build et de développement unifiées :
 
-- Auto-detects host architecture (amd64 or arm64)
-- Provides unified interface for Docker, testing, and benchmarking
-- Supports explicit architecture targeting: `make build-amd64` or `make build-arm64`
-- Common operations: `make build`, `make up`, `make down`, `make logs`, `make test`, `make bench`
-- View all commands: `make help`
+- Auto-détecte l'architecture hôte (amd64 ou arm64)
+- Fournit une interface unifiée pour Docker, les tests et le benchmarking
+- Supporte le ciblage explicite d'architecture : `make build-amd64` ou `make build-arm64`
+- Opérations courantes : `make build`, `make up`, `make down`, `make logs`, `make test`, `make bench`
+- Voir toutes les commandes : `make help`
 
-#### 6. **.gitignore** (updated)
+#### 6. **.gitignore** (mis à jour)
 
-Added comprehensive exclusions including:
+Ajouté des exclusions complètes incluant :
 
-- `.env.docker` and other environment files
-- `observability/` directory (with exceptions for config files)
-- Standard Git, CI/CD, IDE, and OS files
-- Test artifacts and build files
+- `.env.docker` et autres fichiers d'environnement
+- Répertoire `observability/` (avec exceptions pour les fichiers de config)
+- Fichiers standard Git, CI/CD, IDE et OS
+- Artefacts de test et fichiers de build
 
-### Project Structure
+### Structure du Projet
 
 ```
 medicaments-api/
-├── Dockerfile              # Multi-stage Docker build
-├── docker-compose.yml      # Docker Compose orchestration (includes observability stack)
-├── .dockerignore          # Files excluded from build context
-├── .env.docker             # Docker environment variables
-├── Makefile               # Unified build and development commands
-├── logs/                  # Persistent logs directory
-├── html/                  # Documentation files (served by API)
-├── secrets/              # Docker secrets (gitignored)
+├── Dockerfile              # Build Docker multi-étapes
+├── docker-compose.yml      # Orchestration Docker Compose (inclut la stack d'observabilité)
+├── .dockerignore          # Fichiers exclus du contexte de build
+├── .env.docker             # Variables d'environnement Docker
+├── Makefile               # Commandes de build et de développement unifiées
+├── logs/                  # Répertoire des logs persistants
+├── html/                  # Fichiers de documentation (servis par l'API)
+├── secrets/              # Docker secrets (gitignoré)
 │   └── grafana_password.txt
-└── observability/         # Grafana stack configuration
-    ├── alloy/              # Alloy config
-    ├── loki/               # Loki config
-    ├── prometheus/          # Prometheus config
-    │   └── alerts/          # Prometheus alert rules
-    └── grafana/             # Grafana config
-        ├── provisioning/      # Auto-provisioning
-        │   ├── datasources/   # Loki & Prometheus datasources
-        │   └── dashboards/     # Dashboard provisioning
-        └── dashboards/        # Dashboard JSON files
+└── observability/         # Configuration de la stack Grafana
+    ├── alloy/              # Config Alloy
+    ├── loki/               # Config Loki
+    ├── prometheus/          # Config Prometheus
+    │   └── alerts/          # Règles d'alerte Prometheus
+    └── grafana/             # Config Grafana
+        ├── provisioning/      # Provisionnement automatique
+        │   ├── datasources/   # Datasources Loki & Prometheus
+        │   └── dashboards/     # Provisionnement des dashboards
+        └── dashboards/        # Fichiers JSON des dashboards
 ```
 
 ### Configuration
 
-#### Port Mapping
+#### Mapping de Ports
 
-- **Host Port**: 8030
-- **Container Port**: 8000
+- **Port Hôte** : 8030
+- **Port Conteneur** : 8000
 
-Access the API at: `http://localhost:8030`
+Accédez à l'API sur : `http://localhost:8030`
 
-#### Resource Limits
+#### Limites de Ressources
 
-Staging container has the following limits:
+Le conteneur de staging a les limites suivantes :
 
-- **CPU**: 0.5 cores max, 0.25 cores reserved
-- **Memory**: 512MB max, 256MB reserved
+- **CPU** : 0.5 cœurs max, 0.25 cœurs réservés
+- **Mémoire** : 512MB max, 256MB réservés
 
 ---
 
-## Docker Compose Commands
+## Commandes Docker Compose
 
-### Build and Run
+### Build et Exécution
 
 ```bash
-# Build Docker image
+# Construire l'image Docker
 docker-compose build
 
-# Start container in detached mode
+# Démarrer le conteneur en mode détaché
 docker-compose up -d
 
-# Start with log output
+# Démarrer avec les logs
 docker-compose up
 
-# Rebuild and start
+# Rebuild et démarrer
 docker-compose up -d --build
 ```
 
-### View Logs
+### Voir les Logs
 
 ```bash
-# Follow logs in real-time
+# Suivre les logs en temps réel
 docker-compose logs -f
 
-# View logs for last 100 lines
+# Voir les logs pour les 100 dernières lignes
 docker-compose logs --tail=100
 
-# View logs with timestamps
+# Voir les logs avec horodatage
 docker-compose logs -f -t
 
-# View persistent logs from named volume
+# Voir les logs persistants depuis le volume nommé
 docker-compose exec medicaments-api ls -la /app/logs/
 docker-compose exec medicaments-api tail -f /app/logs/app-*.log
 ```
 
-### Container Management
+### Gestion des Conteneurs
 
 ```bash
-# Check container status
+# Vérifier le statut du conteneur
 docker-compose ps
 
-# View detailed container info
+# Voir les informations détaillées du conteneur
 docker inspect medicaments-api
 
-# View resource usage
+# Voir l'utilisation des ressources
 docker stats medicaments-api
 
-# Restart container
+# Redémarrer le conteneur
 docker-compose restart
 
-# Stop container
+# Arrêter le conteneur
 docker-compose stop
 
-# Stop and remove containers
+# Arrêter et supprimer les conteneurs
 docker-compose down
 
-# Remove containers and volumes
+# Supprimer les conteneurs et volumes
 docker-compose down -v
 
-# Remove containers, volumes, and images
+# Supprimer les conteneurs, volumes et images
 docker-compose down -v --rmi all
 ```
 
 ---
 
-## API Endpoints
+## Endpoints API
 
-Access all endpoints via `http://localhost:8030`
+Accédez à tous les endpoints via `http://localhost:8030`
 
-### V1 Endpoints (Recommended)
+### Endpoints V1 (Recommandés)
 
 ```bash
-# Health check
+# Vérification de santé
 curl http://localhost:8030/health
 
-# Get all medicaments (paginated)
+# Obtenir tous les médicaments (paginés)
 curl http://localhost:8030/v1/medicaments?page=1
 
-# Search by name
+# Rechercher par nom
 curl http://localhost:8030/v1/medicaments?search=paracetamol
 
-# Lookup by CIS
+# Recherche par CIS
 curl http://localhost:8030/v1/medicaments?cis=61504672
 
-# Lookup by CIP
+# Recherche par CIP
 curl http://localhost:8030/v1/medicaments?cip=3400936403114
 
-# Get generics by libellé
+# Obtenir les génériques par libellé
 curl http://localhost:8030/v1/generiques?libelle=paracetamol
 
-# Get generics by group ID
+# Obtenir les génériques par ID de groupe
 curl http://localhost:8030/v1/generiques?group=1234
 
-# Get presentations by CIP
+# Obtenir les présentations par CIP
 curl http://localhost:8030/v1/presentations?cip=3400936403114
 
-# Export all data
+# Exporter toutes les données
 curl http://localhost:8030/v1/medicaments?export=all
 ```
 
 ### Documentation
 
 ```bash
-# Interactive Swagger UI
+# Interface Swagger interactive
 open http://localhost:8030/docs
 
-# OpenAPI specification
+# Spécification OpenAPI
 curl http://localhost:8030/docs/openapi.yaml
 ```
 
 ---
 
-## Data Management
+## Gestion des Données
 
-### Data Download
+### Téléchargement des Données
 
-The application automatically downloads BDPM data from external sources:
+L'application télécharge automatiquement les données BDPM depuis les sources externes :
 
-- **Initial Download**: Happens on container startup (takes 10-30 seconds)
-- **Automatic Updates**: Scheduled twice daily (6h and 18h)
-- **Zero-Downtime**: Updates don't interrupt API access
+- **Téléchargement Initial** : Se produit au démarrage du conteneur (prend 10-30 secondes)
+- **Mises à Jour Automatiques** : Planifiées deux fois par jour (6h et 18h)
+- **Zéro Downtime** : Les mises à jour n'interrompent pas l'accès à l'API
 
-Monitor data download:
+Surveiller le téléchargement des données :
 
 ```bash
-# Watch logs during startup
+# Regarder les logs pendant le démarrage
 docker-compose logs -f
 
-# Check data status via health endpoint
+# Vérifier le statut des données via l'endpoint de santé
 curl http://localhost:8030/health | jq '.data'
 ```
 
-### Health Checks
+### Vérifications de Santé
 
-The container includes a health check using `/health` endpoint:
+Le conteneur inclut un health check utilisant l'endpoint `/health` :
 
-- **Interval**: 30 seconds
-- **Timeout**: 5 seconds
-- **Retries**: 3
-- **Start Period**: 10 seconds
+- **Intervalle** : 30 secondes
+- **Timeout** : 5 secondes
+- **Tentatives** : 3
+- **Période de Démarrage** : 10 secondes
 
-Check health status:
+Vérifier le statut de santé :
 
 ```bash
-# Check Docker health status
+# Vérifier le statut de santé Docker
 docker-compose ps
 
-# Check health endpoint
+# Vérifier l'endpoint de santé
 curl http://localhost:8030/health
 
-# Health response example
+# Exemple de réponse santé
 {
   "status": "healthy",
   "last_update": "2025-02-08T12:00:00+01:00",
@@ -450,34 +454,34 @@ curl http://localhost:8030/health
 
 ### Diagnostics
 
-For detailed system metrics and data integrity information, use the `/v1/diagnostics` endpoint:
+Pour des métriques système détaillées et des informations sur l'intégrité des données, utilisez l'endpoint `/v1/diagnostics` :
 
-**What it returns:**
-- System metrics: uptime, goroutines, memory usage
-- Data age and next scheduled update
-- Data integrity checks: orphaned records, missing associations
-- Sample CIS codes for troubleshooting
+**Ce qu'il retourne :**
+- Métriques système : uptime, goroutines, utilisation mémoire
+- Âge des données et prochaine mise à jour planifiée
+- Contrôles d'intégrité des données : enregistrements orphelins, associations manquantes
+- Codes CIS d'échantillon pour le dépannage
 
-**Example usage:**
+**Exemple d'utilisation :**
 
 ```bash
-# Get full diagnostics
+# Obtenir les diagnostics complets
 curl http://localhost:8030/v1/diagnostics | jq
 
-# System metrics only
+# Métriques système uniquement
 curl http://localhost:8030/v1/diagnostics | jq '.system'
 
-# Memory usage
+# Utilisation mémoire
 curl http://localhost:8030/v1/diagnostics | jq '.system.memory'
 
-# Data integrity summary
+# Résumé de l'intégrité des données
 curl http://localhost:8030/v1/diagnostics | jq '.data_integrity'
 
 # Uptime
 curl http://localhost:8030/v1/diagnostics | jq '.uptime_seconds'
 ```
 
-**Response example:**
+**Exemple de réponse :**
 
 ```json
 {
@@ -504,503 +508,503 @@ curl http://localhost:8030/v1/diagnostics | jq '.uptime_seconds'
 }
 ```
 
-**Data Integrity Checks:**
+**Contrôles d'Intégrité des Données :**
 
-| Check | Description | Sample Field |
+| Contrôle | Description | Champ d'Échantillon |
 |--------|-------------|---------------|
-| `medicaments_without_conditions` | Medicaments missing condition data | `sample_cis` |
-| `medicaments_without_generiques` | Medicaments not in generic groups | `sample_cis` |
-| `medicaments_without_presentations` | Medicaments missing presentation data | `sample_cis` |
-| `medicaments_without_compositions` | Medicaments missing composition data | `sample_cis` |
-| `generique_only_cis` | CIS codes only in generic groups | `sample_cis` |
-| `presentations_with_orphaned_cis` | Presentations referencing non-existent medicaments | `sample_cip` |
+| `medicaments_without_conditions` | Médicaments sans données de condition | `sample_cis` |
+| `medicaments_without_generiques` | Médicaments non dans les groupes de génériques | `sample_cis` |
+| `medicaments_without_presentations` | Médicaments sans données de présentation | `sample_cis` |
+| `medicaments_without_compositions` | Médicaments sans données de composition | `sample_cis` |
+| `generique_only_cis` | Codes CIS uniquement dans les groupes de génériques | `sample_cis` |
+| `presentations_with_orphaned_cis` | Présentations référençant des médicaments inexistants | `sample_cip` |
 
 ---
 
-## Troubleshooting
+## Dépannage
 
-### Container Won't Start
+### Le Conteneur Ne Démarre Pas
 
 ```bash
-# Check for errors
+# Vérifier les erreurs
 docker-compose logs
 
-# Verify port 8030 is not in use
+# Vérifier que le port 8030 n'est pas utilisé
 lsof -i :8030
 
-# Check disk space
+# Vérifier l'espace disque
 df -h
 
-# Rebuild from scratch
+# Rebuild à partir de zéro
 docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
 ```
 
-### Health Check Failing
+### Échec du Health Check
 
 ```bash
-# Check container is running
+# Vérifier que le conteneur est en cours d'exécution
 docker-compose ps
 
-# View health check logs
+# Voir les logs du health check
 docker inspect medicaments-api | jq '.[0].State.Health'
 
-# Test health endpoint manually
+# Tester manuellement l'endpoint de santé
 docker-compose exec medicaments-api wget -O- http://localhost:8000/health
 
-# Check for data download errors
+# Vérifier les erreurs de téléchargement de données
 docker-compose logs | grep -i error
 ```
 
-### Data Download Issues
+### Problèmes de Téléchargement de Données
 
 ```bash
-# Check network connectivity
+# Vérifier la connectivité réseau
 docker-compose exec medicaments-api wget -O- https://base-donnees-publique.medicaments.gouv.fr
 
-# View download logs
+# Voir les logs de téléchargement
 docker-compose logs | grep -i download
 
-# Restart to trigger download
+# Redémarrer pour déclencher le téléchargement
 docker-compose restart
 ```
 
-### Logs Not Persisting
+### Les Logs Ne Sont Pas Persistants
 
 ```bash
-# Check volume mount
+# Vérifier le montage de volume
 docker inspect medicaments-api | jq '.[0].Mounts'
 
-# Verify logs directory permissions
+# Vérifier les permissions du répertoire de logs
 ls -la logs/
 
-# Check logs inside container
+# Vérifier les logs dans le conteneur
 docker-compose exec medicaments-api ls -la /app/logs/
 ```
 
-### High Memory Usage
+### Utilisation Mémoire Élevée
 
 ```bash
-# Check current memory usage
+# Vérifier l'utilisation mémoire actuelle
 docker stats medicaments-api
 
-# View memory metrics
+# Voir les métriques mémoire
 curl http://localhost:8030/v1/diagnostics | jq '.system.memory'
 
-# Restart to clear memory
+# Redémarrer pour vider la mémoire
 docker-compose restart
 ```
 
-### Port Conflicts
+### Conflits de Ports
 
-If port 8030 is already in use:
+Si le port 8030 est déjà utilisé :
 
 ```bash
-# Change port in docker-compose.yml
+# Changer le port dans docker-compose.yml
 ports:
-  - "8031:8000"  # Use different host port
+  - "8031:8000"  # Utiliser un port hôte différent
 
-# Or stop conflicting service
+# Ou arrêter le service en conflit
 lsof -i :8030
 ```
 
-### Secrets File Missing
+### Fichier de Secrets Manquant
 
-If you encounter this error:
+Si vous rencontrez cette erreur :
 ```
 ERROR: for grafana  Cannot create container for service grafana:
 stat /path/to/secrets/grafana_password.txt: no such file or directory
 ```
 
-**Solution:**
+**Solution :**
 ```bash
-# Option 1: Use Make (recommended)
+# Option 1 : Utiliser Make (recommandé)
 make setup-secrets
 
-# Option 2: Create manually
+# Option 2 : Créer manuellement
 mkdir -p secrets
 echo "your-secure-password" > secrets/grafana_password.txt
 chmod 600 secrets/grafana_password.txt
 
-# Option 3: Validate existing secrets
+# Option 3 : Valider les secrets existants
 make validate-secrets
 ```
 
-**Verify secrets are working:**
+**Vérifier que les secrets fonctionnent :**
 ```bash
-# Check file exists with correct permissions
+# Vérifier que le fichier existe avec les permissions correctes
 ls -la secrets/grafana_password.txt
 
-# Expected: -rw------- 1 user group date secrets/grafana_password.txt
+# Attendu : -rw------- 1 user group date secrets/grafana_password.txt
 ```
 
-### Observability Issues
+### Problèmes d'Observabilité
 
-For detailed troubleshooting of Grafana, Loki, Prometheus, and Alloy issues, see [OBSERVABILITY.md](OBSERVABILITY.md#troubleshooting).
+Pour un dépannage détaillé des problèmes de Grafana, Loki, Prometheus et Alloy, voir [OBSERVABILITY.md](OBSERVABILITY.md#troubleshooting).
 
 ---
 
-## Advanced Usage
+## Utilisation Avancée
 
-### Custom Environment Variables
+### Variables d'Environnement Personnalisées
 
-Create a custom `.env` file:
+Créez un fichier `.env` personnalisé :
 
 ```bash
-# Override any environment variable
+# Surcharge n'importe quelle variable d'environnement
 LOG_LEVEL=debug
 LOG_RETENTION_WEEKS=1
 ```
 
-Then use it:
+Ensuite utilisez-le :
 
 ```bash
 docker-compose --env-file .env.custom up -d
 ```
 
-### Running Multiple Instances
+### Exécution de Plusieurs Instances
 
 ```bash
-# Create multiple compose files
+# Créer plusieurs fichiers compose
 cp docker-compose.yml docker-compose.staging.yml
 
-# Edit port mapping in new file
+# Éditer le mapping de ports dans le nouveau fichier
 # ports:
 #   - "8031:8000"
 
-# Start both instances
+# Démarrer les deux instances
 docker-compose -f docker-compose.yml up -d
 docker-compose -f docker-compose.staging.yml up -d
 ```
 
-### Debugging
+### Débogage
 
 ```bash
-# Run with debug logging
-# Edit .env.docker: LOG_LEVEL=debug
+# Exécuter avec le mode debug
+# Éditer .env.docker : LOG_LEVEL=debug
 docker-compose restart
 
-# View real-time logs
+# Voir les logs en temps réel
 docker-compose logs -f
 
-# Enter container shell (scratch image has no shell - use logs only)
-# docker-compose exec medicaments-api sh  # Not available
+# Entrer dans le shell du conteneur (l'image scratch n'a pas de shell - utiliser uniquement les logs)
+# docker-compose exec medicaments-api sh  # Non disponible
 
-# Check processes (scratch image has no ps - use health endpoint)
-# docker-compose exec medicaments-api ps aux  # Not available
+# Vérifier les processus (l'image scratch n'a pas de ps - utiliser l'endpoint de santé)
+# docker-compose exec medicaments-api ps aux  # Non disponible
 
-# Monitor file changes
+# Surveiller les changements de fichiers
 docker-compose exec medicaments-api ls -la /app/logs/
 ```
 
-### Performance Testing
+### Tests de Performance
 
 ```bash
-# Install hey (load testing tool)
+# Installer hey (outil de charge)
 go install github.com/rakyll/hey@latest
 
-# Test health endpoint
+# Tester l'endpoint de santé
 hey -n 1000 -c 10 http://localhost:8030/health
 
-# Test medicament lookup
+# Tester la recherche de médicament
 hey -n 1000 -c 10 http://localhost:8030/v1/medicaments?cis=61504672
 
-# Test search endpoint
+# Tester l'endpoint de recherche
 hey -n 100 -c 5 http://localhost:8030/v1/medicaments?search=paracetamol
 ```
 
 ---
 
-## Security Considerations
+## Considérations de Sécurité
 
-### Non-Root User
+### Utilisateur Non-Root
 
-Container runs as non-root user (`UID 65534` / `nobody`) for security:
+Le conteneur s'exécute en tant qu'utilisateur non-root (`UID 65534` / `nobody`) pour la sécurité :
 
 ```bash
-# Verify user (scratch image may not have whoami)
-# docker-compose exec medicaments-api whoami  # May not be available
+# Vérifier l'utilisateur (l'image scratch peut ne pas avoir whoami)
+# docker-compose exec medicaments-api whoami  # Peut ne pas être disponible
 
-# Check user ID
+# Vérifier l'ID utilisateur
 docker-compose exec medicaments-api id
 ```
 
-### Port Exposure Strategy
+### Stratégie d'Exposition des Ports
 
-For security, some services are only exposed internally to the Docker network:
+Pour la sécurité, certains services sont uniquement exposés en interne au réseau Docker :
 
-| Service                   | Exposure Level | Rationale                                    |
+| Service                   | Niveau d'Exposition | Rationale                                    |
 | ------------------------- | -------------- | -------------------------------------------- |
-| medicaments-api (API)     | Host + Network | Required for external API access             |
-| medicaments-api (metrics) | Network only   | Scraped by Alloy internally                  |
-| loki                      | Network only   | Scraped by Alloy internally                  |
-| grafana-alloy             | Host + Network | Optional debugging endpoint                  |
-| prometheus                | Host + Network | Required for Grafana UI and external queries |
-| grafana                   | Host + Network | Required for dashboard access                |
+| medicaments-api (API)     | Hôte + Réseau | Requis pour l'accès API externe             |
+| medicaments-api (metrics) | Réseau uniquement   | Scrapé par Alloy en interne                  |
+| loki                      | Réseau uniquement   | Scrapé par Alloy en interne                  |
+| grafana-alloy             | Hôte + Réseau | Endpoint de débogage optionnel                  |
+| prometheus                | Hôte + Réseau | Requis pour l'interface Grafana et les requêtes externes |
+| grafana                   | Hôte + Réseau | Requis pour l'accès aux tableaux de bord                |
 
-**Benefits of internal-only exposure:**
+**Avantages de l'exposition interne uniquement :**
 
-- Reduces attack surface from external access
-- Prevents unauthorized direct scraping of metrics/logs
-- Forces access through controlled Grafana UI
-- Maintains observability functionality within Docker network
+- Réduit la surface d'attaque depuis l'accès externe
+- Empêche le scraping non autorisé direct des métriques/logs
+- Force l'accès via l'interface Grafana contrôlée
+- Maintient la fonctionnalité d'observabilité dans le réseau Docker
 
-**To access internal-only services for debugging:**
+**Pour accéder aux services internes uniquement pour le débogage :**
 
 ```bash
-# Access Loki from within Docker network
+# Accéder à Loki depuis le réseau Docker
 docker-compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
 
-# Check logs inside containers
+# Vérifier les logs dans les conteneurs
 docker-compose logs loki
 docker-compose logs grafana-alloy
 ```
 
-### Network Isolation
+### Isolement Réseau
 
-Container uses custom bridge network for isolation:
+Le conteneur utilise un réseau bridge personnalisé pour l'isolement :
 
 ```bash
-# List networks
+# Lister les réseaux
 docker network ls
 
-# Inspect network
+# Inspecter le réseau
 docker network inspect medicaments_medicaments-network
 ```
 
-### Volume Permissions
+### Permissions de Volume
 
-Logs directory is owned by `appuser`:
+Le répertoire des logs appartient à `appuser` :
 
 ```bash
-# Check permissions
+# Vérifier les permissions
 ls -la logs/
 
-# Fix permissions if needed
+# Corriger les permissions si nécessaire
 sudo chown -R 1000:1000 logs/
 ```
 
 ---
 
-## Monitoring
+## Surveillance
 
-### Container Metrics
+### Métriques de Conteneur
 
 ```bash
-# Real-time stats
+# Stats en temps réel
 docker stats medicaments-api
 
-# Specific metrics
+# Métriques spécifiques
 docker stats --no-stream medicaments-api
 ```
 
-### Application Metrics
+### Métriques d'Application
 
 ```bash
-# Full health metrics
+# Métriques de santé complètes
 curl http://localhost:8030/health | jq
 
-# Memory usage only
+# Utilisation mémoire uniquement
 curl -s http://localhost:8030/v1/diagnostics | jq '.system.memory'
 
-# Data age
+# Âge des données
 curl -s http://localhost:8030/health | jq '.data_age_hours'
 ```
 
-### Log Monitoring
+### Surveillance des Logs
 
 ```bash
-# Follow application logs
+# Suivre les logs de l'application
 docker-compose logs -f
 
-# Watch for errors
+# Surveiller les erreurs
 docker-compose logs -f | grep -i error
 
-# Watch for data updates
+# Surveiller les mises à jour de données
 docker-compose logs -f | grep -i update
 
-# Count log entries
+# Compter les entrées de log
 docker-compose logs | wc -l
 ```
 
-### Prometheus Metrics Endpoint
+### Endpoint de Métriques Prometheus
 
-The application exposes Prometheus metrics on `http://localhost:9090/metrics`:
+L'application expose les métriques Prometheus sur `http://localhost:9090/metrics` :
 
 ```bash
-# View all application metrics
+# Voir toutes les métriques d'application
 curl http://localhost:9090/metrics
 
-# HTTP request totals
+# Totaux de requêtes HTTP
 curl http://localhost:9090/metrics | grep http_request_total
 
-# Request duration histogram
+# Histogramme de durée des requêtes
 curl http://localhost:9090/metrics | grep http_request_duration_seconds
 
-# In-flight requests gauge
+# Jauge des requêtes en cours
 curl http://localhost:9090/metrics | grep http_request_in_flight
 ```
 
-**Metrics available:**
-- `http_request_total` - Total HTTP requests with method, path, status labels
-- `http_request_duration_seconds` - Request latency histogram
-- `http_request_in_flight` - Current in-flight requests
+**Métriques disponibles :**
+- `http_request_total` - Total des requêtes HTTP avec les étiquettes méthode, chemin, statut
+- `http_request_duration_seconds` - Histogramme de latence des requêtes
+- `http_request_in_flight` - Requêtes en cours actuelles
 
-For detailed observability setup with Grafana dashboards, alerts, and log aggregation, see [OBSERVABILITY.md](OBSERVABILITY.md).
+Pour une configuration d'observabilité détaillée avec les tableaux de bord Grafana, les alertes et l'agrégation de logs, voir [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ---
 
-## Cleanup
+## Nettoyage
 
-### Remove Staging Environment
+### Supprimer l'Environnement de Staging
 
 ```bash
-# Stop and remove containers
+# Arrêter et supprimer les conteneurs
 docker-compose down
 
-# Remove persistent logs (optional)
+# Supprimer les logs persistants (optionnel)
 rm -rf logs/
 
-# Remove Docker images
+# Supprimer les images Docker
 docker rmi medicaments_medicaments-api
 
-# Remove all unused resources
+# Supprimer toutes les ressources inutilisées
 docker system prune -a
 ```
 
-### Clean Docker Resources
+### Nettoyer les Ressources Docker
 
 ```bash
-# Remove stopped containers
+# Supprimer les conteneurs arrêtés
 docker container prune
 
-# Remove unused volumes
+# Supprimer les volumes inutilisés
 docker volume prune
 
-# Remove unused images
+# Supprimer les images inutilisées
 docker image prune
 
-# Remove everything (use with caution)
+# Supprimer tout (utiliser avec précaution)
 docker system prune -a --volumes
 ```
 
 ---
 
-## Production Differences
+## Différences en Production
 
-| Feature                 | Staging        | Production          |
+| Fonctionnalité                 | Staging        | Production          |
 | ----------------------- | -------------- | ------------------- |
-| **Deployment**          | Docker Compose | SSH + systemd       |
+| **Déploiement**          | Docker Compose | SSH + systemd       |
 | **Port**                | 8030           | 8000 (configurable) |
 | **LOG_LEVEL**           | info           | info                |
 | **LOG_RETENTION_WEEKS** | 2              | 4                   |
 | **MAX_LOG_FILE_SIZE**   | 50MB           | 100MB               |
-| **Resource Limits**     | 512MB/0.5CPU   | None (systemd)      |
-| **Logs Location**       | `./logs/`      | Server logs         |
+| **Limites de Ressources**     | 512MB/0.5CPU   | Aucune (systemd)      |
+| **Emplacement des Logs**       | `./logs/`      | Logs serveur         |
 
 ---
 
-## CI/CD Integration
+## Intégration CI/CD
 
-This Docker setup can be integrated with your existing CI/CD pipeline:
+Cette configuration Docker peut être intégrée à votre pipeline CI/CD existant :
 
 ```bash
-# In CI/CD pipeline
+# Dans le pipeline CI/CD
 docker-compose -f docker-compose.yml -f docker-compose.ci.yml up -d
 
-# Run tests
+# Exécuter les tests
 docker-compose exec medicaments-api go test ./...
 
-# Get coverage
+# Obtenir la couverture
 docker-compose exec medicaments-api go test -coverprofile=coverage.out ./...
 
-# Teardown
+# Nettoyage
 docker-compose down -v
 ```
 
 ---
 
-## Observability Stack
+## Stack d'Observabilité
 
-The Docker setup includes a complete observability stack with Grafana, Loki, Prometheus, and Alloy for logs and metrics monitoring.
+La configuration Docker inclut une stack d'observabilité complète avec Grafana, Loki, Prometheus et Alloy pour la surveillance des logs et des métriques.
 
-**Quick Access:**
+**Accès Rapide :**
 
 ```bash
-# Grafana UI (visualization)
+# Interface Grafana (visualisation)
 open http://localhost:3000
 
-# Prometheus UI (metrics browsing)
+# Interface Prometheus (navigation des métriques)
 open http://localhost:9090
 
-# Alloy metrics (collector status)
+# Métriques Alloy (statut du collecteur)
 curl http://localhost:12345/metrics
 ```
 
-**Default Credentials:**
-- Username: `giygas` (from `.env.docker`)
-- Password: Stored in `secrets/grafana_password.txt` (created via `make setup-secrets`)
-- **Important**: Change password after first login
+**Identifiants par Défaut :**
+- Nom d'utilisateur : `giygas` (depuis `.env.docker`)
+- Mot de passe : Stocké dans `secrets/grafana_password.txt` (créé via `make setup-secrets`)
+- **Important** : Changez le mot de passe après la première connexion
 
-**For detailed observability setup, configuration, troubleshooting, and alerting rules, see [OBSERVABILITY.md](OBSERVABILITY.md).**
+**Pour une configuration d'observabilité détaillée, les règles d'alerte et le dépannage, voir [OBSERVABILITY.md](OBSERVABILITY.md).**
 
 ---
 
 ## Support
 
-For issues or questions:
+Pour les problèmes ou questions :
 
-1. Check the [troubleshooting section](#troubleshooting) above
-2. See [OBSERVABILITY.md](OBSERVABILITY.md) for observability-specific issues
-3. Review the main README.md
-4. Check application logs: `docker-compose logs -f`
-5. Check health status: `curl http://localhost:8030/health`
-6. Open an issue on GitHub
+1. Consultez la [section de dépannage](#dépannage) ci-dessus
+2. Voir [OBSERVABILITY.md](OBSERVABILITY.md) pour les problèmes spécifiques à l'observabilité
+3. Consultez le README.md principal
+4. Vérifiez les logs de l'application : `docker-compose logs -f`
+5. Vérifiez le statut de santé : `curl http://localhost:8030/health`
+6. Ouvrez une issue sur GitHub
 
 ---
 
-## Appendix
+## Annexe
 
-### Docker Image Details
+### Détails de l'Image Docker
 
-- **Base Image**: `scratch` (empty filesystem, minimal attack surface)
-- **Builder Image**: `golang:1.26-alpine`
-- **Final Image Size**: ~8-10MB
-- **Binary Size**: ~8-10MB (statically linked, stripped)
-- **Supported Architectures**: amd64, arm64
-- **Build Tool**: Docker BuildKit with automatic platform detection ($TARGETOS/$TARGETARCH)
+- **Image de Base** : `scratch` (système de fichiers vide, surface d'attaque minimale)
+- **Image de Builder** : `golang:1.26-alpine`
+- **Taille de l'Image Finale** : ~8-10MB
+- **Taille du Binaire** : ~8-10MB (statiquement lié, stripped)
+- **Architectures Supportées** : amd64, arm64
+- **Outil de Build** : Docker BuildKit avec détection automatique de plateforme ($TARGETOS/$TARGETARCH)
 
-### File Locations
+### Emplacements des Fichiers
 
-| Type          | Location                              |
+| Type          | Emplacement                              |
 | ------------- | ------------------------------------- |
-| **Binary**    | `/app/medicaments-api`                |
-| **HTML Docs** | `/app/html/`                          |
-| **Logs**      | `/app/logs/` (mounted to `logs_data`) |
-| **Config**    | Environment variables                 |
+| **Binaire**    | `/app/medicaments-api`                |
+| **Docs HTML** | `/app/html/`                          |
+| **Logs**      | `/app/logs/` (monté sur `logs_data`) |
+| **Config**    | Variables d'environnement                 |
 
-### Startup Process
+### Processus de Démarrage
 
-1. Container starts as non-root user (UID 65534/nobody)
-2. Application loads environment variables from `.env.docker`
-3. Logging system initialized
-4. Data container and parser created
-5. Scheduler starts (6h/18h updates)
-6. BDPM data downloaded from external sources
-7. HTTP server starts on port 8000
-8. Docker healthcheck begins after 10s start period
-9. Grafana Alloy starts collecting logs and metrics
-10. Loki and Prometheus begin receiving data
+1. Le conteneur démarre en tant qu'utilisateur non-root (UID 65534/nobody)
+2. L'application charge les variables d'environnement depuis `.env.docker`
+3. Le système de logging est initialisé
+4. Le conteneur de données et le parser sont créés
+5. Le scheduler démarre (mises à jour 6h/18h)
+6. Les données BDPM sont téléchargées depuis les sources externes
+7. Le serveur HTTP démarre sur le port 8000
+8. Le healthcheck Docker commence après une période de démarrage de 10s
+9. Grafana Alloy commence à collecter les logs et les métriques
+10. Loki et Prometheus commencent à recevoir les données
 
-### Tips
+### Conseils
 
-- Container downloads BDPM data on first startup (10-30s)
-- Health check passes after ~10s start period
-- Logs persist even after container removal (volume mount)
-- Use `docker-compose exec medicaments-api sh` to enter container (if available)
-- Check the [troubleshooting section](#troubleshooting) for detailed help
+- Le conteneur télécharge les données BDPM au premier démarrage (10-30s)
+- Le health check passe après une période de démarrage de ~10s
+- Les logs persistent même après la suppression du conteneur (montage de volume)
+- Utilisez `docker-compose exec medicaments-api sh` pour entrer dans le conteneur (si disponible)
+- Consultez la [section de dépannage](#dépannage) pour une aide détaillée
 
 ---
 
-**Last updated: 2026-02-17**
+**Dernière mise à jour : 2026-02-17**

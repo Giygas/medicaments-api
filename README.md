@@ -9,7 +9,7 @@
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](CHANGELOG.md)
 
-API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting par token bucket.
+API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), rate limiting par token bucket, et support Docker complet avec stack observabilité.
 
 ## Performance
 
@@ -62,6 +62,7 @@ Voir le [Guide de Migration](docs/MIGRATION.md) pour les détails complets.
 ### Recherche de base (API v1)
 
 ```bash
+# Production (HTTPS)
 # Recherche par nom
 curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol"
 
@@ -76,6 +77,10 @@ curl "https://medicaments-api.giygas.dev/v1/medicaments?cip=3400936403114"
 
 # Export complet (~20MB)
 curl "https://medicaments-api.giygas.dev/v1/medicaments/export"
+
+# Local (Go native : port 8000, Docker : port 8030)
+curl "http://localhost:8030/v1/medicaments?search=paracetamol"
+curl "http://localhost:8030/health"
 ```
 
 ### Génériques (API v1)
@@ -173,9 +178,24 @@ print(f"Page {data['page']} of {data['maxPage']}")
 - **Graceful shutdown** : Timeout 30s + 2s pour finaliser requêtes
 - **Concurrency safe** : `sync.RWMutex` et opérations atomiques
 
+## Docker (Optionnel)
+
+```bash
+# Build Docker image
+make build
+
+# Démarrer tous les services (API + observabilité)
+make up
+
+# Accès : http://localhost:8030
+```
+
+Pour la documentation complète Docker, voir [DOCKER.md](DOCKER.md)
+
 ## Documentation
 
 - 📖 **[Spécification OpenAPI complète](html/docs/openapi.yaml)** - Définition complète de l'API avec exemples
+- 🐳 **[Guide Docker complet](DOCKER.md)** - Setup Docker, stack observabilité, monitoring avancé
 - 🏗️ **[Architecture du système](docs/ARCHITECTURE.md)** - Design des interfaces, flux de données, middleware stack
 - ⚡ **[Performance et benchmarks](docs/PERFORMANCE.md)** - Mesures de performance, optimisations, profilage
 - 🛠️ **[Guide de développement](docs/DEVELOPMENT.md)** - Setup, build, test, lint, configuration
@@ -229,10 +249,11 @@ golangci-lint run  # si installé
 
 ### Fonctionnalités du serveur de développement
 
-- **Serveur local** : `http://localhost:8000`
+- **Serveur local** : `http://localhost:8000` (Go native) ou `http://localhost:8030` (Docker)
 - **Profiling pprof** : `http://localhost:6060` (quand ENV=dev)
-- **Documentation interactive** : `http://localhost:8000/docs`
-- **Health endpoint** : `http://localhost:8000/health`
+- **Documentation interactive** : `http://localhost:8000/docs` ou `http://localhost:8030/docs` (Docker)
+- **Health endpoint** : `http://localhost:8000/health` ou `http://localhost:8030/health` (Docker)
+- **Observabilité (Docker)** : Grafana `http://localhost:3000`, Prometheus `http://localhost:9090`
 
 ## Limitations et Conditions d'Utilisation
 
