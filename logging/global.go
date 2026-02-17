@@ -97,6 +97,13 @@ func GetFileLogLevel() slog.Level {
 	return slog.LevelDebug
 }
 
+// newConsoleLogger creates a new console logger with the specified log level
+func newConsoleLogger(consoleLevel slog.Level) *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: consoleLevel,
+	}))
+}
+
 // doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
 func doInit(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
@@ -125,9 +132,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 
 	// Log detected environment for debugging (skip in tests to avoid noise)
 	if env != config.EnvTest {
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Info("Initializing logger",
 			"environment", env.String(),
 			"console_level", consoleLevel.String(),
@@ -138,9 +143,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	// Create logs directory if it doesn't exist
 	if err := os.MkdirAll(logDir, 0750); err != nil {
 		// If we can't create logs directory, just log to console
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Error("Failed to create logs directory", "error", err)
 		DefaultLoggingService = &LoggingService{
 			Logger:         consoleLogger,
@@ -159,9 +162,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	rotatingLogger.mu.Unlock()
 	if err != nil {
 		// Fallback to console logger if rotation fails
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
 		DefaultLoggingService = &LoggingService{
 			Logger:         consoleLogger,
