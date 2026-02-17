@@ -55,7 +55,7 @@ func TestDocumentationClaimsVerification(t *testing.T) {
 
 	fmt.Println("=== COMPREHENSIVE DOCUMENTATION CLAIMS VERIFICATION ===")
 
-	logging.ResetForTest(t, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(t, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	container := createFullTestData()
 	validator := validation.NewDataValidator()
@@ -468,7 +468,7 @@ func createFullTestData() *data.DataContainer {
 }
 
 func setupTestServer(t *testing.T) (*server.Server, string) {
-	logging.ResetForTest(t, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(t, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	container := createFullTestData()
 

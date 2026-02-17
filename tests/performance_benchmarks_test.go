@@ -207,7 +207,7 @@ func setupRealWorldServer() (*httptest.Server, *http.Client) {
 // Usage: go test -bench=BenchmarkAlgorithmicPerformance -benchmem
 func BenchmarkAlgorithmicPerformance(b *testing.B) {
 	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
-	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(b, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	container := setupAlgorithmicContainer()
 	validator := validation.NewDataValidator()
@@ -270,7 +270,7 @@ func BenchmarkAlgorithmicPerformance(b *testing.B) {
 // Usage: go test -bench=BenchmarkHTTPPerformance -benchmem
 func BenchmarkHTTPPerformance(b *testing.B) {
 	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
-	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(b, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
@@ -394,7 +394,7 @@ func BenchmarkHTTPPerformance(b *testing.B) {
 // Usage: go test -bench=BenchmarkRealWorldSearch -benchmem
 func BenchmarkRealWorldSearch(b *testing.B) {
 	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
-	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(b, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
@@ -483,7 +483,7 @@ func BenchmarkRealWorldSearch(b *testing.B) {
 // Usage: go test -bench=BenchmarkMultiWordSearch -benchmem
 func BenchmarkMultiWordSearch(b *testing.B) {
 	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
-	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(b, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks
@@ -564,7 +564,7 @@ func BenchmarkMultiWordSearch(b *testing.B) {
 // Usage: go test -bench=BenchmarkSustainedPerformance -benchmem
 func BenchmarkSustainedPerformance(b *testing.B) {
 	// Initialize with production environment for optimal performance (WARN/ERROR to console only)
-	logging.ResetForBenchmark(b, "", config.EnvProduction, "", 4, 100*1024*1024)
+	logging.ResetGlobalLogger(b, "", config.EnvProduction, "", 4, 100*1024*1024)
 
 	server, client := setupRealWorldServer()
 	// Don't close server here as it's shared across benchmarks

@@ -104,7 +104,44 @@ func newConsoleLogger(consoleLevel slog.Level) *slog.Logger {
 	}))
 }
 
-// doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
+// testHelper provides common methods for test and benchmark cleanup
+type testHelper interface {
+	Helper()
+	Cleanup(func())
+}
+
+// ResetGlobalLogger resets the global logger for tests or benchmarks
+// Only called from test/benchmark code - not part of public API
+// Exported for use by tests in other packages (e.g., tests/)
+func ResetGlobalLogger[T testHelper](h T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
+	// Mark as helper for better error reporting
+	h.Helper()
+
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+
+	// Set short shutdown timeout to avoid slow test/benchmark execution
+	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
+	}
+
+	// Register cleanup to run after test/benchmark completes
+	h.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
+}
+
+// doInit contains the actual initialization logic (extracted for use by tests)
 func doInit(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
@@ -220,66 +257,6 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 		RotatingLogger: rotatingLogger,
 	}
 	slog.SetDefault(logger)
-}
-
-// ResetForTest resets the global logger - ONLY for testing
-// Provides proper test isolation by cleaning up resources and reinitializing
-// Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
-func ResetForTest(t *testing.T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
-	t.Helper() // Mark as test helper for better error reporting
-
-	// Close existing logger to prevent resource leaks (goroutines, file handles)
-	Close()
-
-	// Clear service reference
-	DefaultLoggingService = nil
-
-	// Reset sync.Once to allow reinitialization
-	initOnce = sync.Once{}
-
-	// Reinitialize with new settings
-	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
-
-	// Set short shutdown timeout for tests to avoid slow test execution
-	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
-	}
-
-	// Register cleanup to run after test completes
-	// This is key improvement over save/restore pattern
-	t.Cleanup(func() {
-		Close()
-		DefaultLoggingService = nil
-	})
-}
-
-// ResetForBenchmark resets the global logger - ONLY for benchmarks
-// Provides proper benchmark isolation by cleaning up resources and reinitializing
-func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
-	b.Helper() // Mark as benchmark helper for better error reporting
-
-	// Close existing logger to prevent resource leaks (goroutines, file handles)
-	Close()
-
-	// Clear service reference
-	DefaultLoggingService = nil
-
-	// Reset sync.Once to allow reinitialization
-	initOnce = sync.Once{}
-
-	// Reinitialize with new settings
-	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
-
-	// Set short shutdown timeout for benchmarks to avoid slow execution
-	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
-		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
-	}
-
-	// Register cleanup to run after benchmark completes
-	b.Cleanup(func() {
-		Close()
-		DefaultLoggingService = nil
-	})
 }
 
 // Close closes logging service and cleans up resources
