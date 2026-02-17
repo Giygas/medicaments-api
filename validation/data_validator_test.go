@@ -17,8 +17,8 @@ func TestNewDataValidator(t *testing.T) {
 	}
 
 	// Type assertion to verify it's the correct type
-	if _, ok := validator.(*DataValidatorImpl); !ok {
-		t.Error("NewDataValidator should return *DataValidatorImpl")
+	if _, ok := validator.(*Validator); !ok {
+		t.Error("NewDataValidator should return *Validator")
 	}
 }
 
@@ -814,7 +814,7 @@ func TestValidateInput_AccentsRejected(t *testing.T) {
 }
 
 func TestHasExcessiveRepetition(t *testing.T) {
-	validator := &DataValidatorImpl{}
+	validator := &Validator{}
 
 	// Test cases with excessive repetition (should return true)
 	repetitiveInputs := []string{

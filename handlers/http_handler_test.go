@@ -70,7 +70,7 @@ func TestRespondWithJSON(t *testing.T) {
 	mockStore := NewMockDataStoreBuilder().Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
 	mockHealthChecker := NewMockHealthCheckerBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator, mockHealthChecker).(*HTTPHandlerImpl)
+	handler := NewHTTPHandler(mockStore, mockValidator, mockHealthChecker).(*Handler)
 
 	tests := []struct {
 		name           string
@@ -127,7 +127,7 @@ func TestRespondWithJSON(t *testing.T) {
 func TestRespondWithError(t *testing.T) {
 	mockStore := NewMockDataStoreBuilder().Build()
 	mockValidator := NewMockDataValidatorBuilder().Build()
-	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build()).(*HTTPHandlerImpl)
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build()).(*Handler)
 
 	tests := []struct {
 		name           string

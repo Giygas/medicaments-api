@@ -187,7 +187,7 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
 		NewMockHealthCheckerBuilder().Build(),
-	).(*HTTPHandlerImpl)
+	).(*Handler)
 
 	router := chi.NewRouter()
 	router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
@@ -566,7 +566,7 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
 				NewMockHealthCheckerBuilder().Build(),
-			).(*HTTPHandlerImpl)
+			).(*Handler)
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
 			rr := httptest.NewRecorder()
@@ -796,7 +796,7 @@ func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
 		NewMockHealthCheckerBuilder().Build(),
-	).(*HTTPHandlerImpl)
+	).(*Handler)
 
 	// Test Search ETag caching
 	t.Run("search ETag caching", func(t *testing.T) {

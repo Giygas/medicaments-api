@@ -27,16 +27,16 @@ var (
 
 )
 
-// DataValidatorImpl implements the interfaces.DataValidator interface
-type DataValidatorImpl struct{}
+// Validator implements the interfaces.DataValidator interface
+type Validator struct{}
 
 // NewDataValidator creates a new data validator
 func NewDataValidator() interfaces.DataValidator {
-	return &DataValidatorImpl{}
+	return &Validator{}
 }
 
 // ValidateMedicament checks if a medicament entity is valid
-func (v *DataValidatorImpl) ValidateMedicament(m *entities.Medicament) error {
+func (v *Validator) ValidateMedicament(m *entities.Medicament) error {
 	if m == nil {
 		return fmt.Errorf("medicament is nil")
 	}
@@ -75,7 +75,7 @@ func (v *DataValidatorImpl) ValidateMedicament(m *entities.Medicament) error {
 	return nil
 }
 
-func (v *DataValidatorImpl) CheckDuplicateCIP(presentations []entities.Presentation) error {
+func (v *Validator) CheckDuplicateCIP(presentations []entities.Presentation) error {
 	cip7Count := make(map[int]int)
 	cip13Count := make(map[int]int)
 
@@ -125,7 +125,7 @@ func (v *DataValidatorImpl) CheckDuplicateCIP(presentations []entities.Presentat
 }
 
 // ValidateDataIntegrity performs comprehensive data validation
-func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
+func (v *Validator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	// Validate medicaments
 	if len(medicaments) == 0 {
 		return fmt.Errorf("no medicaments found")
@@ -178,7 +178,7 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 	return nil
 }
 
-func (v *DataValidatorImpl) ReportDataQuality(
+func (v *Validator) ReportDataQuality(
 	medicaments []entities.Medicament,
 	generiques []entities.GeneriqueList,
 	presentationsCIP7Map map[int]entities.Presentation,
@@ -304,7 +304,7 @@ func (v *DataValidatorImpl) ReportDataQuality(
 }
 
 // ValidateInput validates user input strings with enhanced security
-func (v *DataValidatorImpl) ValidateInput(input string) error {
+func (v *Validator) ValidateInput(input string) error {
 	if strings.TrimSpace(input) == "" {
 		return fmt.Errorf("input cannot be empty")
 	}
@@ -346,7 +346,7 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 // ValidateCIP validates CIP codes
 // CIP codes are numeric identifiers 7 or 13 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
-func (v *DataValidatorImpl) ValidateCIP(input string) (int, error) {
+func (v *Validator) ValidateCIP(input string) (int, error) {
 	trimmedInput := strings.TrimSpace(input)
 	if trimmedInput == "" {
 		return -1, fmt.Errorf("input cannot be empty")
@@ -374,7 +374,7 @@ func (v *DataValidatorImpl) ValidateCIP(input string) (int, error) {
 // ValidateCIS validates CIS codes
 // CIP codes are numeric identifiers 8 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
-func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
+func (v *Validator) ValidateCIS(input string) (int, error) {
 	trimmedInput := strings.TrimSpace(input)
 	if trimmedInput == "" {
 		return -1, fmt.Errorf("input cannot be empty")
@@ -400,7 +400,7 @@ func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
 }
 
 // hasExcessiveRepetition checks for potential DoS patterns with excessive character repetition
-func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
+func (v *Validator) hasExcessiveRepetition(input string) bool {
 	const maxConsecutive = 10 // more than this triggers detection
 
 	if len(input) <= maxConsecutive {
@@ -425,7 +425,7 @@ func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
 
 // containsAccents checks if input contains French accented characters
 // Source BDPM data is uppercase without accents (e.g., IBUPROFENE, PARACETAMOL)
-func (v *DataValidatorImpl) containsAccents(input string) bool {
+func (v *Validator) containsAccents(input string) bool {
 	accents := "àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ"
 	for _, r := range input {
 		if strings.ContainsRune(accents, r) {

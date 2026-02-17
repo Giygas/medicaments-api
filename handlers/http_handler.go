@@ -17,8 +17,8 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
-// HTTPHandlerImpl implements the interfaces.HTTPHandler interface
-type HTTPHandlerImpl struct {
+// Handler implements the interfaces.HTTPHandler interface
+type Handler struct {
 	dataStore     interfaces.DataStore
 	validator     interfaces.DataValidator
 	healthChecker interfaces.HealthChecker
@@ -26,7 +26,7 @@ type HTTPHandlerImpl struct {
 
 // NewHTTPHandler creates a new HTTP handler with injected dependencies
 func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator, healthChecker interfaces.HealthChecker) interfaces.HTTPHandler {
-	return &HTTPHandlerImpl{
+	return &Handler{
 		dataStore:     dataStore,
 		validator:     validator,
 		healthChecker: healthChecker,
@@ -34,7 +34,7 @@ func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataVal
 }
 
 // ServeHTTP implements the http.Handler interface
-func (h *HTTPHandlerImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// This is a placeholder - the actual routing is handled by chi
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
@@ -46,7 +46,7 @@ type HealthResponseImpl struct {
 }
 
 // RespondWithJSON writes a JSON response with compression optimization
-func (h *HTTPHandlerImpl) RespondWithJSON(w http.ResponseWriter, code int, payload any) {
+func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		logging.Error("Failed to marshal JSON response", "error", err)
@@ -63,7 +63,7 @@ func (h *HTTPHandlerImpl) RespondWithJSON(w http.ResponseWriter, code int, paylo
 }
 
 // RespondWithError writes a JSON error response
-func (h *HTTPHandlerImpl) RespondWithError(w http.ResponseWriter, code int, message string) {
+func (h *Handler) RespondWithError(w http.ResponseWriter, code int, message string) {
 	errorResponse := map[string]any{
 		"error":   http.StatusText(code),
 		"message": message,
@@ -87,7 +87,7 @@ func CheckETag(r *http.Request, etag string) bool {
 
 // findMedicamentByCIP searches for a medicament by CIP7 or CIP13
 // Returns (medicament, true) if found, (nil, false) if not found
-func (h *HTTPHandlerImpl) findMedicamentByCIP(cip int) (*entities.Medicament, bool) {
+func (h *Handler) findMedicamentByCIP(cip int) (*entities.Medicament, bool) {
 	medicamentsMap := h.dataStore.GetMedicamentsMap()
 
 	// Search in CIP7 map first (O(1) lookup)
@@ -110,7 +110,7 @@ func (h *HTTPHandlerImpl) findMedicamentByCIP(cip int) (*entities.Medicament, bo
 }
 
 // RespondWithJSONAndETag writes a JSON response with ETag and cache validation
-func (h *HTTPHandlerImpl) RespondWithJSONAndETag(w http.ResponseWriter, r *http.Request, code int, payload any) {
+func (h *Handler) RespondWithJSONAndETag(w http.ResponseWriter, r *http.Request, code int, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		logging.Error("Failed to marshal JSON response", "error", err)
@@ -141,7 +141,7 @@ func (h *HTTPHandlerImpl) RespondWithJSONAndETag(w http.ResponseWriter, r *http.
 	}
 }
 
-func (h *HTTPHandlerImpl) AddDeprecationHeaders(w http.ResponseWriter, r *http.Request, newPath string) {
+func (h *Handler) AddDeprecationHeaders(w http.ResponseWriter, r *http.Request, newPath string) {
 	oldPath := r.URL.Path
 	// Primary deprecation header (HTTP/1.1 standard)
 	w.Header().Set("Deprecation", "true")
@@ -172,7 +172,7 @@ func (h *HTTPHandlerImpl) AddDeprecationHeaders(w http.ResponseWriter, r *http.R
 }
 
 // ExportMedicaments returns all medicaments
-func (h *HTTPHandlerImpl) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	if path == "/database" {
@@ -184,7 +184,7 @@ func (h *HTTPHandlerImpl) ExportMedicaments(w http.ResponseWriter, r *http.Reque
 }
 
 // ServePagedMedicaments returns paginated medicaments
-func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
 	pageNumber := r.PathValue("pageNumber")
 	page, err := strconv.Atoi(pageNumber)
 	if err != nil || page < 1 {
@@ -227,7 +227,7 @@ func (h *HTTPHandlerImpl) ServePagedMedicaments(w http.ResponseWriter, r *http.R
 }
 
 // FindMedicament searches for medicaments by name or CIP using query parameters
-func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) FindMedicament(w http.ResponseWriter, r *http.Request) {
 	element := r.PathValue("element")
 	if element == "" {
 		h.RespondWithError(w, http.StatusBadRequest, "Missing search term")
@@ -267,7 +267,7 @@ func (h *HTTPHandlerImpl) FindMedicament(w http.ResponseWriter, r *http.Request)
 }
 
 // FindMedicamentByCIS finds a medicament by CIS
-func (h *HTTPHandlerImpl) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
 	cisStr := r.PathValue("cis")
 	path := r.URL.Path
 
@@ -295,7 +295,7 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIS(w http.ResponseWriter, r *http.Req
 }
 
 // FindMedicamentByCIP finds a medicament by its presentation cip7 or cip13
-func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
 	cipStr := r.PathValue("cip")
 	cip, err := h.validator.ValidateCIP(cipStr)
 	if err != nil {
@@ -317,7 +317,7 @@ func (h *HTTPHandlerImpl) FindMedicamentByCIP(w http.ResponseWriter, r *http.Req
 }
 
 // FindGeneriques searches for generiques by libelle (case-insensitive partial match)
-func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) FindGeneriques(w http.ResponseWriter, r *http.Request) {
 	libelle := r.PathValue("libelle")
 	if libelle == "" {
 		h.RespondWithError(w, http.StatusBadRequest, "Missing libelle")
@@ -357,7 +357,7 @@ func (h *HTTPHandlerImpl) FindGeneriques(w http.ResponseWriter, r *http.Request)
 }
 
 // FindGeneriquesByGroupID finds generiques by group ID
-func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
 	// Support both v1 path parameter (groupID) and legacy path parameter (groupId)
 	groupIDStr := r.PathValue("groupID")
 	if groupIDStr == "" {
@@ -389,7 +389,7 @@ func (h *HTTPHandlerImpl) FindGeneriquesByGroupID(w http.ResponseWriter, r *http
 }
 
 // HealthCheck returns server health information
-func (h *HTTPHandlerImpl) HealthCheck(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	status, data, httpStatus := h.healthChecker.HealthCheck()
 
 	response := HealthResponseImpl{
@@ -411,7 +411,7 @@ type DiagnosticsResponseImpl struct {
 }
 
 // ServeDiagnosticsV1 returns detailed system diagnostics including data integrity
-func (h *HTTPHandlerImpl) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request) {
 	// Get memory statistics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -484,7 +484,7 @@ func (h *HTTPHandlerImpl) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Requ
 
 // NEW v1 handlers
 
-func (h *HTTPHandlerImpl) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
 	cipStr := r.PathValue("cip")
 
 	// Validate the CIP
@@ -515,11 +515,11 @@ func (h *HTTPHandlerImpl) ServePresentationsV1(w http.ResponseWriter, r *http.Re
 
 // ServePresentationsMissingCIP handles requests to /v1/presentations/ without a CIP path parameter.
 // Returns a 400 Bad Request error indicating that the CIP path parameter is required.
-func (h *HTTPHandlerImpl) ServePresentationsMissingCIP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServePresentationsMissingCIP(w http.ResponseWriter, r *http.Request) {
 	h.RespondWithError(w, http.StatusBadRequest, "CIP path parameter is required")
 }
 
-func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
 	libelle := r.URL.Query().Get("libelle")
 
 	if libelle == "" {
@@ -565,7 +565,7 @@ func (h *HTTPHandlerImpl) ServeGeneriquesV1(w http.ResponseWriter, r *http.Reque
 	h.RespondWithError(w, http.StatusNotFound, "No generiques found")
 }
 
-func (h *HTTPHandlerImpl) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	totalParams := 0
