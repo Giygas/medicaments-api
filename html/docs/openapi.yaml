@@ -142,6 +142,12 @@ paths:
                     error: "Bad Request"
                     message: "search query too complex: maximum 6 words allowed"
                     code: 400
+                consecutive-dots:
+                  summary: Points consécutifs non autorisés
+                  value:
+                    error: "Bad Request"
+                    message: "input contains consecutive dots which are not allowed"
+                    code: 400
         "404":
           description: Aucun résultat
           content:
@@ -981,7 +987,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1166,7 +1172,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1352,7 +1358,7 @@ components:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
     QueryCip:
       name: cip
       in: query
@@ -1375,7 +1381,7 @@ components:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+]+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
     QueryGroup:
       name: group
       in: query

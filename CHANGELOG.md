@@ -5,7 +5,7 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Non publié]
+## [1.2.0] - Non publié
 
 ## [1.1.0] - 2026-02-13
 
@@ -89,17 +89,17 @@ Warning: 299 - "Deprecated endpoint..."
 
 Élimination de la normalisation de chaînes à l'exécution en calculant une fois lors du parsing. Cette optimisation réduit les allocations par requête et améliore considérablement la latence de recherche.
 
-| Metric                        | Avant       | Après       | Amélioration |
-| ----------------------------- | ----------- | ----------- | ------------ |
-| **Débit HTTP**                |             |             |              |
-| └ Médicaments search          | 1,000 req/s | 5,000 req/s | 5x (+400%)   |
-| └ Génériques search           | 5,000 req/s | 20,000 req/s| 4x (+300%)   |
-| **Benchmarks algorithmiques**  |             |             |              |
-| └ Médicaments - Reqs/sec      | 250         | 1,250       | 5x           |
-| └ Médicaments - Latence       | 3,500µs     | 750µs       | 4.7x plus rapide|
-| └ Génériques - Reqs/sec       | 1,500       | 15,000      | 10x          |
-| └ Génériques - Latence        | 3,500µs     | 75µs        | 46.7x plus rapide|
-| **Allocations par recherche** | 16,000      | 94          | 170x réduction|
+| Metric                        | Avant       | Après        | Amélioration      |
+| ----------------------------- | ----------- | ------------ | ----------------- |
+| **Débit HTTP**                |             |              |                   |
+| └ Médicaments search          | 1,000 req/s | 5,000 req/s  | 5x (+400%)        |
+| └ Génériques search           | 5,000 req/s | 20,000 req/s | 4x (+300%)        |
+| **Benchmarks algorithmiques** |             |              |                   |
+| └ Médicaments - Reqs/sec      | 250         | 1,250        | 5x                |
+| └ Médicaments - Latence       | 3,500µs     | 750µs        | 4.7x plus rapide  |
+| └ Génériques - Reqs/sec       | 1,500       | 15,000       | 10x               |
+| └ Génériques - Latence        | 3,500µs     | 75µs         | 46.7x plus rapide |
+| **Allocations par recherche** | 16,000      | 94           | 170x réduction    |
 
 **Compromis mémoire** : 0,75 Mo supplémentaire pour stocker les chaînes normalisées pré-calculées
 
@@ -130,9 +130,10 @@ Les optimisations combinées ont entraîné des gains de performance significati
 
 ### Sécurité
 
-  - **Motif de validation des entrées** : `^[a-zA-Z0-9\s\-\.\+]+$` (ASCII uniquement)
-    - Rejette les caractères accentués avec un message d'erreur utile
-    - Prend en charge alphanumérique + espaces + trait d'union/point/signe plus
+- **Motif de validation des entrées** : `^[a-zA-Z0-9\s\+\.\-\/']+$` (ASCII uniquement)
+  - Rejette les caractères accentués avec un message d'erreur utile
+  - Prend en charge alphanumérique + espaces + trait d'union/point/slash/apostrophe/signe plus
+  - Bloque explicitement les points consécutifs (`..`) pour prévenir le path traversal
 - **Limite de recherche multi-mots** : Maximum 6 mots (prévention DoS)
 - **Rate limiting variable** : 5-200 tokens par endpoint (1 000 tokens, recharge 3/sec)
 - **Détection de motifs dangereux** : injection SQL, XSS, injection de commande, traversal de chemin (5-10x plus rapide que regex)

@@ -616,8 +616,8 @@
             ultra-performante. Parsing concurrent des sources en **~0.5
             secondes** avec validation croisée et structuration automatique via
             atomic operations pour garantir des mises à jour zero-downtime.
-            Architecture optimisée pour **92K req/sec** avec seulement
-            **30-50MB RAM** stable.
+            Architecture optimisée pour **92K req/sec** avec seulement **30-50MB
+            RAM** stable.
           </p>
           <br />
           <p>
@@ -628,33 +628,33 @@
             HTTP intelligent (ETag/Last-Modified) et compression gzip.
           </p>
           <br />
-            <div
-             style="
-               background: var(--color-surface);
-               border: 1px solid var(--color-border);
-               border-radius: 8px;
-               padding: 1.5rem;
-               margin-top: 1rem;
-             "
-           >
-             <h4 style="color: var(--color-text); margin-bottom: 1rem">
-               Démarrage Rapide (API v1)
-             </h4>
+          <div
+            style="
+              background: var(--color-surface);
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              padding: 1.5rem;
+              margin-top: 1rem;
+            "
+          >
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Démarrage Rapide (API v1)
+            </h4>
 
-             <div style="margin-bottom: 1.5rem">
-               <strong style="color: var(--color-text)"
-                 >Base URL & Authentication</strong
-               >
-               <pre
-                 style="
-                   background: var(--color-bg);
-                   padding: 1rem;
-                   border-radius: 4px;
-                   overflow-x: auto;
-                   margin-top: 0.5rem;
-                   font-size: 0.9rem;
-                 "
-               ><code># Production (HTTPS)
+            <div style="margin-bottom: 1.5rem">
+              <strong style="color: var(--color-text)"
+                >Base URL & Authentication</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                  font-size: 0.9rem;
+                "
+              ><code># Production (HTTPS)
 BASE_URL="https://medicaments-api.giygas.dev"
 
 # Local (Go native : port 8000, Docker : port 8030)
@@ -663,180 +663,225 @@ BASE_URL_LOCAL="http://localhost:8030"
 # Authentification : Aucune requise
 # Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
 </code></pre>
-             </div>
+            </div>
 
             <div style="margin-bottom: 1.5rem">
-               <strong style="color: var(--color-text)"
-                 >Quick Test Commands</strong
-               >
-               <div style="position: relative; margin: 0.5rem 0">
-                 <code
-                   style="
-                     background: var(--color-bg);
-                     padding: 0.5rem;
-                     border-radius: 4px;
-                     display: block;
-                     padding-right: 3rem;
-                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl
-                   https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
-                 </code>
-                 <button
-                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                   style="
-                     position: absolute;
-                     right: 0.5rem;
-                     top: 50%;
-                     transform: translateY(-50%);
-                     background: var(--color-primary);
-                     color: white;
-                     border: none;
-                     border-radius: 4px;
-                     padding: 0.25rem 0.5rem;
-                     font-size: 0.75rem;
-                     cursor: pointer;
-                   "
-                 >
-                   📋
-                 </button>
-               </div>
-               <div style="position: relative; margin: 0.5rem 0">
-                 <code
-                   style="
-                     background: var(--color-bg);
-                     padding: 0.5rem;
-                     border-radius: 4px;
-                     display: block;
-                     padding-right: 3rem;
-                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
-                 </code>
-                 <button
-                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                   style="
-                     position: absolute;
-                     right: 0.5rem;
-                     top: 50%;
-                     transform: translateY(-50%);
-                     background: var(--color-primary);
-                     color: white;
-                     border: none;
-                     border-radius: 4px;
-                     padding: 0.25rem 0.5rem;
-                     font-size: 0.75rem;
-                     cursor: pointer;
-                   "
-                 >
-                   📋
-                 </button>
-               </div>
-               <div style="position: relative; margin: 0.5rem 0">
-                 <code
-                   style="
-                     background: var(--color-bg);
-                     padding: 0.5rem;
-                     border-radius: 4px;
-                     display: block;
-                     padding-right: 3rem;
-                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl https://medicaments-api.giygas.dev/health
-                 </code>
-                 <button
-                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                   style="
-                     position: absolute;
-                     right: 0.5rem;
-                     top: 50%;
-                     transform: translateY(-50%);
-                     background: var(--color-primary);
-                     color: white;
-                     border: none;
-                     border-radius: 4px;
-                     padding: 0.25rem 0.5rem;
-                     font-size: 0.75rem;
-                     cursor: pointer;
-                   "
-                 >
-                   📋
-                 </button>
-               </div>
-               <div style="position: relative; margin: 0.5rem 0">
-                 <code
-                   style="
-                     background: var(--color-bg);
-                     padding: 0.5rem;
-                     border-radius: 4px;
-                     display: block;
-                     padding-right: 3rem;
-                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl http://localhost:8030/v1/medicaments?search=paracetamol
-                 </code>
-                 <button
-                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                   style="
-                     position: absolute;
-                     right: 0.5rem;
-                     top: 50%;
-                     transform: translateY(-50%);
-                     background: var(--color-primary);
-                     color: white;
-                     border: none;
-                     border-radius: 4px;
-                     padding: 0.25rem 0.5rem;
-                     font-size: 0.75rem;
-                     cursor: pointer;
-                   "
-                 >
-                   📋
-                 </button>
-               </div>
-               <div style="position: relative; margin: 0.5rem 0">
-                 <code
-                   style="
-                     background: var(--color-bg);
-                     padding: 0.5rem;
-                     border-radius: 4px;
-                     display: block;
-                     padding-right: 3rem;
-                   "
-                   onclick="copyToClipboard(this.textContent.trim())"
-                 >
-                   curl http://localhost:8030/health
-                 </code>
-                 <button
-                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                   style="
-                     position: absolute;
-                     right: 0.5rem;
-                     top: 50%;
-                     transform: translateY(-50%);
-                     background: var(--color-primary);
-                     color: white;
-                     border: none;
-                     border-radius: 4px;
-                     padding: 0.25rem 0.5rem;
-                     font-size: 0.75rem;
-                     cursor: pointer;
-                   "
-                 >
-                   📋
-                 </button>
-                </div>
+              <strong style="color: var(--color-text)"
+                >Quick Test Commands</strong
+              >
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl
+                  https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
               </div>
-              <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-top: 1rem">
-                📖 Pour la documentation complète Docker, voir <a href="/DOCKER.md" target="_blank" style="color: var(--color-secondary)">DOCKER.md</a>
-              </p>
-           </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl https://medicaments-api.giygas.dev/health
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl http://localhost:8030/v1/medicaments?search=paracetamol
+                </code>
+                <div style="position: relative; margin: 0.5rem 0">
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.5rem;
+                      border-radius: 4px;
+                      display: block;
+                      padding-right: 3rem;
+                    "
+                    onclick="copyToClipboard(this.textContent.trim())"
+                  >
+                    curl
+                    https://medicaments-api.giygas.dev/v1/medicaments?search=d'heptaminol
+                  </code>
+                  <button
+                    onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                    style="
+                      position: absolute;
+                      right: 0.5rem;
+                      top: 50%;
+                      transform: translateY(-50%);
+                      background: var(--color-primary);
+                      color: white;
+                      border: none;
+                      border-radius: 4px;
+                      padding: 0.25rem 0.5rem;
+                      font-size: 0.75rem;
+                      cursor: pointer;
+                    "
+                  >
+                    📋
+                  </button>
+                </div>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+              <div style="position: relative; margin: 0.5rem 0">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    display: block;
+                    padding-right: 3rem;
+                  "
+                  onclick="copyToClipboard(this.textContent.trim())"
+                >
+                  curl http://localhost:8030/health
+                </code>
+                <button
+                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                  style="
+                    position: absolute;
+                    right: 0.5rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--color-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 0.25rem 0.5rem;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                  "
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+            <p
+              style="
+                color: var(--color-text-muted);
+                font-size: 0.9rem;
+                margin-top: 1rem;
+              "
+            >
+              📖 Pour la documentation complète Docker, voir
+              <a
+                href="/DOCKER.md"
+                target="_blank"
+                style="color: var(--color-secondary)"
+                >DOCKER.md</a
+              >
+            </p>
+          </div>
 
-           <!-- Health Response Example -->
+          <!-- Health Response Example -->
           <div
             style="
               background: var(--color-surface);
@@ -957,9 +1002,9 @@ BASE_URL_LOCAL="http://localhost:8030"
             <div class="function-icon">🔍</div>
             <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherche multi-mots (logique ET, max 6 mots) ou CIS avec O(1)
-              lookup. Validation stricte (3-50 chars, 1-6 mots alphanumériques)
-              et échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
+              Recherche multi-mots (max 6 mots) ou CIS avec O(1) lookup.
+              Validation stricte (3-50 chars, 1-6 mots alphanumériques).
+              Échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
               <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
               les lookups O(1).
             </p>
@@ -2206,14 +2251,21 @@ Content-Type: application/json
               alphanumériques séparés par
               <code style="color: var(--color-highlight)">+</code> ou espace
             </p>
-             <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
-               <strong>Caractères autorisés :</strong> Lettres, chiffres,
-               espaces, tirets (-), points (.), et signe plus (+)
-             </p>
-             <p style="color: var(--color-accent); font-size: 0.9rem; margin-top: 0.5rem">
-               <strong>Note :</strong> Les données source BDPM sont en majuscules sans accents.
-               Utilisez des caractères sans accents (ex: "ibuprofene" au lieu de "ibuprofène").
-             </p>
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Caractères autorisés :</strong> Lettres, chiffres,
+              espaces, tirets (-), points (.), et signe plus (+)
+            </p>
+            <p
+              style="
+                color: var(--color-accent);
+                font-size: 0.9rem;
+                margin-top: 0.5rem;
+              "
+            >
+              <strong>Note :</strong> Les données source BDPM sont en majuscules
+              sans accents. Utilisez des caractères sans accents (ex:
+              "ibuprofene" au lieu de "ibuprofène").
+            </p>
             <p style="color: var(--color-text-muted)">
               <strong>Insensible à la casse :</strong> La recherche ne tient pas
               compte des majuscules/minuscules
@@ -2235,9 +2287,9 @@ Content-Type: application/json
                 padding: 0.5rem 0.75rem;
                 border-radius: 4px;
               "
-             >
-               paracetamol-400</code
-             >
+            >
+              paracetamol-400</code
+            >
             <code
               style="
                 background: var(--color-bg);

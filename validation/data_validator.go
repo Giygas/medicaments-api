@@ -16,14 +16,17 @@ import (
 // Compiled once at package initialization and reused for all validations
 var (
 	// Input validation: alphanumeric + safe punctuation (ASCII-only)
-	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\+\.\-]+$`)
+	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\+\.\-\/']+$`)
 
 	// This whitelist regex already blocks:
 	// <script	| (contains < and >)
 	// ' or		| (contains space after quote, but your regex only allows those chars individually in valid contexts)
-	// ../		| (contains /)
+	// ..		| (blocked by explicit consecutive dots check below)
 	// $(		| (contains $ and ()
 	// {$ne:	| (contains {, $, :)
+
+	// Note: Apostrophe (') is safe in this context
+	// '		| (safe - only used in strings.Contains() comparisons, no code execution)
 
 )
 
@@ -330,9 +333,14 @@ func (v *Validator) ValidateInput(input string) error {
 
 	// Check that user input contains only accepted characters
 	// Allow only alphanumeric characters, spaces, and safe punctuation
-	// Pattern: letters, numbers, spaces, hyphens, periods, and plus sign
+	// Pattern: letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign
 	if !inputRegex.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, and plus sign are allowed")
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed")
+	}
+
+	// Prevent path traversal with consecutive dots
+	if strings.Contains(input, "..") {
+		return fmt.Errorf("input contains consecutive dots which are not allowed. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed")
 	}
 
 	// Additional checks for repeated characters (potential DoS)

@@ -161,7 +161,8 @@ print(f"Page {data['page']} of {data['maxPage']}")
 ### Mesures de sécurité
 
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces (ASCII-only)
-  - **Note** : Les données source BDPM sont en majuscules sans accents (ex: IBUPROFENE, PARACETAMOL). L'API n'accepte que les caractères ASCII.
+  - **Note** : Les données source BDPM sont en majuscules sans accents ni ponctuation (ex: IBUPROFENE, PARACETAMOL).
+  - ⚠️ **Important** : Les apostrophes (`'`) et slash (`/`) sont acceptées. Les points consécutifs (`..`) sont bloqués.
   - **Recherche multi-mots** : Logique ET avec limite de 6 mots (protection DoS)
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
 - **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
