@@ -28,17 +28,28 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Permet d'accéder directement via IP sans contourner le rate limiting
 - **Validation de X-Forwarded-For** dans le middleware
   - Améliore le suivi des IPs clients derrière reverse proxy
+- **Métriques supplémentaires** : total des buckets actifs du rate limiter
 
 ### Modifié
 
 - **Validation des entrées** : Standardisation des messages d'erreur
   - Message d'erreur uniforme pour cohérence
-- **Amélioration de la journalisation** : Optimisations internes
-  - Timeout d'arrêt gracieux configurable
-  - Nettoyage basé sur le nom de fichier
-  - Réduction des allocations mémoire
-- **Tests** : Accélération des tests CI
-  - Vérification des claims de performance ignorée en mode short
+- **Amélioration de la journalisation** : Optimisations internes (timeout configurable, nettoyage par nom de fichier, réduction allocations)
+- **Amélioration du suivi des IP** : Validation de X-Forwarded-For dans le middleware
+  - Améliore le suivi des clients derrière reverse proxy
+- **Tests** : Accélération des tests CI (performance claims ignorés en mode short)
+- **Limites de résultats de recherche** pour prévenir les abus d'API
+  - `/v1/medicaments?search=` : maximum 250 résultats (429 au-delà)
+  - `/v1/generiques?libelle=` : maximum 100 résultats (429 au-delà)
+  - Migration : Utilisez `GET /v1/medicaments/export` pour le dataset complet
+  - Réponse 429 :
+    ```json
+    {
+      "error": "Too Many Requests",
+      "message": "Too many results returned. Maximum 250 results per search. Use /export for full dataset",
+      "code": 429
+    }
+    ```
 
 ## [1.1.0] - 2026-02-13
 

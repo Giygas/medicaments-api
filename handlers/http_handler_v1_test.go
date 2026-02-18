@@ -1832,3 +1832,76 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func TestServeMedicamentsV1_SearchLimitExceeded(t *testing.T) {
+	medicaments := make([]entities.Medicament, 300)
+	for i := 0; i < 300; i++ {
+		medicaments[i] = entities.Medicament{
+			Cis:                    60000000 + i,
+			Denomination:           fmt.Sprintf("A-MEDICAMENT-%d", i),
+			DenominationNormalized: fmt.Sprintf("a-medicament-%d", i),
+			FormePharmaceutique:    "comprimé",
+			VoiesAdministration:    []string{"orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST PHARMA",
+		}
+	}
+
+	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
+
+	req := httptest.NewRequest("GET", "/v1/medicaments?search=a", nil)
+	w := httptest.NewRecorder()
+	handler.ServeMedicamentsV1(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("Expected status %d, got %d", http.StatusTooManyRequests, w.Code)
+	}
+
+	var errorResponse map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+		t.Fatalf("Failed to parse error response: %v", err)
+	}
+
+	if message, ok := errorResponse["message"].(string); !ok || !strings.Contains(message, "Maximum 250 results") {
+		t.Errorf("Expected error message about 250 limit, got: %s", message)
+	}
+}
+
+func TestServeGeneriquesV1_SearchLimitExceeded(t *testing.T) {
+	generiques := make([]entities.GeneriqueList, 150)
+	for i := 0; i < 150; i++ {
+		generiques[i] = entities.GeneriqueList{
+			GroupID:           1000 + i,
+			Libelle:           fmt.Sprintf("A-GENERIC-%d", i),
+			LibelleNormalized: fmt.Sprintf("a-generic-%d", i),
+			Medicaments:       []entities.GeneriqueMedicament{},
+			OrphanCIS:         nil,
+		}
+	}
+
+	mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
+
+	req := httptest.NewRequest("GET", "/v1/generiques?libelle=a", nil)
+	w := httptest.NewRecorder()
+	handler.ServeGeneriquesV1(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("Expected status %d, got %d", http.StatusTooManyRequests, w.Code)
+	}
+
+	var errorResponse map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+		t.Fatalf("Failed to parse error response: %v", err)
+	}
+
+	if message, ok := errorResponse["message"].(string); !ok || !strings.Contains(message, "Maximum 100 results") {
+		t.Errorf("Expected error message about 100 limit, got: %s", message)
+	}
+}

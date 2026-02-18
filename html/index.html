@@ -1230,7 +1230,7 @@ BASE_URL_LOCAL="http://localhost:8030"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Recherche par nom
+                    Recherche par nom (max 250 résultats)
                   </td>
                   <td
                     style="
@@ -1341,7 +1341,7 @@ BASE_URL_LOCAL="http://localhost:8030"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Génériques par libellé
+                    Génériques par libellé (max 100 résultats)
                   </td>
                   <td
                     style="
@@ -1441,6 +1441,32 @@ BASE_URL_LOCAL="http://localhost:8030"
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Search Limits Warning -->
+          <div
+            style="
+              background: var(--color-accent);
+              color: white;
+              padding: 1rem 1.5rem;
+              border-radius: 8px;
+              margin-top: 2rem;
+              text-align: center;
+            "
+          >
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
+              Limites de résultats de recherche
+            </div>
+            <div style="font-size: 0.95rem">
+              Les endpoints de recherche renvoient un maximum de
+              <strong>250 résultats</strong> pour les médicaments et
+              <strong>100 résultats</strong> pour les génériques.
+              <br />
+              Pour obtenir la base complète, utilisez
+              <code style="background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 4px"
+                >GET /v1/medicaments/export</code
+              >
+            </div>
           </div>
 
           <!-- Diagnostics Endpoint -->

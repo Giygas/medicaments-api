@@ -167,6 +167,8 @@ print(f"Page {data['page']} of {data['maxPage']}")
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
 - **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
   - Headers dans les réponses : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Rate`, `Retry-After`
+- **Limites de recherche** : Maximum 250 résultats pour médicaments, 100 pour génériques
+  - Renvoie HTTP 429 si dépassé, avec message guidant vers `/v1/medicaments/export`
 - **Middleware de protection** : Taille des requêtes et headers configurables
 - **CORS configuré** : Géré via nginx en production
 

@@ -160,6 +160,19 @@ paths:
                     error: "Not Found"
                     message: "No medicaments found"
                     code: 404
+        "429":
+          description: Trop de résultats retournés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                too-many-results:
+                  summary: Limite de recherche dépassée
+                  value:
+                    error: "Too Many Requests"
+                    message: "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
+                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -503,7 +516,7 @@ paths:
                     message: "Invalid CIP"
                     code: 400
         "404":
-          description: Présentation non trouvée
+          description: Aucun générique trouvé
           content:
             application/json:
               schema:
@@ -512,8 +525,21 @@ paths:
                 not-found:
                   value:
                     error: "Not Found"
-                    message: "Presentation not found"
+                    message: "No generiques found"
                     code: 404
+        "429":
+          description: Trop de résultats retournés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                too-many-results:
+                  summary: Limite de recherche dépassée
+                  value:
+                    error: "Too Many Requests"
+                    message: "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
+                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -1354,6 +1380,7 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
+        Maximum 250 résultats par recherche (retourne 429 si dépassé).
       schema:
         type: string
         minLength: 3
@@ -1375,6 +1402,7 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
+        Maximum 100 résultats par recherche (retourne 429 si dépassé).
         Note: Les données source BDPM sont en majuscules sans accents (ex: PARACETAMOL).
         Utilisez des caractères ASCII (sans accents).
       schema:

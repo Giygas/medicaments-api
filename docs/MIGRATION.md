@@ -100,6 +100,52 @@ Les données source BDPM sont en majuscules sans accents ni ponctuation (ex: IBU
 - ❌ Accent : `paracétamol`
 - ❌ Points consécutifs : `../../etc`
 
+### Limites de résultats de recherche
+
+**Nouveau comportement** (MAJEUR) :
+
+Les endpoints de recherche v1 ont maintenant des limites de résultats :
+- `/v1/medicaments?search={query}` : Maximum 250 résultats
+- `/v1/generiques?libelle={nom}` : Maximum 100 résultats
+
+**Réponse HTTP 429** :
+
+Lorsqu'une recherche dépasse la limite, l'API renvoie :
+
+```json
+{
+  "error": "Too Many Requests",
+  "message": "Too many results returned. Maximum 250 results per search. Use /export for full dataset",
+  "code": 429
+}
+```
+
+**Impact** :
+
+- Les applications effectuant des recherches larges (ex: "a", "par") recevront une erreur 429
+- Il est recommandé de guider les utilisateurs vers `/v1/medicaments/export` pour le dataset complet
+- Les recherches spécifiques retournant ≤ 250/100 résultats continuent de fonctionner normalement
+
+**Exemple de code** :
+
+```javascript
+const response = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol",
+);
+
+if (response.status === 429) {
+  const error = await response.json();
+  console.error(error.message);
+  // "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
+  // Fallback: Suggest using export endpoint
+  alert("Search too broad. Use /export endpoint for complete dataset.");
+  // Redirect or show link to /v1/medicaments/export
+} else if (response.status === 200) {
+  const data = await response.json();
+  // Process results normally
+}
+```
+
 ### Headers de dépréciation
 
 Les endpoints legacy renvoient les headers suivants pour aider les clients à migrer :

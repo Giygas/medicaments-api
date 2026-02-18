@@ -17,6 +17,16 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
+const (
+	maxMedicamentSearchResults = 250
+	maxGeneriqueSearchResults  = 100
+)
+
+const (
+	errTooManyMedicamentsResults = "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
+	errTooManyGeneriquesResults  = "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
+)
+
 // Handler implements the interfaces.HTTPHandler interface
 type Handler struct {
 	dataStore     interfaces.DataStore
@@ -553,8 +563,15 @@ func (h *Handler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+
 		if allMatch {
 			results = append(results, gen)
+			// Check if there are more results than the maximum, return error
+			if len(results) > maxGeneriqueSearchResults {
+				h.RespondWithError(w, http.StatusTooManyRequests, errTooManyGeneriquesResults)
+				return
+
+			}
 		}
 	}
 
@@ -653,6 +670,11 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			}
 			if allMatch {
 				results = append(results, med)
+				if len(results) > maxMedicamentSearchResults {
+					h.RespondWithError(w, http.StatusTooManyRequests, errTooManyMedicamentsResults)
+					return
+				}
+
 			}
 		}
 
