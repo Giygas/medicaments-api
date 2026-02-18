@@ -7,6 +7,39 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [1.2.0] - Non publié
 
+### Ajouté
+
+- **Support Docker** avec builds multi-architecture (amd64, arm64)
+  - Makefile avec commandes simplifiées pour build, up, down, logs, ps
+  - Images scratch ultra-légères (~8-10MB)
+  - Sécurité renforcée : utilisateur non-root, filesystem read-only, secrets via variables d'environnement
+- **Stack d'observabilité complète** avec Grafana, Loki, Prometheus et Alloy
+  - Dashboards Grafana pour les métriques API, performance et santé
+  - Centralisation des logs avec Loki et Alloy
+  - Alertes Prometheus configurées
+  - Support remote-write Prometheus
+- **Support des médicaments en association** dans la validation des entrées
+  - Le slash (`/`) est maintenant accepté pour la recherche de médicaments en association
+  - Ex: `paracetamol/codeine`, `ibuprofene/caffeine`
+- **Protection contre path traversal** par blocage explicite des points consécutifs
+  - Les points consécutifs (`..`) sont rejetés pour prévenir les attaques
+  - Points simples toujours autorisés (ex: `test.value`, `d'alembert`)
+- **Variable ALLOW_DIRECT_ACCESS** pour l'environnement Docker
+  - Permet d'accéder directement via IP sans contourner le rate limiting
+- **Validation de X-Forwarded-For** dans le middleware
+  - Améliore le suivi des IPs clients derrière reverse proxy
+
+### Modifié
+
+- **Validation des entrées** : Standardisation des messages d'erreur
+  - Message d'erreur uniforme pour cohérence
+- **Amélioration de la journalisation** : Optimisations internes
+  - Timeout d'arrêt gracieux configurable
+  - Nettoyage basé sur le nom de fichier
+  - Réduction des allocations mémoire
+- **Tests** : Accélération des tests CI
+  - Vérification des claims de performance ignorée en mode short
+
 ## [1.1.0] - 2026-02-13
 
 ### Ajouté
@@ -130,10 +163,10 @@ Les optimisations combinées ont entraîné des gains de performance significati
 
 ### Sécurité
 
-- **Motif de validation des entrées** : `^[a-zA-Z0-9\s\+\.\-\/']+$` (ASCII uniquement)
+- **Motif de validation des entrées** : `^[a-zA-Z0-9\s\-\.\+']+$` (ASCII uniquement)
   - Rejette les caractères accentués avec un message d'erreur utile
-  - Prend en charge alphanumérique + espaces + trait d'union/point/slash/apostrophe/signe plus
-  - Bloque explicitement les points consécutifs (`..`) pour prévenir le path traversal
+  - Prend en charge alphanumérique + espaces + trait d'union/point/apostrophe/signe plus
+  - Détection de motifs dangereux via tableau de chaînes (injection SQL, XSS, injection de commande, traversal de chemin)
 - **Limite de recherche multi-mots** : Maximum 6 mots (prévention DoS)
 - **Rate limiting variable** : 5-200 tokens par endpoint (1 000 tokens, recharge 3/sec)
 - **Détection de motifs dangereux** : injection SQL, XSS, injection de commande, traversal de chemin (5-10x plus rapide que regex)
