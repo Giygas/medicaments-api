@@ -645,20 +645,17 @@
               <strong style="color: var(--color-text)"
                 >Base URL & Authentication</strong
               >
-              <pre
-                style="
-                  background: var(--color-bg);
-                  padding: 1rem;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin-top: 0.5rem;
-                  font-size: 0.9rem;
-                "
-              ><code># Production (HTTPS)
+               <pre
+                 style="
+                   background: var(--color-bg);
+                   padding: 1rem;
+                   border-radius: 4px;
+                   overflow-x: auto;
+                   margin-top: 0.5rem;
+                   font-size: 0.9rem;
+                 "
+               ><code># Production (HTTPS)
 BASE_URL="https://medicaments-api.giygas.dev"
-
-# Local (Go native : port 8000, Docker : port 8030)
-BASE_URL_LOCAL="http://localhost:8030"
 
 # Authentification : Aucune requise
 # Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
@@ -766,20 +763,7 @@ BASE_URL_LOCAL="http://localhost:8030"
                   📋
                 </button>
               </div>
-              <div style="position: relative; margin: 0.5rem 0">
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    display: block;
-                    padding-right: 3rem;
-                  "
-                  onclick="copyToClipboard(this.textContent.trim())"
-                >
-                  curl http://localhost:8030/v1/medicaments?search=paracetamol
-                </code>
-                <div style="position: relative; margin: 0.5rem 0">
+               <div style="position: relative; margin: 0.5rem 0">
                   <code
                     style="
                       background: var(--color-bg);
@@ -808,61 +792,10 @@ BASE_URL_LOCAL="http://localhost:8030"
                       font-size: 0.75rem;
                       cursor: pointer;
                     "
-                  >
+                   >
                     📋
-                  </button>
+                   </button>
                 </div>
-                <button
-                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                  style="
-                    position: absolute;
-                    right: 0.5rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: var(--color-primary);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                  "
-                >
-                  📋
-                </button>
-              </div>
-              <div style="position: relative; margin: 0.5rem 0">
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    display: block;
-                    padding-right: 3rem;
-                  "
-                  onclick="copyToClipboard(this.textContent.trim())"
-                >
-                  curl http://localhost:8030/health
-                </code>
-                <button
-                  onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
-                  style="
-                    position: absolute;
-                    right: 0.5rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: var(--color-primary);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                  "
-                >
-                  📋
-                </button>
-              </div>
             </div>
             <p
               style="
@@ -871,8 +804,7 @@ BASE_URL_LOCAL="http://localhost:8030"
                 margin-top: 1rem;
               "
             >
-              📖 Pour la documentation complète Docker, voir
-              <a
+              Also available in Docker: <a
                 href="/DOCKER.md"
                 target="_blank"
                 style="color: var(--color-secondary)"
@@ -2734,8 +2666,10 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           <div class="tech-badge">OpenAPI 3.1</div>
           <div class="tech-badge">Concurrent TSV Parsing</div>
           <div class="tech-badge">gocron Scheduler</div>
-          <div class="tech-badge">75.5% Test Coverage</div>
+          <div class="tech-badge">Prometheus Metrics</div>
+          <div class="tech-badge">78.7% Test Coverage</div>
           <div class="tech-badge">Benchmarks & Performance Tests</div>
+          <div class="tech-badge">Docker Multi-stage Builds</div>
         </div>
       </section>
 
