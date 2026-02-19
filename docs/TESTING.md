@@ -53,6 +53,17 @@ go test ./handlers -run TestServeGeneriquesV1 -v
 go test ./handlers -run TestServeDiagnosticsV1 -v
 ```
 
+### Tests de limites de recherche
+
+```bash
+go test ./handlers -run TestServeMedicamentsV1_SearchLimitExceeded -v
+go test ./handlers -run TestServeGeneriquesV1_SearchLimitExceeded -v
+```
+
+Ces tests vérifient que l'API retourne HTTP 429 lorsque les recherches dépassent les limites :
+- 250 résultats maximum pour `/v1/medicaments?search`
+- 100 résultats maximum pour `/v1/generiques?libelle`
+
 ## Tests d'Intégration
 
 ### Pipeline complet de parsing
@@ -409,6 +420,12 @@ go tool pprof cpu.prof
 - Ajouter des commentaires pour expliquer la logique
 - Utiliser des noms de tests descriptifs
 - Documenter les assertions importantes
+
+### Tester les limites de recherche
+
+- Vérifier que les réponses 429 sont correctement gérées par les clients
+- Tester avec des recherches larges pour valider le comportement
+- Confirmer que le message d'erreur guide vers `/export`
 
 ## Référence des Commandes de Test
 

@@ -37,7 +37,7 @@ ENV=dev                         # Environnement (dev/production)
 ALLOW_DIRECT_ACCESS=false       # Docker: true (autorise accès direct par IP)
 ```
 
-*Pour une vue d'ensemble de l'architecture et du rôle de chaque composant, voir [Architecture du système](ARCHITECTURE.md).*
+_Pour une vue d'ensemble de l'architecture et du rôle de chaque composant, voir [Architecture du système](ARCHITECTURE.md)._
 
 **Configuration logging :**
 
@@ -67,6 +67,7 @@ MAX_HEADER_SIZE=1048576           # 1MB max taille headers
 ## Commandes de Build
 
 ### Build standard
+
 ```bash
 go build -o medicaments-api .
 ```
@@ -85,7 +86,7 @@ GOOS=darwin GOARCH=amd64 go build -o medicaments-api-darwin .
 GOOS=darwin GOARCH=arm64 go build -o medicaments-api-darwin-arm64 .
 ```
 
-*Pour plus d'informations sur les optimisations de performance et les benchmarks, voir [Performance et benchmarks](PERFORMANCE.md).*
+_Pour plus d'informations sur les optimisations de performance et les benchmarks, voir [Performance et benchmarks](PERFORMANCE.md)._
 
 ### Docker Staging (Optionnel)
 
@@ -117,11 +118,12 @@ make down
 ```
 
 **Ports mappés :**
+
 - API: 8030 (host) → 8000 (container)
 - Grafana: 3000
 - Prometheus: 9090
 
-*Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)*
+_Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)_
 
 ### Cross-platform build
 
@@ -139,31 +141,36 @@ GOOS=darwin GOARCH=arm64 go build -o medicaments-api-darwin-arm64 .
 
 ## Tests
 
-*Pour des stratégies de tests détaillées et les best practices, consultez le [Guide de tests](TESTING.md).*
+_Pour des stratégies de tests détaillées et les best practices, consultez le [Guide de tests](TESTING.md)._
 
 ### Tests rapides
 
 **Exécuter tous les tests :**
+
 ```bash
 go test -v
 ```
 
 **Tests unitaires uniquement :**
+
 ```bash
 go test -short -v
 ```
 
 **Test spécifique :**
+
 ```bash
 go test -run TestName -v
 ```
 
 **Tests avec détection de race :**
+
 ```bash
 go test -race -v
 ```
 
 **Smoke tests :**
+
 ```bash
 go test ./tests -run TestSmoke -v
 ```
@@ -190,21 +197,25 @@ Les smoke tests valident :
 ### Tests v1
 
 **Médicaments :**
+
 ```bash
 go test ./handlers -run TestServeMedicamentsV1 -v
 ```
 
 **Présentations :**
+
 ```bash
 go test ./handlers -run TestServePresentationsV1 -v
 ```
 
 **Génériques :**
+
 ```bash
 go test ./handlers -run TestServeGeneriquesV1 -v
 ```
 
 **Diagnostics :**
+
 ```bash
 go test ./handlers -run TestServeDiagnosticsV1 -v
 ```
@@ -212,16 +223,19 @@ go test ./handlers -run TestServeDiagnosticsV1 -v
 ### Tests d'intégration
 
 **Pipeline complet de parsing :**
+
 ```bash
 go test -run TestIntegrationFullDataParsingPipeline -v
 ```
 
 **Mises à jour concurrentes :**
+
 ```bash
 go test -run TestIntegrationConcurrentUpdates -v
 ```
 
 **Utilisation mémoire :**
+
 ```bash
 go test -run TestIntegrationMemoryUsage -v
 ```
@@ -229,11 +243,13 @@ go test -run TestIntegrationMemoryUsage -v
 ### Tests du Parser
 
 **Parser unitaires :**
+
 ```bash
 go test ./medicamentsparser -v
 ```
 
 **Couverture parser :**
+
 ```bash
 go test ./medicamentsparser -coverprofile=parser_coverage.out
 ```
@@ -241,16 +257,19 @@ go test ./medicamentsparser -coverprofile=parser_coverage.out
 ### Couverture
 
 **Générer rapport de couverture :**
+
 ```bash
 go test -coverprofile=coverage.out -v
 ```
 
 **Générer HTML de couverture :**
+
 ```bash
 go tool cover -html=coverage.out -o coverage.html
 ```
 
 **Vérifier le pourcentage de couverture :**
+
 ```bash
 go tool cover -func=coverage.out
 ```
@@ -258,44 +277,52 @@ go tool cover -func=coverage.out
 ## Benchmarks
 
 ### Exécuter tous les benchmarks handlers
+
 ```bash
 go test ./handlers -bench=. -benchmem -v
 ```
 
 ### Exécuter tous les benchmarks tests complets
+
 ```bash
 go test ./tests/ -bench=. -benchmem -run=^$
 ```
 
 ### Benchmark spécifique handler
+
 ```bash
 go test -bench=BenchmarkMedicamentByCIS -benchmem -run=^$ ./handlers
 go test -bench=BenchmarkMedicamentsExport -benchmem -run=^$ ./handlers
 ```
 
 ### Benchmark complet avec sous-tests
+
 ```bash
 go test -bench=BenchmarkAlgorithmicPerformance -benchmem -run=^$ ./tests/
 go test -bench=BenchmarkHTTPPerformance -benchmem -run=^$ ./tests/
 ```
 
 ### Sous-benchmark spécifique (exemple)
+
 ```bash
 go test -bench=BenchmarkAlgorithmicPerformance/CISLookup -benchmem -run=^$ ./tests/
 ```
 
 ### Avec comptage multiple (plus fiable)
+
 ```bash
 go test -bench=. -benchmem -count=3 -run=^$ ./handlers
 ```
 
 ### Benchmark avec profil CPU
+
 ```bash
 go test -bench=. -benchmem -cpuprofile=cpu.prof -run=^$ ./handlers
 go tool pprof cpu.prof
 ```
 
 ### Vérification des claims de documentation
+
 ```bash
 go test ./tests/ -run TestDocumentationClaimsVerification -v
 ```
@@ -303,6 +330,7 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 ## Linting
 
 ### Formatage du code
+
 ```bash
 # Formater tous les fichiers
 gofmt -w .
@@ -312,12 +340,14 @@ gofmt -d .
 ```
 
 ### Analyse statique
+
 ```bash
 # Vérifier les constructions suspectes
 go vet ./...
 ```
 
 ### Linter approfondi (optionnel)
+
 ```bash
 golangci-lint run
 ```
@@ -392,23 +422,33 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 ### Problèmes courants
 
 **Le serveur ne démarre pas :**
+
 - Vérifier que le port 8000 n'est pas déjà utilisé : `lsof -i :8000`
 - Vérifier la configuration `.env`
 - Consulter les logs dans `logs/`
 
 **Les données ne sont pas mises à jour :**
+
 - Vérifier la connexion internet
 - Consulter les logs pour les erreurs de téléchargement
 - Vérifier que l'URL BDPM est accessible
 
 **Tests échouent :**
+
 - Exécuter `go mod tidy` pour s'assurer que les dépendances sont à jour
 - Vérifier que Go 1.26+ est installé : `go version`
 - Exécuter `go test -race -v` pour détecter les race conditions
 
-**Lents résultats de tests :**
+**Résultats de tests trop lénts :**
+
 - Utiliser `go test -short` pour sauter les tests d'intégration lents
 - Exécuter des tests spécifiques au lieu de tous les tests
+
+**Les recherches retournent HTTP 429 :**
+
+- Les recherches larges (> 250 médicaments ou > 100 génériques) renvoient une erreur 429
+- Utilisez `/v1/medicaments/export` pour obtenir le dataset complet
+- Réduisez la spécificité de la recherche (ex: "paracetamol 500" au lieu de "a")
 
 ## Bonnes Pratiques
 
@@ -439,6 +479,12 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 - Mettre à jour l'OpenAPI spec lors de changements d'API
 - Documenter les fonctions exportées
 - Maintenir la documentation à jour avec le code
+
+### Gestion des erreurs 429
+
+- Les clients doivent gérer les réponses HTTP 429 de manière gracieuse
+- Guider les utilisateurs vers `/v1/medicaments/export` pour les recherches larges
+- Afficher un message explicite lorsque la limite est atteinte
 
 ## Workflow de Développement Recommandé
 

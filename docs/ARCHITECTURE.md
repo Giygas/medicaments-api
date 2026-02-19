@@ -79,6 +79,9 @@ Assainit les entrées utilisateur et valide l'intégrité des données.
 - Validation CIS/CIP/CIP13/CIP7 ranges
 - Validation des limites de mots (max 6 pour recherche)
 - Validation CheckDuplicateCIP pour intégrité des présentations
+- **Limites de résultats** : Maximum 250 résultats pour recherche médicaments, 100 pour génériques
+  - Retourne HTTP 429 si dépassé pour prévenir l'abus
+  - Guide les utilisateurs vers `/export` pour le dataset complet
 
 *Voir le [Guide de tests](TESTING.md) pour les stratégies de validation des tests.*
 
@@ -118,7 +121,9 @@ Stack Chi v5 optimisée pour la sécurité et la performance :
 5. **RedirectSlashes** - Normalisation des URLs
 6. **Recoverer** - Gestion des paniques avec recovery
 7. **RequestSize** - Limites taille corps/headers (configurable)
-8. **RateLimiting** - Token bucket avec coûts variables par endpoint
+8. **RateLimiting** - Token bucket avec coûts variables par endpoint et limites de résultats de recherche
+   - Limite 250 résultats pour `/v1/medicaments?search`, 100 pour `/v1/generiques?libelle`
+   - Retourne HTTP 429 avec message guidant vers `/export`
 
 ### Ordre d'exécution
 

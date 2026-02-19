@@ -214,6 +214,19 @@ Pour les détails de l'architecture mémoire, voir [Architecture du système - A
 - Le transfert réseau prend plusieurs secondes pour ~20MB de données
 - Les tests de production incluent l'overhead HTTP complet (middleware, logging, sérialisation, réseau)
 
+### Limites de recherche et protection contre l'abus
+
+Les endpoints de recherche v1 ont des limites de résultats pour prévenir l'abus :
+- **Médicaments** : Maximum 250 résultats par recherche
+- **Génériques** : Maximum 100 résultats par recherche
+
+Lorsqu'une recherche dépasse ces limites, l'API retourne **HTTP 429 Too Many Requests** avec un message guidant vers `/v1/medicaments/export`.
+
+**Raisonnement :**
+- Empêche de télécharger l'ensemble du dataset via des recherches larges multiples
+- Force l'utilisation appropriée du endpoint `/export` pour le dataset complet (~20MB)
+- Protège contre les abus de rate limiting (1000 tokens, 3/sec recharge)
+
 ## CI/CD
 
 ### Tests benchmarks
