@@ -20,9 +20,10 @@ import (
 const (
 	maxMedicamentSearchResults = 250
 	maxGeneriqueSearchResults  = 100
-)
 
-const (
+	maxPageSize     = 200
+	defaultPageSize = 10
+
 	errTooManyMedicamentsResults = "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
 	errTooManyGeneriquesResults  = "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
 )
@@ -592,6 +593,10 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if q.Get("pageSize") != "" && q.Get("page") == "" {
+		h.RespondWithError(w, http.StatusBadRequest, "pageSize can only be used with page")
+	}
+
 	if totalParams == 0 {
 		h.RespondWithError(w, http.StatusBadRequest, "Needs at least one param. See documentation")
 		return
@@ -611,8 +616,20 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		pageSize := defaultPageSize
+
+		if pageSizeStr := q.Get("pageSize"); pageSizeStr != "" {
+			pageSize, err = strconv.Atoi(pageSizeStr)
+			if err != nil || pageSize < 1 || pageSize > maxPageSize {
+				msg := fmt.Sprintf("Invalid pageSize. Must be between 1 and %d", maxPageSize)
+				h.RespondWithError(w, http.StatusBadRequest, msg)
+				return
+			}
+
+		}
+
 		medicaments := h.dataStore.GetMedicaments()
-		pageSize := 10
+
 		start := (page - 1) * pageSize
 		end := start + pageSize
 

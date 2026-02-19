@@ -753,6 +753,257 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 	}
 }
 
+// TestServeMedicamentsV1_PageSize tests pagination with pageSize parameter
+func TestServeMedicamentsV1_PageSize(t *testing.T) {
+	// Create 25 medicaments for testing different pageSize values
+	medicaments := make([]entities.Medicament, 25)
+	for i := 0; i < 25; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		expectedPage  int
+		expectedSize  int
+		expectedMax   int
+		expectedCode  int
+	}{
+		{"default pageSize", "?page=1", 10, 1, 10, 3, 200},
+		{"pageSize 5", "?page=1&pageSize=5", 5, 1, 5, 5, 200},
+		{"pageSize 20", "?page=1&pageSize=20", 20, 1, 20, 2, 200},
+		{"pageSize at max (200)", "?page=1&pageSize=200", 25, 1, 200, 1, 200},
+		{"pageSize 1", "?page=1&pageSize=1", 1, 1, 1, 25, 200},
+		{"second page with pageSize 10", "?page=2&pageSize=10", 10, 2, 10, 3, 200},
+		{"pageSize without page", "?pageSize=10", 0, 0, 0, 0, 400},
+		{"pageSize 0", "?page=1&pageSize=0", 0, 0, 0, 0, 400},
+		{"pageSize negative", "?page=1&pageSize=-5", 0, 0, 0, 0, 400},
+		{"pageSize 201 (exceeds max)", "?page=1&pageSize=201", 0, 0, 0, 0, 400},
+		{"pageSize non-numeric", "?page=1&pageSize=abc", 0, 0, 0, 0, 400},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeMedicamentsV1(rr, req)
+
+			if rr.Code != tt.expectedCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
+			}
+
+			if tt.expectedCode == http.StatusOK {
+				var response map[string]any
+				err := json.Unmarshal(rr.Body.Bytes(), &response)
+				if err != nil {
+					t.Fatalf("Failed to unmarshal JSON: %v", err)
+				}
+
+				data, ok := response["data"].([]any)
+				if !ok {
+					t.Fatal("Expected 'data' field to be an array")
+				}
+				if len(data) != tt.expectedCount {
+					t.Errorf("Expected %d items, got %d", tt.expectedCount, len(data))
+				}
+
+				if page, ok := response["page"].(float64); ok && int(page) != tt.expectedPage {
+					t.Errorf("Expected page %d, got %d", tt.expectedPage, int(page))
+				}
+
+				if pageSize, ok := response["pageSize"].(float64); ok && int(pageSize) != tt.expectedSize {
+					t.Errorf("Expected pageSize %d, got %d", tt.expectedSize, int(pageSize))
+				}
+
+				if maxPage, ok := response["maxPage"].(float64); ok && int(maxPage) != tt.expectedMax {
+					t.Errorf("Expected maxPage %d, got %d", tt.expectedMax, int(maxPage))
+				}
+			}
+		})
+	}
+}
+
+// TestServeMedicamentsV1_PageSize_ETagCaching tests ETag caching with different pageSize values
+func TestServeMedicamentsV1_PageSize_ETagCaching(t *testing.T) {
+	medicaments := make([]entities.Medicament, 30)
+	for i := 0; i < 30; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"pageSize 10", "/v1/medicaments?page=1&pageSize=10"},
+		{"pageSize 50", "/v1/medicaments?page=1&pageSize=50"},
+		{"pageSize 100", "/v1/medicaments?page=1&pageSize=100"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// First request - generate ETag
+			req1 := httptest.NewRequest("GET", tt.url, nil)
+			rr1 := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(rr1, req1)
+
+			if rr1.Code != http.StatusOK {
+				t.Errorf("Expected status 200, got %d", rr1.Code)
+			}
+
+			etag := rr1.Header().Get("ETag")
+			if etag == "" {
+				t.Error("ETag header should be present")
+			}
+
+			if !hasQuotedETag(etag) {
+				t.Errorf("ETag should be quoted, got: %s", etag)
+			}
+
+			// Second request with matching ETag - should return 304
+			req2 := httptest.NewRequest("GET", tt.url, nil)
+			req2.Header.Set("If-None-Match", etag)
+			rr2 := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(rr2, req2)
+
+			if rr2.Code != http.StatusNotModified {
+				t.Errorf("Expected 304 Not Modified, got %d", rr2.Code)
+			}
+
+			// Third request with different pageSize - should return 200 with different ETag
+			if tt.url == "/v1/medicaments?page=1&pageSize=10" {
+				req3 := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=50", nil)
+				rr3 := httptest.NewRecorder()
+				handler.ServeMedicamentsV1(rr3, req3)
+
+				if rr3.Code != http.StatusOK {
+					t.Errorf("Expected status 200, got %d", rr3.Code)
+				}
+
+				etag3 := rr3.Header().Get("ETag")
+				if etag3 == etag {
+					t.Error("Different pageSize should produce different ETag")
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkServeMedicamentsV1_PageSize_10 benchmarks pagination with pageSize=10
+func BenchmarkServeMedicamentsV1_PageSize_10(b *testing.B) {
+	medicaments := make([]entities.Medicament, 1000)
+	for i := 0; i < 1000; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=10", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeMedicamentsV1(rr, req)
+	}
+}
+
+// BenchmarkServeMedicamentsV1_PageSize_200 benchmarks pagination with pageSize=200
+func BenchmarkServeMedicamentsV1_PageSize_200(b *testing.B) {
+	medicaments := make([]entities.Medicament, 1000)
+	for i := 0; i < 1000; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=200", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeMedicamentsV1(rr, req)
+	}
+}
+
 // TestServeMedicamentsV1_ETagCaching tests ETag caching for export and search endpoints
 func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 	// Create test medicaments with presentations for CIP search

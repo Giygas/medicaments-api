@@ -69,8 +69,11 @@ curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol"
 # Recherche par CIS (Code Identifiant de Spécialité)
 curl "https://medicaments-api.giygas.dev/v1/medicaments/61504672"
 
-# Pagination (10 médicaments par page)
+# Pagination (10 médicaments par page, défaut)
 curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1"
+
+# Pagination avec pageSize personnalisé (50 médicaments par page)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50"
 
 # Recherche par CIP via présentation
 curl "https://medicaments-api.giygas.dev/v1/medicaments?cip=3400936403114"
@@ -135,6 +138,13 @@ const response = await fetch(
 );
 const data = await response.json();
 console.log(`Page ${data.page} of ${data.maxPage}`);
+
+// Pagination avec pageSize personnalisé
+const response2 = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50",
+);
+const data2 = await response2.json();
+console.log(`Page ${data2.page} of ${data2.maxPage}, pageSize: ${data2.pageSize}`);
 ```
 
 ### Python
@@ -154,6 +164,11 @@ data = response.json()
 response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?page=1')
 data = response.json()
 print(f"Page {data['page']} of {data['maxPage']}")
+
+# Pagination avec pageSize personnalisé
+response2 = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50')
+data2 = response2.json()
+print(f"Page {data2['page']} of {data2['maxPage']}, pageSize: {data2['pageSize']}")
 ```
 
 ## Sécurité et Robustesse

@@ -9,6 +9,11 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Ajouté
 
+- **Paramètre `pageSize`** pour pagination personnalisée
+  - Optionnel avec `page`, valeur par défaut: 10
+  - Plage valide: 1-200 éléments par page
+  - Erreur 400 si utilisé sans `page`
+  - Support ETag avec différentes valeurs de pageSize
 - **Support Docker** avec builds multi-architecture (amd64, arm64)
   - Makefile avec commandes simplifiées pour build, up, down, logs, ps
   - Images scratch ultra-légères (~8-10MB)

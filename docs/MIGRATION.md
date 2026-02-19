@@ -10,10 +10,11 @@ Les endpoints v1 utilisent des paramètres de requête ou de chemin selon l'opé
 
 ### Endpoints Médicaments
 
-| Endpoint Legacy             | Endpoint v1                          |
-| --------------------------- | ------------------------------------ |
-| `GET /database`             | `GET /v1/medicaments/export`         |
-| `GET /database/{page}`      | `GET /v1/medicaments?page={n}`       |
+| Endpoint Legacy             | Endpoint v1                                |
+| --------------------------- | ------------------------------------------ |
+| `GET /database`             | `GET /v1/medicaments/export`             |
+| `GET /database/{page}`      | `GET /v1/medicaments?page={n}`           |
+|                            | `GET /v1/medicaments?page={n}&pageSize={m}` |
 | `GET /medicament/{nom}`     | `GET /v1/medicaments?search={query}` |
 | `GET /medicament/id/{cis}`  | `GET /v1/medicaments/{cis}`          |
 | `GET /medicament/cip/{cip}` | `GET /v1/medicaments?cip={cip}`      |
@@ -58,6 +59,66 @@ Les requêtes avec plus de 6 mots retournent une erreur 400 :
 ### Paramètres mutuellement exclusifs
 
 Les paramètres de recherche et de pagination sont mutuellement exclusifs. Utiliser soit `search`, soit `page`, soit `cip`, mais pas plusieurs en même temps.
+
+### Paramètre pageSize pour pagination personnalisée
+
+Le paramètre `pageSize` permet de personnaliser le nombre d'éléments par page lors de la pagination.
+
+**Contraintes :**
+- **Valeur par défaut** : 10 éléments par page
+- **Plage valide** : 1-200 éléments par page
+- **Obligatoire avec** : Doit être utilisé uniquement avec le paramètre `page`
+- **Mutuellement exclusif** : Ne peut pas être utilisé avec `search` ou `cip`
+
+**Exemples d'utilisation :**
+
+```bash
+# Pagination par défaut (10 éléments)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1"
+
+# Pagination personnalisée (50 éléments)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50"
+
+# Pagination personnalisée (200 éléments, maximum)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=200"
+```
+
+**Réponse paginée avec pageSize :**
+
+```json
+{
+  "data": [...],
+  "page": 1,
+  "pageSize": 50,
+  "totalItems": 15420,
+  "maxPage": 309
+}
+```
+
+**Erreurs :**
+
+```json
+// pageSize sans page
+{
+  "error": "Bad Request",
+  "message": "pageSize can only be used with page",
+  "code": 400
+}
+
+// pageSize > 200
+{
+  "error": "Bad Request",
+  "message": "Invalid pageSize. Must be between 1 and 200",
+  "code": 400
+}
+
+// pageSize = 0
+{
+  "error": "Bad Request",
+  "message": "Invalid pageSize. Must be between 1 and 200",
+  "code": 400
+}
+```
 
 ### Caractères ASCII uniquement (Mise à jour v1.2)
 
@@ -281,8 +342,11 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments/61504672");
 // Legacy
 fetch("https://medicaments-api.giygas.dev/database/1");
 
-// V1
+// V1 (pagination par défaut, 10 éléments)
 fetch("https://medicaments-api.giygas.dev/v1/medicaments?page=1");
+
+// V1 (pagination personnalisée, 50 éléments)
+fetch("https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50");
 ```
 
 **Génériques :**
@@ -355,8 +419,11 @@ curl https://medicaments-api.giygas.dev/v1/medicaments/61504672
 # Legacy
 curl https://medicaments-api.giygas.dev/database/1
 
-# V1
-curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
+# V1 (pagination par défaut, 10 éléments)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1"
+
+# V1 (pagination personnalisée, 50 éléments)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50"
 ```
 
 **Génériques :**
@@ -459,6 +526,7 @@ curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+m
 
 - [ ] Mettre à jour les appels API vers endpoints v1
 - [ ] Adapter les appels pour utiliser un seul paramètre
+- [ ] Utiliser le paramètre `pageSize` (1-200) avec `page` pour pagination personnalisée si nécessaire
 - [ ] Vérifier que les recherches multi-mots ≤ 6 mots
 - [ ] Mettre à jour le parsing de réponse pour le nouveau format générique
 - [ ] Utiliser `/v1/diagnostics` pour les métriques système détaillées
