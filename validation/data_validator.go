@@ -355,23 +355,14 @@ func (v *Validator) ValidateInput(input string) error {
 // CIP codes are numeric identifiers 7 or 13 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
 func (v *Validator) ValidateCIP(input string) (int, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return -1, fmt.Errorf("input cannot be empty")
-	}
-
-	// Reject if original input contained whitespace (spaces, tabs, etc.)
-	if len(input) != len(trimmedInput) {
-		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
-	}
-
-	if len(trimmedInput) != 7 && len(trimmedInput) != 13 {
+	// Check for 7 or 13 characters
+	if len(input) != 7 && len(input) != 13 {
 		return -1, fmt.Errorf("CIP should have 7 or 13 characters")
 	}
 
 	// strconv.Atoi() validates that input contains only digits
 	// Returns error for any non-numeric characters (no regex overhead)
-	cip, err := strconv.Atoi(trimmedInput)
+	cip, err := strconv.Atoi(input)
 	if err != nil {
 		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
 	}
@@ -383,23 +374,15 @@ func (v *Validator) ValidateCIP(input string) (int, error) {
 // CIP codes are numeric identifiers 8 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
 func (v *Validator) ValidateCIS(input string) (int, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return -1, fmt.Errorf("input cannot be empty")
-	}
 
-	// Reject if original input contained whitespace (spaces, tabs, etc.)
-	if len(input) != len(trimmedInput) {
-		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
-	}
-
-	if len(trimmedInput) != 8 {
+	// Check for 8 digits
+	if len(input) != 8 {
 		return -1, fmt.Errorf("CIS should have 8 digits")
 	}
 
 	// strconv.Atoi() validates that input contains only digits
 	// Returns error for any non-numeric characters (no regex overhead)
-	cis, err := strconv.Atoi(trimmedInput)
+	cis, err := strconv.Atoi(input)
 	if err != nil {
 		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
 	}
