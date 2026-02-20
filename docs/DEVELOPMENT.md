@@ -109,10 +109,10 @@ make up
 curl http://localhost:8030/health
 
 # Accéder à Grafana (monitoring)
-open http://localhost:3000  # giygas/paquito
+open http://localhost:3000  # Identifiants configurés via make setup-secrets
 
-# Accéder à Prometheus (métriques)
-open http://localhost:9090
+# Accéder à Prometheus (UI - métriques scrapées par Alloy)
+open http://localhost:9090  # UI Prometheus - chercher http_request_total
 
 # Voir les logs de l'application
 make logs

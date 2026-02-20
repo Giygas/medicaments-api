@@ -55,6 +55,91 @@ The staging setup includes a complete observability stack with Grafana, Loki, Pr
 
 ---
 
+## Configuration Modes
+
+### Local Mode (Default)
+
+In local mode, Alloy connects directly to observability services via Docker container DNS:
+
+**Configuration:**
+
+- Environment variable: `ALLOY_CONFIG=config.alloy` (or leave empty)
+- Grafana Alloy connects to:
+  - `http://loki:3100` for logs
+  - `http://prometheus:9090` for metrics
+
+**Recommended Usage:**
+
+- Local development
+- Staging on the same machine
+- Testing and validation
+
+**Startup:**
+
+```bash
+make setup-secrets  # Secrets setup (first time)
+make obs-init        # Initialize submodule (first time)
+make up              # Start all services
+```
+
+### Remote Mode (Production)
+
+In remote mode, Alloy connects to remote endpoints via secure tunnels:
+
+**Configuration:**
+
+- Environment variable: `ALLOY_CONFIG=config.remote.alloy`
+- Required environment variables:
+  - `PROMETHEUS_URL`: Remote Prometheus URL (ex: `https://prometheus-obs.example.com/api/v1/write`)
+  - `LOKI_URL`: Remote Loki URL (ex: `https://loki-obs.example.com/loki/api/v1/push`)
+- Tunnel options:
+  - **Cloudflare Tunnel**: HTTPS URLs with Cloudflare Access
+  - **Tailscale VPN**: HTTP URLs with private IP address
+  - **VPN/Mesh**: HTTP URLs with private network
+
+**Recommended Usage:**
+
+- Production with centralized infrastructure
+- Multi-site monitoring
+- Cloud environments
+
+**Configuration Example:**
+
+```bash
+# .env.docker
+ALLOY_CONFIG=config.remote.alloy
+
+# Cloudflare Tunnel
+PROMETHEUS_URL=https://prometheus-obs.yourdomain.com/api/v1/write
+LOKI_URL=https://loki-obs.yourdomain.com/loki/api/v1/push
+
+# Cloudflare Access (optional)
+CF_ACCESS_CLIENT_ID=your_client_id
+CF_ACCESS_CLIENT_SECRET=your_client_secret
+
+# Tailscale VPN
+# PROMETHEUS_URL=http://100.x.x.x:9090/api/v1/write
+# LOKI_URL=http://100.x.x.x:3100/loki/api/v1/push
+```
+
+**Startup:**
+
+```bash
+make setup-secrets  # Secrets setup (first time)
+make obs-init        # Initialize submodule (first time)
+make up              # Start all services
+```
+
+**Failover Protection:**
+
+Remote mode uses Alloy's WAL (Write-Ahead Log) buffer to protect data during network outages:
+
+- 2.5GB buffer
+- Protection variable depending on data volume (several hours to several days depending on traffic)
+- Automatic recovery on connection restoration
+
+---
+
 ## Architecture
 
 ```
@@ -105,7 +190,7 @@ grafana-alloy (collector)
 Collects logs and metrics from medicaments-api and system metrics.
 
 - **Image**: `grafana/alloy:v1.4.0`
-- **Configuration**: `observability/alloy/config.alloy`
+- **Configuration**: `configs/alloy/config.alloy`
 - **Port**: 12345 (Alloy's own metrics)
 - **Functions**:
   - Read logs from `./logs/` directory
@@ -185,7 +270,7 @@ Metric storage and querying.
 - **Port**: 9090 (host and container)
   - Host port 9090 provides external access to Prometheus UI
   - Container port 9090 is used for service-to-service communication
-- **Retention**: 30 days (720 hours)
+- **Retention**: 30 days (720 hours) - configured via CLI flag `--storage.tsdb.retention.time` in `observability/docker-compose.yml`
 - **Data Volume**: `prometheus-data`
 - **Resource Usage**: ~150MB RAM + ~200MB disk
 - **Scraping**: Receives metrics via `remote_write` from Grafana Alloy (no `scrape_configs` needed)
@@ -199,11 +284,7 @@ global:
   external_labels:
     cluster: 'medicaments-staging'
 
-# Data retention
-retention:
-  time: 720h  # 30 days
-
-# Remote write from Alloy
+# Remote write from Alloy (receives via CLI flag)
 remote_write:
   - url: http://localhost:9090/api/v1/write
 
@@ -212,13 +293,18 @@ rule_files:
   - '/etc/prometheus/rules/*.yml'
 ```
 
+**Note:** Data retention is configured via the CLI flag `--storage.tsdb.retention.time` in `observability/docker-compose.yml`, not in the `prometheus.yml` configuration file. Prometheus does not support retention configuration in its config file - this is a Prometheus design decision.
+
 ### Grafana
 
 Visualization for logs and metrics.
 
 - **Image**: `grafana/grafana:10.2.4`
 - **Port**: 3000
-- **Default Credentials**: giygas/paquito (change after first login)
+- **Default Credentials**:
+  - Username: `admin` (configurable via `GRAFANA_ADMIN_USER`)
+  - Password: Stored in `secrets/grafana_password.txt` (created via `make setup-secrets`)
+- **Important**: Change password after first login (Configuration → Users → Change Password)
 - **Data Volume**: `grafana-data`
 - **Resource Usage**: ~200MB RAM + ~50MB disk
 - **Auto-Provisioning**: Datasources configured automatically
@@ -242,8 +328,8 @@ open http://localhost:3000
 open http://localhost:9090
 
 # medicaments-api metrics (application metrics)
-# Available only via Docker network for internal scraping
-curl http://localhost:9090/metrics
+# Via Alloy (from Docker network only)
+docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
 
 # Alloy metrics (collector status)
 curl http://localhost:12345/metrics
@@ -292,7 +378,7 @@ loki.process "process_logs" {
 }
 ```
 
-If logs are plain text, update `alloy/config.alloy` to remove `stage.json` block and use regex parsing.
+If logs are plain text, update `configs/alloy/config.alloy` to remove `stage.json` block and use regex parsing.
 
 ---
 
@@ -355,7 +441,7 @@ Alloy collects the following system metrics:
 
 **Grafana:**
 
-- Username: `giygas` (from `.env.docker`)
+- Username: `admin` (configurable via `GRAFANA_ADMIN_USER`)
 - Password: Stored in `secrets/grafana_password.txt` (created via `make setup-secrets`)
 - **Important**: Change password after first login (Configuration → Users → Change Password)
 
@@ -382,7 +468,7 @@ Alloy collects the following system metrics:
 
 | File                                                            | Purpose                                                                                               |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `observability/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection, filters Go runtime metrics)                           |
+| `configs/alloy/config.alloy`                              | Alloy configuration (logs + metrics collection, filters Go runtime metrics)                           |
 | `observability/loki/config.yaml`                                | Loki configuration (log storage, filesystem ruler storage, 30-day retention, 16MB/sec ingestion rate) |
 | `observability/prometheus/prometheus.yml`                       | Prometheus configuration (metric storage, 30-day retention, alert rules)                              |
 | `observability/prometheus/alerts/medicaments-api.yml`           | Prometheus alert rules (service down, high error rate, high latency)                                  |
@@ -399,15 +485,15 @@ Alloy collects the following system metrics:
 
 ```bash
 # Check containers are running
-docker-compose ps
+docker compose ps
 
 # Verify network connectivity
 # Note: Grafana connects to Prometheus on container port 9090
-docker-compose exec grafana wget -O- http://loki:3100/ready
-docker-compose exec grafana wget -O- http://prometheus:9090/-/ready
+docker compose exec grafana wget -O- http://loki:3100/ready
+docker compose exec grafana wget -O- http://prometheus:9090/-/ready
 
 # Check datasource configuration
-docker-compose logs grafana | grep -i datasource
+docker compose logs grafana | grep -i datasource
 
 # Verify Prometheus datasource configuration
 cat observability/grafana/provisioning/datasources/prometheus.yml
@@ -418,29 +504,29 @@ cat observability/grafana/provisioning/datasources/prometheus.yml
 
 ```bash
 # Check Alloy is reading logs
-docker-compose logs grafana-alloy | grep -i logs
+docker compose logs grafana-alloy | grep -i logs
 
 # Verify log files exist
-docker-compose exec grafana-alloy ls -la /var/log/app/
+docker compose exec grafana-alloy ls -la /var/log/app/
 
 # Check Loki is receiving logs
-docker-compose logs loki | grep -i received
+docker compose logs loki | grep -i received
 
 # Query logs from within the Docker network
-docker-compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
+docker compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
 ```
 
 ### Metrics not appearing in Grafana
 
 ```bash
 # Check Alloy is scraping metrics
-docker-compose logs grafana-alloy | grep -i scrape
+docker compose logs grafana-alloy | grep -i scrape
 
 # Verify metrics endpoint is accessible
-docker-compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
+docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
 
 # Check Prometheus is receiving metrics
-docker-compose logs prometheus | grep -i received
+docker compose logs prometheus | grep -i received
 
 # Test Prometheus query
 curl 'http://localhost:9090/api/v1/query?query=http_request_total'
@@ -450,7 +536,7 @@ curl 'http://localhost:9090/api/v1/query?query=http_request_total'
 
 ```bash
 # Check Loki logs for storage configuration errors
-docker-compose logs loki | grep -i "storage\|ruler"
+docker compose logs loki | grep -i "storage\|ruler"
 
 # Common error: "field filesystem not found in type base.RuleStoreConfig"
 # This occurs in Loki 2.9+ when ruler storage type is not explicitly specified
@@ -463,7 +549,7 @@ docker-compose logs loki | grep -i "storage\|ruler"
 #         directory: /loki/rules
 
 # Restart Loki after fixing config
-docker-compose restart loki
+docker compose restart loki
 ```
 
 ### High resource usage
@@ -491,23 +577,23 @@ cat observability/grafana/provisioning/datasources/prometheus.yml
 # Wrong:   url: http://prometheus:9090
 
 # Restart Grafana to reload datasource config
-docker-compose restart grafana
+docker compose restart grafana
 
 # Verify connectivity from Grafana container
-docker-compose exec grafana wget -O- http://prometheus:9090/-/ready
+docker compose exec grafana wget -O- http://prometheus:9090/-/ready
 ```
 
 **Metrics not appearing in Grafana:**
 
 ```bash
 # Check if Alloy is scraping metrics from medicaments-api
-docker-compose logs grafana-alloy | grep -i "medicaments-api:9090"
+docker compose logs grafana-alloy | grep -i "medicaments-api:9090"
 
-# Verify medicaments-api metrics endpoint is accessible
-curl http://localhost:9090/metrics
+# Verify medicaments-api metrics endpoint is accessible (via Docker)
+docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
 
 # Check if Prometheus is receiving metrics from Alloy
-docker-compose logs prometheus | grep -i "received from Alloy"
+docker compose logs prometheus | grep -i "received from Alloy"
 
 # Test Prometheus query for app metrics
 curl 'http://localhost:9090/api/v1/query?query=http_request_total'
@@ -519,13 +605,13 @@ curl 'http://localhost:9090/api/v1/query?query=http_request_total'
 
 ```bash
 # Stop observability services only
-docker-compose stop grafana-alloy loki prometheus grafana
+docker compose stop grafana-alloy loki prometheus grafana
 
 # Remove observability services (keeps volumes)
-docker-compose rm -f grafana-alloy loki prometheus grafana
+docker compose rm -f grafana-alloy loki prometheus grafana
 
 # Remove observability services and all data (DELETES EVERYTHING)
-docker-compose down -v
+docker compose down -v
 
 # Remove only observability volumes
 docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medicaments-api_grafana-data
@@ -585,7 +671,7 @@ After editing, reload Prometheus configuration:
 
 ```bash
 # Restart Prometheus to apply changes
-docker-compose restart prometheus
+docker compose restart prometheus
 
 # Or use SIGHUP for hot reload (if configured)
 docker exec prometheus kill -HUP 1
@@ -634,12 +720,12 @@ providers:
 3. Restart Grafana:
 
 ```bash
-docker-compose restart grafana
+docker compose restart grafana
 ```
 
 ### Custom Log Parsers
 
-Modify `observability/alloy/config.alloy` to add custom log parsing:
+Modify `configs/alloy/config.alloy` to add custom log parsing:
 
 ```alloy
 loki.process "custom_parser" {
@@ -660,24 +746,29 @@ loki.process "custom_parser" {
 
 To reduce disk usage, edit retention settings:
 
-**Loki** (`observability/loki/config.yaml`):
+**Loki** (`observability/configs/loki/config.yaml`):
 
 ```yaml
 limits_config:
   retention_period: 168h  # 7 days (was 720h)
 ```
 
-**Prometheus** (`observability/prometheus/prometheus.yml`):
+**Prometheus** (edit CLI flag in `observability/docker-compose.yml`):
 
 ```yaml
-retention:
-  time: 168h  # 7 days (was 720h)
+prometheus:
+  command:
+    - "--config.file=/etc/prometheus/prometheus.yml"
+    - "--storage.tsdb.path=/prometheus"
+    - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-168h}"  # Change here
 ```
+
+**Note:** Prometheus retention is configured via the CLI flag `--storage.tsdb.retention.time` in `docker-compose.yml`, not in the config file. Prometheus does not support retention configuration in its config file - this is a Prometheus design decision. Loki, on the other hand, does support retention configuration in its config file.
 
 Then restart:
 
 ```bash
-docker-compose restart loki prometheus
+docker compose restart loki prometheus
 ```
 
 ### Exporting Metrics
@@ -695,4 +786,3 @@ remote_write:
 
 ---
 
-**Last updated: 2026-02-17**
