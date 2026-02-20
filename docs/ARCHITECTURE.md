@@ -306,101 +306,32 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
   - `generique_only_cis` : CIS présents uniquement dans les génériques
   - `presentations_with_orphaned_cis` : Présentations référençant des CIS inexistants
 
+_Pour la documentation complète de la stack d'observabilité (Grafana, Loki, Prometheus), consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
+
+_Pour la configuration Docker et le déploiement, consultez [DOCKER.md](DOCKER.md)._
+
 ## Stack Technique
 
-### Architecture Docker (Staging)
+### Architecture et Déploiement
 
-Le projet inclut un environnement Docker de staging complet avec observabilité via submodule Git.
+Le projet utilise une architecture modulaire avec support Docker pour le staging et la production :
 
-### Architecture Globale
+- **Environnement de développement** : Exécution directe (`go run .`)
+- **Environnement Docker (staging)** : Conteneurs avec observabilité complète
+- **Observabilité** : Stack séparée via submodule Git (Grafana, Loki, Prometheus, Alloy)
 
-```
-┌───────────────────────────────────────────────────────────┐
-│   medicaments-api/                                        │
-│   (docker-compose.yml)                                    │
-│                                                           │
-│  ┌─────────────────┐       ┌─────────────────┐            │
-│  │ medicaments-api │◀──────│ grafana-alloy   │            │
-│  │  (logs/metrics) │       │   (collector)   │            │
-│  └────────┬────────┘       └────────┬────────┘            │
-│           │ logs volume             │                     │
-│           └────────────────▶────────┘                     │
-│                                  │  │                     │
-│                    Network: obs-network (external)        │
-└──────────────────────────────────┼──┼─────────────────────┘
-                                   │  │
-┌──────────────────────────────────┼──┼─────────────────────┐
-│    observability/                │  │                     │
-│    (git submodule)               │  │                     │
-│                                  │  │                     │
-│                       ┌──────────┘  └─────────┐           │
-│                       │                       │           │
-│                  ┌────▼────┐           ┌──────▼─────┐     │
-│                  │  loki   │           │ prometheus │     │
-│                  │ (logs)  │           │  (metrics) │     │
-│                  └────┬────┘           └──────┬─────┘     │
-│                       └──────────┬────────────┘           │
-│                                  │                        │
-│                           ┌──────▼────────┐               │
-│                           │    grafana    │               │
-│                           │(visualization)│               │
-│                           └───────────────┘               │
-└───────────────────────────────────────────────────────────┘
-```
+_Pour les détails de l'architecture Docker et de la configuration des conteneurs, consultez [DOCKER.md](DOCKER.md)._
 
-### Conteneur medicaments-api
-
-- **Base image**: `scratch` (~8-10MB, surface d'attaque minimale)
-- **User**: Non-root (UID 65534/nobody)
-- **Healthcheck**: Endpoint `/health` (intervalle 30s)
-- **Ports**: 8000 (interne), 8030 (host)
-
-### Stack Observabilité (Submodule)
-
-Architecture de collecte des métriques et logs via submodule Git :
-
-**Réseau :**
-
-- Le réseau `obs-network` est externe et créé par le submodule `observability/`
-- Les deux fichiers `docker-compose.yml` utilisent ce réseau pour la communication inter-conteneurs
-
-**Services :**
-
-- **grafana-alloy** (dans docker-compose.yml de l'app) : Collecte logs + métriques, filtre Go runtime
-- **loki** (dans submodule) : Stockage des logs (30 jours)
-- **prometheus** (dans submodule) : Stockage des métriques (30 jours)
-- **grafana** (dans submodule) : Dashboard de visualisation
-
-**Modes de configuration :**
-
-- **Mode local (défaut)** : Alloy connecte via container DNS (`http://loki:3100`, `http://prometheus:9090`)
-- **Mode remote (production)** : Alloy connecte via tunnels (`PROMETHEUS_URL`, `LOKI_URL`)
-
-**Points d'accès :**
-
-- API: http://localhost:8030
-- Grafana: http://localhost:3000 (giygas/paquito)
-- Prometheus: http://localhost:9090
-- Documentation complète : [DOCKER.md](../DOCKER.md)
-
-### Sécurité Docker
-
-- **Non-root user**: UID 65534/nobody
-- **Filesystem read-only**: Sauf /app/logs (volume mount)
-- **Network isolation**: Bridge network externe `obs-network` (créé par submodule)
-- **Port exposure**: Services internes (Loki, metrics) non exposés
-- **Secrets management**: Docker secrets pour le mot de passe Grafana (dans `secrets/`)
-- **Submodule isolation**: Stack d'observabilité maintenue séparément dans repository dédié
-
-_Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)_
+_Pour la configuration et l'utilisation de la stack d'observabilité, consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
 
 ### Core Technologies
 
-- **Encoding** : Support Windows-1252/UTF-8/ISO8859-1 → UTF-8 pour les fichiers TSV sources
 - **Framework web** : Chi v5 avec middleware stack complet
 - **Scheduling** : gocron pour les mises à jour automatiques (6h/18h)
 - **Logging** : Structured logging avec slog et rotation de fichiers
 - **Rate limiting** : juju/ratelimit (token bucket algorithm)
+- **Atomic operations** : go.uber.org/atomic pour mises à jour zero-downtime
+- **Configuration** : Validation d'environnement avec godotenv
 
 ### Data Processing
 
@@ -411,7 +342,6 @@ _Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)_
 
 ### Development & Operations
 
-- **Configuration** : Validation d'environnement avec godotenv
 - **Tests** : Tests unitaires avec couverture de code et benchmarks
 - **Documentation** : OpenAPI 3.1 avec Swagger UI interactive
 - **Profiling** : pprof intégré pour le développement (port 6060)
