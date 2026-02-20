@@ -1,0 +1,18 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-obs
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    networks:
+      - obs-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
+
+networks:
+  obs-network:
+    external: true
+    name: obs-network

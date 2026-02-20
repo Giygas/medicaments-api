@@ -1,0 +1,4 @@
+[submodule "observability"]
+    path = observability
+    url = https://github.com/Giygas/observability-stack.git
+    branch = main

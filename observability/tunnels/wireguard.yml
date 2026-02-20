@@ -1,0 +1,31 @@
+services:
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard-obs
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - SERVERURL=${WG_SERVER_URL}
+      - SERVERPORT=${WG_PORT:-51820}
+      - PEERS=${WG_PEERS:-1}
+    volumes:
+      - wireguard-data:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${WG_PORT:-51820}:51820/udp"
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    networks:
+      - obs-network
+
+volumes:
+  wireguard-data:
+
+networks:
+  obs-network:
+    external: true
+    name: obs-network

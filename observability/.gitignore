@@ -1,0 +1,12 @@
+# Ignore secrets
+secrets/*.txt
+
+# Ignore environment variables
+.env
+
+# Ignore Docker volumes data
+docker-compose.override.yml
+
+# OS files
+.DS_Store
+Thumbs.db
