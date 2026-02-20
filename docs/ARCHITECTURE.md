@@ -21,8 +21,9 @@ L'architecture repose sur 6 interfaces principales :
 Gère le stockage atomique des données en mémoire avec des opérations thread-safe via `atomic.Value`, garantissant des mises à jour zero-downtime.
 
 **Responsabilités :**
+
 - Stockage atomique des médicaments et génériques
-- Maps O(1) pour lookups CIS et group ID (*voir [Performance et benchmarks](PERFORMANCE.md) pour les métriques*)
+- Maps O(1) pour lookups CIS et group ID (_voir [Performance et benchmarks](PERFORMANCE.md) pour les métriques_)
 - Opérations thread-safe pour lecture/écriture concurrente
 - Bascullement instantané sans interruption de service
 
@@ -31,18 +32,20 @@ Gère le stockage atomique des données en mémoire avec des opérations thread-
 Orchestre les requêtes et route les appels vers les bons handlers sans assertions de type.
 
 **Responsabilités :**
+
 - Dispatch des requêtes vers les handlers appropriés
 - Gestion des erreurs HTTP
 - Sérialisation des réponses JSON
 - Middleware stack orchestration
 
-*Pour plus d'informations sur les endpoints v1, consultez le [Guide de migration v1](MIGRATION.md).*
+_Pour plus d'informations sur les endpoints v1, consultez le [Guide de migration v1](MIGRATION.md)._
 
 ### Parser
 
 Télécharge et traite les 5 fichiers TSV BDPM en parallèle, construisant les maps pour lookups O(1) (CIS → médicament, groupe ID → générique).
 
 **Responsabilités :**
+
 - Téléchargement concurrent des fichiers TSV BDPM
 - Parsing avec détection automatique de charset (UTF-8/ISO8859-1)
 - Validation et nettoyage des données
@@ -54,6 +57,7 @@ Télécharge et traite les 5 fichiers TSV BDPM en parallèle, construisant les m
 Planifie les mises à jour automatiques (6h et 18h) en coordonnant le parsing et le stockage.
 
 **Responsabilités :**
+
 - Planification via gocron (6h et 18h)
 - Coordination Parser → DataStore
 - Gestion des mises à jour atomiques
@@ -64,6 +68,7 @@ Planifie les mises à jour automatiques (6h et 18h) en coordonnant le parsing et
 Surveille la fraîcheur des données et collecte les métriques système.
 
 **Responsabilités :**
+
 - Vérification de l'âge des données (alerte si > 25h)
 - Collecte des métriques système (goroutines, mémoire, GC)
 - État de santé (healthy/degraded/unhealthy)
@@ -74,6 +79,7 @@ Surveille la fraîcheur des données et collecte les métriques système.
 Assainit les entrées utilisateur et valide l'intégrité des données.
 
 **Responsabilités :**
+
 - Validation des paramètres de requête (3-50 chars, ASCII-only)
 - Détection de patterns dangereux (SQL injection, XSS, etc.)
 - Validation CIS/CIP/CIP13/CIP7 ranges
@@ -83,7 +89,7 @@ Assainit les entrées utilisateur et valide l'intégrité des données.
   - Retourne HTTP 429 si dépassé pour prévenir l'abus
   - Guide les utilisateurs vers `/export` pour le dataset complet
 
-*Voir le [Guide de tests](TESTING.md) pour les stratégies de validation des tests.*
+_Voir le [Guide de tests](TESTING.md) pour les stratégies de validation des tests._
 
 ## Flux de Données
 
@@ -108,7 +114,7 @@ Assainit les entrées utilisateur et valide l'intégrité des données.
 5. **Swap atomique** : Échange instantané via `atomic.Value`
 6. **Nettoyage** : Anciennes structures libérées par GC
 
-*Pour configurer et lancer le pipeline de parsing, consultez le [Guide de développement](DEVELOPMENT.md).*
+_Pour configurer et lancer le pipeline de parsing, consultez le [Guide de développement](DEVELOPMENT.md)._
 
 ## Middleware Stack Complet
 
@@ -139,11 +145,13 @@ L'API implémente un système de cache HTTP efficace pour optimiser les performa
 ### Stratégies de cache
 
 **Ressources statiques (documentation, OpenAPI, favicon)**
+
 - Headers `Cache-Control` avec durées adaptées
 - 1 heure pour la documentation
 - 1 an pour le favicon
 
 **Réponses API**
+
 - `Last-Modified` : Date de dernière modification des données
 - `ETag` : Hash SHA256 pour validation conditionnelle
 - Réponses `304 Not Modified` sur requêtes répétées
@@ -151,6 +159,7 @@ L'API implémente un système de cache HTTP efficace pour optimiser les performa
 ### Compression
 
 Compression gzip appliquée automatiquement :
+
 - Réduit la taille des réponses JSON jusqu'à 80%
 - Négociation content-encoding automatique
 - Transparente pour le client
@@ -301,7 +310,43 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
 
 ### Architecture Docker (Staging)
 
-Le projet inclut un environnement Docker de staging complet avec observabilité :
+Le projet inclut un environnement Docker de staging complet avec observabilité via submodule Git.
+
+### Architecture Globale
+
+```
+┌───────────────────────────────────────────────────────────┐
+│   medicaments-api/                                        │
+│   (docker-compose.yml)                                    │
+│                                                           │
+│  ┌─────────────────┐       ┌─────────────────┐            │
+│  │ medicaments-api │◀──────│ grafana-alloy   │            │
+│  │  (logs/metrics) │       │   (collector)   │            │
+│  └────────┬────────┘       └────────┬────────┘            │
+│           │ logs volume             │                     │
+│           └────────────────▶────────┘                     │
+│                                  │  │                     │
+│                    Network: obs-network (external)        │
+└──────────────────────────────────┼──┼─────────────────────┘
+                                   │  │
+┌──────────────────────────────────┼──┼─────────────────────┐
+│    observability/                │  │                     │
+│    (git submodule)               │  │                     │
+│                                  │  │                     │
+│                       ┌──────────┘  └─────────┐           │
+│                       │                       │           │
+│                  ┌────▼────┐           ┌──────▼─────┐     │
+│                  │  loki   │           │ prometheus │     │
+│                  │ (logs)  │           │  (metrics) │     │
+│                  └────┬────┘           └──────┬─────┘     │
+│                       └──────────┬────────────┘           │
+│                                  │                        │
+│                           ┌──────▼────────┐               │
+│                           │    grafana    │               │
+│                           │(visualization)│               │
+│                           └───────────────┘               │
+└───────────────────────────────────────────────────────────┘
+```
 
 ### Conteneur medicaments-api
 
@@ -310,40 +355,44 @@ Le projet inclut un environnement Docker de staging complet avec observabilité 
 - **Healthcheck**: Endpoint `/health` (intervalle 30s)
 - **Ports**: 8000 (interne), 8030 (host)
 
-### Stack Observabilité
+### Stack Observabilité (Submodule)
 
-Architecture de collecte des métriques et logs :
+Architecture de collecte des métriques et logs via submodule Git :
 
-```
-medicaments-api (logs + metrics)
-          ↓
-grafana-alloy (collector)
-          ↓         ↓
-       loki    prometheus
-          ↓         ↓
-          grafana (visualization)
-```
+**Réseau :**
+
+- Le réseau `obs-network` est externe et créé par le submodule `observability/`
+- Les deux fichiers `docker-compose.yml` utilisent ce réseau pour la communication inter-conteneurs
 
 **Services :**
-- **grafana-alloy**: Collecte logs + métriques, filtre Go runtime
-- **loki**: Stockage des logs (30 jours)
-- **prometheus**: Stockage des métriques (30 jours)
-- **grafana**: Dashboard de visualisation
+
+- **grafana-alloy** (dans docker-compose.yml de l'app) : Collecte logs + métriques, filtre Go runtime
+- **loki** (dans submodule) : Stockage des logs (30 jours)
+- **prometheus** (dans submodule) : Stockage des métriques (30 jours)
+- **grafana** (dans submodule) : Dashboard de visualisation
+
+**Modes de configuration :**
+
+- **Mode local (défaut)** : Alloy connecte via container DNS (`http://loki:3100`, `http://prometheus:9090`)
+- **Mode remote (production)** : Alloy connecte via tunnels (`PROMETHEUS_URL`, `LOKI_URL`)
 
 **Points d'accès :**
+
 - API: http://localhost:8030
 - Grafana: http://localhost:3000 (giygas/paquito)
 - Prometheus: http://localhost:9090
+- Documentation complète : [DOCKER.md](../DOCKER.md)
 
 ### Sécurité Docker
 
 - **Non-root user**: UID 65534/nobody
 - **Filesystem read-only**: Sauf /app/logs (volume mount)
-- **Network isolation**: Bridge network personnalisé
+- **Network isolation**: Bridge network externe `obs-network` (créé par submodule)
 - **Port exposure**: Services internes (Loki, metrics) non exposés
-- **Secrets management**: Docker secrets pour le mot de passe Grafana
+- **Secrets management**: Docker secrets pour le mot de passe Grafana (dans `secrets/`)
+- **Submodule isolation**: Stack d'observabilité maintenue séparément dans repository dédié
 
-*Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)*
+_Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)_
 
 ### Core Technologies
 
@@ -388,26 +437,31 @@ require (
 L'architecture privilégie la simplicité, l'efficacité et la résilience :
 
 ### Atomic operations
+
 - Mises à jour sans temps d'arrêt
 - Swap instantané via `atomic.Value`
 - Pas de downtime pour les utilisateurs
 
 ### Stateless architecture
+
 - Facilite la montée en charge horizontale
 - Chaque requête est indépendante
 - Pas d'état partagé entre les requêtes
 
 ### Modular design
+
 - Séparation claire des responsabilités
 - Interface-based design pour testabilité
 - Remplaçabilité des composants
 
 ### Memory optimization
+
 - Cache intelligent pour des réponses rapides
 - O(1) lookups pour les requêtes fréquentes
 - Minimalisation des allocations
 
 ### Concurrency safety
+
 - `sync.RWMutex` pour les accès concurrents
 - Opérations atomiques pour les swaps de données
 - Pas de race conditions dans le code critique

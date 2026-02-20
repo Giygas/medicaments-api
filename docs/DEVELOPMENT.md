@@ -63,6 +63,7 @@ MAX_HEADER_SIZE=1048576           # 1MB max taille headers
 - **Documentation interactive** : http://localhost:8000/docs ou http://localhost:8030/docs (Docker)
 - **Health endpoint** : http://localhost:8000/health ou http://localhost:8030/health (Docker)
 - **Observabilité (Docker)** : Grafana http://localhost:3000, Prometheus http://localhost:9090
+  - Géré via le submodule `observability/` (voir [DOCKER.md](../DOCKER.md))
 
 ## Commandes de Build
 
@@ -90,13 +91,16 @@ _Pour plus d'informations sur les optimisations de performance et les benchmarks
 
 ### Docker Staging (Optionnel)
 
-Pour un environnement de staging complet avec monitoring :
+Pour un environnement de staging complet avec monitoring via submodule d'observabilité :
 
 ```bash
 # Prérequis : Docker Engine 20.10+ ou Docker Desktop 4.0+
 
 # Setup secrets (Grafana password)
 make setup-secrets
+
+# Initialiser le submodule d'observabilité (première fois seulement)
+make obs-init
 
 # Démarrer tous les services (API + observability)
 make up
@@ -110,8 +114,11 @@ open http://localhost:3000  # giygas/paquito
 # Accéder à Prometheus (métriques)
 open http://localhost:9090
 
-# Voir les logs
+# Voir les logs de l'application
 make logs
+
+# Voir les logs de la stack d'observabilité
+make obs-logs
 
 # Arrêter
 make down
@@ -120,8 +127,19 @@ make down
 **Ports mappés :**
 
 - API: 8030 (host) → 8000 (container)
-- Grafana: 3000
-- Prometheus: 9090
+- Grafana: 3000 (host) → 3000 (container)
+- Prometheus: 9090 (host) → 9090 (container)
+
+**Commandes d'observabilité :**
+
+| Commande          | Description                                         |
+| ----------------- | --------------------------------------------------- |
+| `make obs-init`   | Initialiser le submodule (première fois)            |
+| `make obs-up`     | Démarrer la stack d'observabilité                   |
+| `make obs-down`   | Arrêter la stack d'observabilité                    |
+| `make obs-logs`   | Voir les logs de la stack d'observabilité           |
+| `make obs-status` | Vérifier le statut de la stack d'observabilité      |
+| `make obs-update` | Mettre à jour le submodule vers la dernière version |
 
 _Pour la documentation complète Docker, voir [DOCKER.md](../DOCKER.md)_
 

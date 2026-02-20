@@ -5,56 +5,26 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - Non publié
+## [Non publié]
 
 ### Ajouté
 
-- **Paramètre `pageSize`** pour pagination personnalisée
-  - Optionnel avec `page`, valeur par défaut: 10
-  - Plage valide: 1-200 éléments par page
-  - Erreur 400 si utilisé sans `page`
-  - Support ETag avec différentes valeurs de pageSize
-- **Support Docker** avec builds multi-architecture (amd64, arm64)
-  - Makefile avec commandes simplifiées pour build, up, down, logs, ps
-  - Images scratch ultra-légères (~8-10MB)
-  - Sécurité renforcée : utilisateur non-root, filesystem read-only, secrets via variables d'environnement
-- **Stack d'observabilité complète** avec Grafana, Loki, Prometheus et Alloy
-  - Dashboards Grafana pour les métriques API, performance et santé
-  - Centralisation des logs avec Loki et Alloy
-  - Alertes Prometheus configurées
-  - Support remote-write Prometheus
-- **Support des médicaments en association** dans la validation des entrées
-  - Le slash (`/`) est maintenant accepté pour la recherche de médicaments en association
-  - Ex: `paracetamol/codeine`, `ibuprofene/caffeine`
-- **Protection contre path traversal** par blocage explicite des points consécutifs
-  - Les points consécutifs (`..`) sont rejetés pour prévenir les attaques
-  - Points simples toujours autorisés (ex: `test.value`, `d'alembert`)
-- **Variable ALLOW_DIRECT_ACCESS** pour l'environnement Docker
-  - Permet d'accéder directement via IP sans contourner le rate limiting
-- **Validation de X-Forwarded-For** dans le middleware
-  - Améliore le suivi des IPs clients derrière reverse proxy
-- **Métriques supplémentaires** : total des buckets actifs du rate limiter
+- Paramètre `pageSize` pour pagination personnalisée (1-200 éléments par page)
+- Support de la recherche de médicaments en association avec séparateur slash
+- Support Docker avec builds multi-architecture et durcissement de sécurité
+- Stack d'observabilité avec Grafana, Loki, Prometheus et Alloy
 
 ### Modifié
 
-- **Validation des entrées** : Standardisation des messages d'erreur
-  - Message d'erreur uniforme pour cohérence
-- **Amélioration de la journalisation** : Optimisations internes (timeout configurable, nettoyage par nom de fichier, réduction allocations)
-- **Amélioration du suivi des IP** : Validation de X-Forwarded-For dans le middleware
-  - Améliore le suivi des clients derrière reverse proxy
-- **Tests** : Accélération des tests CI (performance claims ignorés en mode short)
-- **Limites de résultats de recherche** pour prévenir les abus d'API
-  - `/v1/medicaments?search=` : maximum 250 résultats (429 au-delà)
-  - `/v1/generiques?libelle=` : maximum 100 résultats (429 au-delà)
-  - Migration : Utilisez `GET /v1/medicaments/export` pour le dataset complet
-  - Réponse 429 :
-    ```json
-    {
-      "error": "Too Many Requests",
-      "message": "Too many results returned. Maximum 250 results per search. Use /export for full dataset",
-      "code": 429
-    }
-    ```
+- Les endpoints de recherche renvoient maintenant HTTP 429 lorsque les résultats dépassent les limites
+- Maximum 250 résultats pour `/v1/medicaments?search`
+- Maximum 100 résultats pour `/v1/generiques?libelle`
+- Les apostrophes fonctionnent maintenant correctement dans la validation de recherche
+
+### Corrigé
+
+- Attaques par path traversal bloquées en rejetant les points consécutifs
+- Suivi des IP amélioré avec validation de X-Forwarded-For
 
 ## [1.1.0] - 2026-02-13
 
@@ -265,6 +235,7 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 - **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
 - **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.1.0...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/giygas/medicaments-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/giygas/medicaments-api/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/giygas/medicaments-api/releases/tag/v1.0.0
