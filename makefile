@@ -21,6 +21,7 @@ COMPOSE_FILE := docker-compose.yml
 ENV_FILE := .env.docker
 IMAGE_NAME := medicaments-api
 IMAGE_TAG := $(IMAGE_NAME):$(APP_VERSION)
+OBS_DIR := observability
 
 # Colors for output
 CYAN := \033[36m
@@ -106,7 +107,7 @@ build-arm64: ## Force arm64 build
 	@echo "$(GREEN)✓ Build complete: $(IMAGE_NAME):arm64$(RESET)"
 
 .PHONY: up
-up: validate-secrets ## Start all services in detached mode
+up: obs-up validate-secrets ## Start all services (obs stack + app)
 	@echo "Starting services..."
 	@APP_VERSION=$(APP_VERSION) \
 		docker compose --env-file $(ENV_FILE) up -d
@@ -117,13 +118,14 @@ up: validate-secrets ## Start all services in detached mode
 	@echo "Prometheus: http://localhost:9090"
 
 .PHONY: down
-down: ## Stop all services
+down: ## Stop all services (app + obs stack)
 	@echo "Stopping services..."
 	@docker compose --env-file $(ENV_FILE) down
+	@$(MAKE) obs-down
 	@echo "$(GREEN)✓ Services stopped$(RESET)"
 
 .PHONY: restart
-restart: down up ## Restart all services
+restart: down up ## Restart all services (app + obs stack)
 
 .PHONY: rebuild
 rebuild: ## Rebuild Docker images (without cleanup)
@@ -144,6 +146,42 @@ ps: ## Show service status
 .PHONY: stats
 stats: ## Show resource usage
 	@docker stats --no-stream
+
+##@ Observability Submodule
+
+.PHONY: obs-up obs-down obs-update obs-logs obs-status obs-init
+
+obs-init: ## Initialize observability submodule
+	@echo "Initializing observability submodule..."
+	@if [ -d "$(OBS_DIR)" ]; then \
+		echo "✓ Observability submodule already exists"; \
+	else \
+		git submodule add https://github.com/Giygas/observability-stack.git $(OBS_DIR) && \
+		git submodule update --init --recursive $(OBS_DIR) && \
+		$(MAKE) -C $(OBS_DIR) setup && \
+		echo "$(GREEN)✓ Observability submodule initialized$(RESET)"; \
+	fi
+
+obs-up: ## Start observability stack (via submodule)
+	@echo "Starting observability stack..."
+	@$(MAKE) -C $(OBS_DIR) up
+	@echo "$(GREEN)✓ Observability stack started$(RESET)"
+
+obs-down: ## Stop observability stack (via submodule)
+	@echo "Stopping observability stack..."
+	@$(MAKE) -C $(OBS_DIR) down
+	@echo "$(GREEN)✓ Observability stack stopped$(RESET)"
+
+obs-update: ## Update observability submodule
+	@echo "Updating observability submodule..."
+	@git submodule update --remote $(OBS_DIR)
+	@echo "$(GREEN)✓ Observability submodule updated$(RESET)"
+
+obs-logs: ## View observability stack logs
+	@$(MAKE) -C $(OBS_DIR) logs
+
+obs-status: ## Show observability stack status
+	@$(MAKE) -C $(OBS_DIR) status
 
 ##@ Maintenance
 
