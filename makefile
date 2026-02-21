@@ -45,39 +45,20 @@ help: ## Display this help message
 
 .PHONY: validate-secrets
 validate-secrets: ## Validate required secrets files exist
-	@if [ ! -f ./secrets/grafana_password.txt ]; then \
-		echo "❌ Error: secrets/grafana_password.txt not found"; \
+	@if [ ! -f ./observability/secrets/grafana_password.txt ]; then \
+		echo "❌ Error: observability/secrets/grafana_password.txt not found"; \
 		echo ""; \
 		echo "Required secrets are missing. Please run:"; \
-		echo "  make setup-secrets"; \
+		echo "  make -C observability setup"; \
 		echo ""; \
-		echo "Or create manually:"; \
-		echo "  mkdir -p secrets"; \
-		echo "  echo 'your-secure-password' > secrets/grafana_password.txt"; \
-		echo "  chmod 600 secrets/grafana_password.txt"; \
 		exit 1; \
 	fi
-	@if [ ! -r ./secrets/grafana_password.txt ]; then \
-		echo "❌ Error: secrets/grafana_password.txt is not readable"; \
-		echo "Run: chmod 644 secrets/grafana_password.txt"; \
+	@if [ ! -r ./observability/secrets/grafana_password.txt ]; then \
+		echo "❌ Error: observability/secrets/grafana_password.txt is not readable"; \
+		echo "Run: chmod 644 observability/secrets/grafana_password.txt"; \
 		exit 1; \
 	fi
 	@echo "✓ Secrets validated successfully"
-
-.PHONY: setup-secrets
-setup-secrets: ## Set up required secrets files
-	@echo "Setting up secrets..."
-	@mkdir -p secrets
-	@if [ ! -f ./secrets/grafana_password.txt ]; then \
-		read -sp "Enter Grafana admin password: " password; \
-		echo ""; \
-		echo "$$password" > ./secrets/grafana_password.txt; \
-		chmod 600 ./secrets/grafana_password.txt; \
-		echo "✓ Created secrets/grafana_password.txt"; \
-	else \
-		echo "✓ secrets/grafana_password.txt already exists"; \
-	fi
-	@echo "✓ Secrets setup complete"
 
 .PHONY: build
 build: ## Build Docker image (auto-detects host arch)
@@ -107,15 +88,13 @@ build-arm64: ## Force arm64 build
 	@echo "$(GREEN)✓ Build complete: $(IMAGE_NAME):arm64$(RESET)"
 
 .PHONY: up
-up: obs-up validate-secrets ## Start all services (obs stack + app)
+up: obs-up ## Start all services (obs stack + app)
 	@echo "Starting services..."
 	@APP_VERSION=$(APP_VERSION) \
 		docker compose --env-file $(ENV_FILE) up -d
 	@echo "$(GREEN)✓ Services started!$(RESET)"
 	@echo ""
 	@echo "API:        http://localhost:8030"
-	@echo "Grafana:    http://localhost:3000"
-	@echo "Prometheus: http://localhost:9090"
 
 .PHONY: down
 down: ## Stop all services (app + obs stack)
@@ -152,25 +131,16 @@ stats: ## Show resource usage
 .PHONY: obs-up obs-down obs-update obs-logs obs-status obs-init
 
 obs-init: ## Initialize observability submodule
-	@echo "Initializing observability submodule..."
-	@if [ -d "$(OBS_DIR)" ]; then \
-		echo "✓ Observability submodule already exists"; \
-	else \
-		git submodule add https://github.com/Giygas/observability-stack.git $(OBS_DIR) && \
-		git submodule update --init --recursive $(OBS_DIR) && \
-		$(MAKE) -C $(OBS_DIR) setup && \
-		echo "$(GREEN)✓ Observability submodule initialized$(RESET)"; \
-	fi
+	@git submodule update --init --recursive $(OBS_DIR)
+	@$(MAKE) -C $(OBS_DIR) setup
+	@echo "$(GREEN)✓ Observability submodule initialized$(RESET)"
 
 obs-up: ## Start observability stack (via submodule)
 	@echo "Starting observability stack..."
 	@$(MAKE) -C $(OBS_DIR) up
-	@echo "$(GREEN)✓ Observability stack started$(RESET)"
 
 obs-down: ## Stop observability stack (via submodule)
-	@echo "Stopping observability stack..."
 	@$(MAKE) -C $(OBS_DIR) down
-	@echo "$(GREEN)✓ Observability stack stopped$(RESET)"
 
 obs-update: ## Update observability submodule
 	@echo "Updating observability submodule..."
@@ -193,7 +163,7 @@ clean: ## Remove containers, networks, volumes, and images
 
 .PHONY: export
 export: ## Export Docker image as tar file (optional: IMAGE=tag)
-	@IMAGE=$$(or $(IMAGE),$(IMAGE_TAG)); \
+	@IMAGE=$${IMAGE:-$(IMAGE_TAG)}; \
 	FILENAME=$$(echo $$IMAGE | tr ':/' '-').tar; \
 	echo "Exporting $$IMAGE to $$FILENAME..."; \
 	docker save $$IMAGE -o $$FILENAME; \
@@ -218,8 +188,8 @@ import: ## Import Docker image from tar file (optional: FILE=tarfile)
 		fi; \
 	fi
 	@echo "Importing $(FILE)..."; \
-	@docker load -i $(FILE)
-	@echo "$(GREEN)✓ Import complete: $(FILE)$(RESET)"
+	docker load -i $(FILE); \
+	echo "$(GREEN)✓ Import complete: $(FILE)$(RESET)"
 
 ##@ Testing
 
@@ -241,7 +211,7 @@ test-race: ## Run tests with race detection
 .PHONY: test-smoke
 test-smoke: ## Run smoke tests
 	@echo "Running smoke tests..."
-	@go test ./tests -run TestSmoke -v
+	@go test ./tests -run .*Smoke.* -v
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
