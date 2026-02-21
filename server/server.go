@@ -85,8 +85,7 @@ func (s *Server) setupMiddleware() {
 
 	s.router.Use(metrics.Metrics)
 
-	// Disable rate limiting in test mode to measure true throughput performance
-	if s.config.Env != config.EnvTest {
+	if !s.config.DisableRateLimiter {
 		s.router.Use(RateLimitHandler)
 	}
 }

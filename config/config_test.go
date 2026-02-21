@@ -169,7 +169,7 @@ func TestParseEnvironment(t *testing.T) {
 		{"staging", EnvStaging, false},
 		{"prod", EnvProduction, false},
 		{"production", EnvProduction, false},
-		{"test", EnvTest, false},
+		{"test", EnvDevelopment, true},
 		{"invalid", EnvDevelopment, true},
 	}
 
@@ -247,17 +247,55 @@ func TestAllowDirectAccess(t *testing.T) {
 	}
 }
 
+func TestDisableRateLimiter(t *testing.T) {
+	tests := []struct {
+		name          string
+		envValue      string
+		expectedValue bool
+	}{
+		{"DISABLE_RATE_LIMITER=true", "true", true},
+		{"DISABLE_RATE_LIMITER=TRUE", "TRUE", true},
+		{"DISABLE_RATE_LIMITER=1", "1", true},
+		{"DISABLE_RATE_LIMITER=false", "false", false},
+		{"DISABLE_RATE_LIMITER=FALSE", "FALSE", false},
+		{"DISABLE_RATE_LIMITER=0", "0", false},
+		{"DISABLE_RATE_LIMITER not set", "", false},
+		{"DISABLE_RATE_LIMITER invalid", "invalid", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_ = os.Setenv("PORT", "8003")
+			_ = os.Setenv("ADDRESS", "127.0.0.1")
+			_ = os.Setenv("ENV", "dev")
+			_ = os.Setenv("LOG_LEVEL", "info")
+			_ = os.Setenv("DISABLE_RATE_LIMITER", tt.envValue)
+			defer cleanupEnv()
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+
+			if cfg.DisableRateLimiter != tt.expectedValue {
+				t.Errorf("Expected DisableRateLimiter=%v for %s, got %v", tt.expectedValue, tt.name, cfg.DisableRateLimiter)
+			}
+		})
+	}
+}
+
 func TestValidateAddress_0dot0dot0dot0dot0_WithoutAllowDirectAccess(t *testing.T) {
 	cfg := &Config{
-		Address:           "0.0.0.0",
-		Port:              "8000",
-		Env:               EnvDevelopment,
-		LogLevel:          "info",
-		LogRetentionWeeks: 4,
-		MaxLogFileSize:    104857600,
-		MaxRequestBody:    1048576,
-		MaxHeaderSize:     1048576,
-		AllowDirectAccess: false,
+		Address:            "0.0.0.0",
+		Port:               "8000",
+		Env:                EnvDevelopment,
+		LogLevel:           "info",
+		LogRetentionWeeks:  4,
+		MaxLogFileSize:     104857600,
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		AllowDirectAccess:  false,
+		DisableRateLimiter: false,
 	}
 
 	err := validateAddress(cfg)
@@ -274,15 +312,16 @@ func TestValidateAddress_0dot0dot0dot0dot0_WithoutAllowDirectAccess(t *testing.T
 
 func TestValidateAddress_0dot0dot0dot0dot0_WithAllowDirectAccess(t *testing.T) {
 	cfg := &Config{
-		Address:           "0.0.0.0",
-		Port:              "8000",
-		Env:               EnvDevelopment,
-		LogLevel:          "info",
-		LogRetentionWeeks: 4,
-		MaxLogFileSize:    104857600,
-		MaxRequestBody:    1048576,
-		MaxHeaderSize:     1048576,
-		AllowDirectAccess: true,
+		Address:            "0.0.0.0",
+		Port:               "8000",
+		Env:                EnvDevelopment,
+		LogLevel:           "info",
+		LogRetentionWeeks:  4,
+		MaxLogFileSize:     104857600,
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		AllowDirectAccess:  true,
+		DisableRateLimiter: false,
 	}
 
 	err := validateAddress(cfg)
@@ -294,15 +333,16 @@ func TestValidateAddress_0dot0dot0dot0dot0_WithAllowDirectAccess(t *testing.T) {
 
 func TestValidateAddress_IPv6Any_WithoutAllowDirectAccess(t *testing.T) {
 	cfg := &Config{
-		Address:           "::",
-		Port:              "8000",
-		Env:               EnvDevelopment,
-		LogLevel:          "info",
-		LogRetentionWeeks: 4,
-		MaxLogFileSize:    104857600,
-		MaxRequestBody:    1048576,
-		MaxHeaderSize:     1048576,
-		AllowDirectAccess: false,
+		Address:            "::",
+		Port:               "8000",
+		Env:                EnvDevelopment,
+		LogLevel:           "info",
+		LogRetentionWeeks:  4,
+		MaxLogFileSize:     104857600,
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		AllowDirectAccess:  false,
+		DisableRateLimiter: false,
 	}
 
 	err := validateAddress(cfg)
@@ -314,15 +354,16 @@ func TestValidateAddress_IPv6Any_WithoutAllowDirectAccess(t *testing.T) {
 
 func TestValidateAddress_IPv6Any_WithAllowDirectAccess(t *testing.T) {
 	cfg := &Config{
-		Address:           "::",
-		Port:              "8000",
-		Env:               EnvDevelopment,
-		LogLevel:          "info",
-		LogRetentionWeeks: 4,
-		MaxLogFileSize:    104857600,
-		MaxRequestBody:    1048576,
-		MaxHeaderSize:     1048576,
-		AllowDirectAccess: true,
+		Address:            "::",
+		Port:               "8000",
+		Env:                EnvDevelopment,
+		LogLevel:           "info",
+		LogRetentionWeeks:  4,
+		MaxLogFileSize:     104857600,
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		AllowDirectAccess:  true,
+		DisableRateLimiter: false,
 	}
 
 	err := validateAddress(cfg)
@@ -334,15 +375,16 @@ func TestValidateAddress_IPv6Any_WithAllowDirectAccess(t *testing.T) {
 
 func TestValidateAddress_127dot0dot0dot1_AlwaysAllowed(t *testing.T) {
 	cfg := &Config{
-		Address:           "127.0.0.1",
-		Port:              "8000",
-		Env:               EnvDevelopment,
-		LogLevel:          "info",
-		LogRetentionWeeks: 4,
-		MaxLogFileSize:    104857600,
-		MaxRequestBody:    1048576,
-		MaxHeaderSize:     1048576,
-		AllowDirectAccess: false,
+		Address:            "127.0.0.1",
+		Port:               "8000",
+		Env:                EnvDevelopment,
+		LogLevel:           "info",
+		LogRetentionWeeks:  4,
+		MaxLogFileSize:     104857600,
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		AllowDirectAccess:  false,
+		DisableRateLimiter: false,
 	}
 
 	err := validateAddress(cfg)
