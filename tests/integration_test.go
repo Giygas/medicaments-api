@@ -9,16 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
-	"github.com/giygas/medicaments-api/handlers"
-	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
+	"github.com/giygas/medicaments-api/server"
 	"github.com/giygas/medicaments-api/validation"
 )
 
@@ -212,6 +209,19 @@ func cleanupTestEnvironment(t *testing.T) {
 	// os.RemoveAll("src")
 }
 
+func setupIntegrationTestServer(dataContainer *data.DataContainer) *server.Server {
+	cfg := &config.Config{
+		Port:               "0",
+		Address:            "localhost",
+		Env:                config.EnvTest,
+		LogLevel:           "error",
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		DisableRateLimiter: true,
+	}
+	return server.NewServer(cfg, dataContainer)
+}
+
 func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation) {
 	// Use existing validator to generate data quality report (eliminates redundant validation logic)
 	validator := validation.NewDataValidator()
@@ -278,7 +288,6 @@ func verifyDataIntegrity(t *testing.T, medicaments []entities.Medicament, generi
 
 func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicament, generiques []entities.GeneriqueList) {
 	// Create a test router with real data
-	router := chi.NewRouter()
 
 	// Create a new data container for testing
 	dataContainer := data.NewDataContainer()
@@ -295,7 +304,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 		t.Fatalf("Failed to create generiques map for API testing: %v", err)
 	}
 
-	// Load data into the container (simulating real API behavior)
+	// Load data into container (simulating real API behavior)
 	// Note: In real tests, we'd get presentation maps from ParseAllMedicaments
 	// For now, using empty maps for this test
 	dataContainer.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
@@ -314,21 +323,12 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 			GeneriqueOnlyCISList:               []int{},
 		})
 
-	// Create HTTP handler
-	validator := validation.NewDataValidator()
-	healthChecker := health.NewHealthChecker(dataContainer)
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
-
-	// Add routes using v1 handlers
-	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
-	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
-	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
-	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
-	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
-	router.Get("/health", httpHandler.HealthCheck)
+	srv := setupIntegrationTestServer(dataContainer)
+	router := srv.Router()
 
 	// Test database endpoint (export all)
 	req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -348,6 +348,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 
 	// Test paged database endpoint
 	req = httptest.NewRequest("GET", "/v1/medicaments?page=1", nil)
+	req.RemoteAddr = "127.0.0.1:12345"
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -365,6 +366,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 	if len(medicaments) > 0 {
 		firstCIS := medicaments[0].Cis
 		req = httptest.NewRequest("GET", fmt.Sprintf("/v1/medicaments/%d", firstCIS), nil)
+		req.RemoteAddr = "127.0.0.1:12345"
 		w = httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -384,6 +386,7 @@ func testAPIEndpointsWithRealData(t *testing.T, medicaments []entities.Medicamen
 
 	// Test health endpoint
 	req = httptest.NewRequest("GET", "/health", nil)
+	req.RemoteAddr = "127.0.0.1:12345"
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

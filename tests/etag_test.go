@@ -5,14 +5,25 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
-	"github.com/giygas/medicaments-api/handlers"
-	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
-	"github.com/giygas/medicaments-api/validation"
-	"github.com/go-chi/chi/v5"
+	"github.com/giygas/medicaments-api/server"
 )
+
+func setupETagTestServer(dataContainer *data.DataContainer) *server.Server {
+	cfg := &config.Config{
+		Port:               "0",
+		Address:            "localhost",
+		Env:                config.EnvTest,
+		LogLevel:           "error",
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		DisableRateLimiter: true,
+	}
+	return server.NewServer(cfg, dataContainer)
+}
 
 func TestETagFunctionality(t *testing.T) {
 	// NOTE: ETag functionality is implemented in most v1 endpoints and ExportMedicaments:
@@ -110,19 +121,12 @@ func TestETagFunctionality(t *testing.T) {
 			GeneriqueOnlyCISList:               []int{},
 		})
 
-	validator := validation.NewDataValidator()
-	healthChecker := health.NewHealthChecker(dataContainer)
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
-
-	// Test FindMedicamentByCIP with ETag (this endpoint supports ETag)
-	cipHandler := httpHandler.FindMedicamentByCIP
-
-	// Create a chi router to properly set path values
-	router := chi.NewRouter()
-	router.Get("/medicament/cip/{cip}", cipHandler)
+	srv := setupETagTestServer(dataContainer)
+	router := srv.Router()
 
 	// First request - should return 200 with ETag
 	req1 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req1.RemoteAddr = "127.0.0.1:12345"
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
 
@@ -139,6 +143,7 @@ func TestETagFunctionality(t *testing.T) {
 
 	// Second request with If-None-Match - should return 304
 	req2 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req2.RemoteAddr = "127.0.0.1:12345"
 	req2.Header.Set("If-None-Match", etag1)
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
@@ -157,6 +162,7 @@ func TestETagFunctionality(t *testing.T) {
 
 	// Test with different ETag - should return 200
 	req3 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req3.RemoteAddr = "127.0.0.1:12345"
 	req3.Header.Set("If-None-Match", `"different-etag"`)
 	w3 := httptest.NewRecorder()
 	router.ServeHTTP(w3, req3)
