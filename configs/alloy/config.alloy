@@ -35,6 +35,12 @@ loki.process "parse_json" {
     format = "RFC3339Nano"
   }
 
+  // Drop DEBUG logs before storing
+  stage.drop {
+    source = "level"
+    value  = "DEBUG"
+  }
+
   stage.labels {
     values = {
       level  = "level",
