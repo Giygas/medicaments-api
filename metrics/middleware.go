@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type responseWriter struct {
@@ -28,15 +30,17 @@ func Metrics(next http.Handler) http.Handler {
 
 		duration := time.Since(start).Seconds()
 
+		path := chi.RouteContext(r.Context()).RoutePattern()
+
 		HTTPRequestTotals.WithLabelValues(
 			r.Method,
-			r.URL.Path,
+			path,
 			fmt.Sprintf("%d", wrapped.statusCode),
 		).Inc()
 
 		HTTPRequestDuration.WithLabelValues(
 			r.Method,
-			r.URL.Path,
+			path,
 		).Observe(duration)
 	},
 	)
