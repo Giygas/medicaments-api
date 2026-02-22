@@ -2,7 +2,17 @@
 .DEFAULT_GOAL := help
 
 # Version variables
-APP_VERSION := $(shell grep APP_VERSION .env.docker | cut -d'=' -f2)
+# Check if we're on a tagged commit (release)
+IS_TAGGED := $(shell git describe --tags --exact-match > /dev/null 2>&1 && echo "1" || echo "0")
+
+ifeq ($(IS_TAGGED),1)
+    # On a release tag - use clean version (e.g., 1.2.0)
+    APP_VERSION := $(shell git describe --tags --abbrev=0 | sed 's/^v//')
+else
+    # Development build - include commit info (e.g., 1.2.0-67-gb3c7af9-dirty)
+    APP_VERSION := $(shell git describe --tags --always | sed 's/^v//')
+endif
+
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
