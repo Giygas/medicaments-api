@@ -267,6 +267,7 @@ go vet ./...
 - **Health endpoint** : `http://localhost:8000/health` ou `http://localhost:8030/health` (Docker)
 - **Observabilité (Docker)** : Grafana `http://localhost:3000`, Prometheus `http://localhost:9090`
   - Géré via le submodule `observability/` (voir [DOCKER.md](DOCKER.md))
+  - Voir [OBSERVABILITY.md](OBSERVABILITY.md) pour l'utilisation avec l'API
 
 ## Limitations et Conditions d'Utilisation
 

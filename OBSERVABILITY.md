@@ -1,6 +1,6 @@
-# Guide de la Stack d'Observabilité
+# Guide de l'Observabilité - medicaments-api
 
-**Guide complet de la stack d'observabilité Grafana, Loki, Prometheus et Alloy**
+**Guide pour configurer et utiliser la stack d'observabilité avec medicaments-api**
 
 ---
 
@@ -38,27 +38,55 @@ Les deux composants sont connectés via le réseau externe `obs-network` créé 
 ## Table des matières
 
 - [Vue d'ensemble](#vue-densemble)
+- [Configuration Rapide](#configuration-rapide)
 - [Architecture](#architecture)
-- [Architecture des Ports](#architecture-des-ports)
-- [Services](#services)
-  - [Grafana Alloy](#grafana-alloy)
-  - [Loki](#loki)
-  - [Prometheus](#prometheus)
-  - [Grafana](#grafana)
-- [Points d'Accès](#points-daccès)
+- [Modes de Configuration](#modes-de-configuration)
+  - [Mode Local (Défaut)](#mode-local-défaut)
+  - [Mode Remote (Production)](#mode-remote-production)
+- [Configuration de l'Application](#configuration-de-lapplication)
+  - [Configuration Grafana Alloy](#configuration-grafana-alloy)
+  - [Variables d'Environnement](#variables-denvironnement)
+- [Gestion du Submodule](#gestion-du-submodule)
+- [Documentation du Submodule](#documentation-du-submodule)
+- [Métriques de l'Application](#métriques-de-lapplication)
 - [Format des Logs](#format-des-logs)
-- [Métriques Collectées](#métriques-collectées)
-- [Identifiants par Défaut](#identifiants-par-défaut)
-- [Utilisation des Ressources](#utilisation-des-ressources)
-- [Fichiers de Configuration](#fichiers-de-configuration)
+- [Points d'Accès](#points-daccès)
 - [Dépannage](#dépannage)
-- [Nettoyage](#nettoyage)
-- [Alerting Prometheus](#alerting-prometheus)
-  - [Règles d'Alerte](#règles-dalerte)
-  - [Visualisation des Alertes](#visualisation-des-alertes)
-  - [Personnalisation des Alertes](#personnalisation-des-alertes)
-  - [Monitoring des Health Checks](#monitoring-des-health-checks)
-- [Sujets Avancés](#sujets-avancés)
+
+---
+
+## Configuration Rapide
+
+### Prérequis
+
+- Docker installé
+- Git installé
+- Permissions pour exécuter `make`
+
+### Installation
+
+```bash
+# 1. Initialiser le submodule (première fois seulement)
+make obs-init
+
+# 2. Configurer les secrets
+make setup-secrets
+
+# 3. Démarrer tous les services
+make up
+```
+
+### Vérification
+
+```bash
+# Vérifier le statut
+make ps
+
+# Accéder à Grafana
+open http://localhost:3000
+
+# Identifiants : admin / (mot de passe dans observability/secrets/grafana_password.txt)
+```
 
 ---
 
@@ -113,35 +141,6 @@ Les deux composants sont connectés via le réseau externe `obs-network` créé 
 - Le réseau `obs-network` est **externe** et créé par le submodule `observability/`
 - Les deux fichiers `docker-compose.yml` utilisent ce réseau pour la communication inter-conteneurs
 - Le réseau est partagé entre l'application et la stack d'observabilité
-
----
-
-## Architecture des Ports
-
-### Services de l'Application
-
-| Service         | Port Conteneur | Port Hôte | Accès Externe                  | Communication Interne |
-| --------------- | -------------- | --------- | ------------------------------ | --------------------- |
-| medicaments-api | 8000 (API)     | 8030      | http://localhost:8030          | medicaments-api:8000  |
-| medicaments-api | 9090 (metrics) | interne   | N/A                            | medicaments-api:9090  |
-| grafana-alloy   | 12345          | 12345     | http://localhost:12345/metrics | grafana-alloy:12345   |
-
-### Services d'Observabilité (Submodule)
-
-| Service    | Port Conteneur | Port Hôte | Accès Externe         | Communication Interne |
-| ---------- | -------------- | --------- | --------------------- | --------------------- |
-| loki       | 3100           | interne   | N/A                   | loki:3100             |
-| prometheus | 9090           | 9090      | http://localhost:9090 | prometheus:9090       |
-| grafana    | 3000           | 3000      | http://localhost:3000 | grafana:3000          |
-
-**Points clés :**
-
-- Grafana se connecte à Prometheus sur `prometheus:9090` (port conteneur)
-- L'accès externe à Prometheus se fait via `localhost:9090` (mappage de port hôte)
-- Toute la communication service-à-service utilise les ports conteneurs dans le réseau `obs-network`
-- Les ports hôte sont uniquement pour accéder aux services depuis la machine hôte
-- Certains services (métriques de medicaments-api, Loki) sont uniquement exposés en interne au réseau Docker pour la sécurité
-- Le réseau `obs-network` est créé par le submodule et partagé entre l'application et la stack d'observabilité
 
 ---
 
@@ -227,208 +226,137 @@ Le mode remote utilise le buffer WAL (Write-Ahead Log) d'Alloy pour protéger le
 - Protection variable selon le volume de données (plusieurs heures à plusieurs jours selon le trafic)
 - Reprise automatique lors de la restauration de la connexion
 
-## Services
+---
 
-### Grafana Alloy
+## Configuration de l'Application
 
-Collecte les logs et métriques de medicaments-api et les métriques système.
+### Configuration Grafana Alloy
 
-- **Image** : `grafana/alloy:v1.4.0`
-- **Configuration** : `configs/alloy/config.alloy`
-- **Port** : 12345 (métriques d'Alloy)
-- **Fonctions** :
-  - Lire les logs du répertoire `./logs/`
-  - Scraper les métriques de l'application depuis `medicaments-api:9090/metrics` (toutes les 30s)
-  - Collecter les métriques système via l'exporter Unix (toutes les 60s)
-  - Transférer vers le Loki et Prometheus locaux
-  - Filtrer les métriques du runtime Go (conserver uniquement les métriques HTTP et système)
-- **Utilisation des ressources** : ~150MB RAM
+medicaments-api utilise Grafana Alloy pour collecter les logs et les métriques. Les configurations Alloy sont situées dans `configs/alloy/` :
 
-**Points forts de la configuration :**
+| Fichier                    | Mode        | Description                                            |
+| -------------------------- | ----------- | ------------------------------------------------------ |
+| `configs/alloy/config.alloy` | Local       | Connexion directe à Loki/Prometheus via le réseau Docker |
+| `configs/alloy/config.remote.alloy` | Remote      | Connexion via tunnel avec auth et WAL buffering        |
 
-```alloy
-// Collecte des logs
-loki.source.file "read_logs" {
-  targets    = [{__path__ = "/var/log/app/*.log"}]
-  forward_to = [loki.write.local.receiver]
-}
+**Fonctions principales de la configuration Alloy :**
 
-// Scraping des métriques
-prometheus.scrape "medicaments" {
-  targets    = [{__address__ = "medicaments-api:9090"}]
-  forward_to = [prometheus.remote_write.local.receiver]
-  scrape_interval = "30s"
-}
+- **Collecte des logs** : Lecture des fichiers JSON depuis `/var/log/app/*.log`
+- **Parsing des logs** : Extraction des labels (level, path, status, duration_ms)
+- **Filtrage DEBUG** : Suppression des logs DEBUG avant stockage dans Loki
+- **Scraping des métriques** : Récupération des métriques HTTP depuis `medicaments-api:9090/metrics`
+- **Métriques système** : Collecte des métriques CPU, mémoire, disque, réseau
 
-// Métriques système
-prometheus.exporter.unix "system" {
-  collectors = ["cpu", "meminfo", "filesystem", "network"]
-}
-```
+**Note** : Les configurations Alloy sont spécifiques à medicaments-api et ne font pas partie du submodule.
 
-### Loki
+### Variables d'Environnement
 
-Agrégation et stockage des logs.
+Les variables d'environnement pour l'observabilité sont définies dans `.env.docker` :
 
-- **Image** : `grafana/loki:2.9.10`
-- **Configuration** : `observability/loki/config.yaml`
-- **Port** : 3100 (interne uniquement - exposé au réseau Docker)
-- **Stockage** : Système de fichiers (chunks dans `/loki/chunks`, règles dans `/loki/rules`)
-- **Rétention** : 30 jours (720 heures)
-- **Volume de données** : `loki-data`
-- **Utilisation des ressources** : ~100MB RAM + ~100MB disque
-- **Health Check** : Disponible via l'endpoint `/ready`
+| Variable                    | Valeur Par Défaut       | Description                                          |
+| --------------------------- | ------------------------ | ---------------------------------------------------- |
+| `ALLOY_CONFIG`             | `config.alloy`           | Fichier de configuration Alloy à utiliser               |
+| `PROMETHEUS_URL`          | -                        | URL distante de Prometheus (mode remote seulement)      |
+| `LOKI_URL`                 | -                        | URL distante de Loki (mode remote seulement)            |
+| `CF_ACCESS_CLIENT_ID`      | -                        | Cloudflare Access client ID (optionnel, mode remote)    |
+| `CF_ACCESS_CLIENT_SECRET`    | -                        | Cloudflare Access client secret (optionnel, mode remote)  |
 
-**Points forts de la configuration :**
-
-```yaml
-limits_config:
-  retention_period: 720h # 30 jours
-  ingestion_rate_mb: 16 # 16MB/sec
-
-schema_config:
-  configs:
-    - from: 2024-01-01
-      store: tsdb
-      object_store: filesystem
-      schema: v13
-
-storage_config:
-  filesystem:
-    directory: /loki/chunks
-  ruler:
-    storage:
-      type: local
-      local:
-        directory: /loki/rules
-```
-
-**Important :** Le type de stockage du ruler doit être explicitement défini à `local` dans Loki 2.9+ pour éviter les erreurs de démarrage.
-
-### Prometheus
-
-Stockage et interrogation des métriques.
-
-- **Image** : `prom/prometheus:v2.48.0`
-- **Configuration** : `observability/prometheus/prometheus.yml`
-- **Port** : 9090 (hôte et conteneur)
-  - Le port hôte 9090 fournit un accès externe à l'UI Prometheus
-  - Le port conteneur 9090 est utilisé pour la communication service-à-service
-- **Rétention** : 30 jours (720 heures) - configurée via le flag CLI `--storage.tsdb.retention.time` dans `observability/docker-compose.yml`
-- **Volume de données** : `prometheus-data`
-- **Utilisation des ressources** : ~150MB RAM + ~200MB disque
-- **Scraping** : Reçoit les métriques via `remote_write` de Grafana Alloy (pas besoin de `scrape_configs`)
-
-**Points forts de la configuration :**
-
-```yaml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-  external_labels:
-    cluster: "medicaments-staging"
-
-# Remote write depuis Alloy (réception via CLI flag)
-remote_write:
-  - url: http://localhost:9090/api/v1/write
-
-# Règles d'alerte
-rule_files:
-  - "/etc/prometheus/rules/*.yml"
-```
-
-**Note :** La rétention des données est configurée via le flag CLI `--storage.tsdb.retention.time` dans `observability/docker-compose.yml`, pas dans le fichier de configuration `prometheus.yml`. Prometheus ne supporte pas la rétention dans son fichier de configuration - c'est une décision de conception Prometheus.
-
-### Grafana
-
-Visualisation des logs et métriques.
-
-- **Image** : `grafana/grafana:10.2.4`
-- **Port** : 3000
-- **Identifiants par défaut** :
-  - Nom d'utilisateur : `admin` (configurable via `GRAFANA_ADMIN_USER`)
-  - Mot de passe : Stocké dans `secrets/grafana_password.txt` (créé via `make setup-secrets`)
-- **Important** : Changez le mot de passe après la première connexion (Configuration → Utilisateurs → Changer le mot de passe)
-- **Volume de données** : `grafana-data`
-- **Utilisation des ressources** : ~200MB RAM + ~50MB disque
-- **Auto-Provisioning** : Les datasources sont configurées automatiquement
-
-**Auto-Provisioning :**
-
-- **Datasources** : Configurées automatiquement depuis `observability/grafana/provisioning/datasources/`
-  - Loki : `observability/grafana/provisioning/datasources/loki.yml`
-  - Prometheus : `observability/grafana/provisioning/datasources/prometheus.yml`
-- **Tableaux de bord** : Importés automatiquement depuis `observability/grafana/provisioning/dashboards/`
+**Note** : En mode local, seules `ALLOY_CONFIG` est requis. En mode remote, les variables de tunnel sont nécessaires.
 
 ---
 
-## Points d'Accès
+## Gestion du Submodule
+
+Le submodule d'observabilité est géré via les commandes Make suivantes :
+
+### Commandes Disponibles
+
+| Commande          | Description                                         |
+| ----------------- | --------------------------------------------------- |
+| `make obs-init`   | Initialiser le submodule (première fois)            |
+| `make obs-up`     | Démarrer la stack d'observabilité                   |
+| `make obs-down`   | Arrêter la stack d'observabilité                    |
+| `make obs-logs`   | Voir les logs de la stack d'observabilité           |
+| `make obs-status` | Vérifier le statut de la stack d'observabilité      |
+| `make obs-update` | Mettre à jour le submodule vers la dernière version |
+
+### Structure du Submodule
+
+```
+observability/
+├── docker-compose.yml         # Orchestration de la stack (loki + prometheus + grafana)
+├── configs/                  # Configurations de la stack
+│   ├── loki/
+│   ├── prometheus/
+│   └── grafana/
+├── secrets/                 # Secrets de la stack (gitignoré)
+│   └── grafana_password.txt
+└── docs/                   # Documentation complète de la stack
+    ├── README.md
+    ├── local-setup.md
+    ├── remote-setup.md
+    └── tunnels.md
+```
+
+### Réinitialisation du Submodule
+
+En cas de problème avec le submodule, vous pouvez le réinitialiser :
 
 ```bash
-# UI Grafana (visualisation)
-open http://localhost:3000
+# Supprimer le submodule
+rm -rf .git/modules/observability
+git submodule deinit -f observability
+git rm -f observability
 
-# UI Prometheus (navigation des métriques)
-open http://localhost:9090
-
-# Métriques de medicaments-api (métriques de l'application)
-# Via Alloy (depuis le réseau Docker uniquement)
-docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
-
-# Métriques d'Alloy (statut du collecteur)
-curl http://localhost:12345/metrics
+# Réinitialiser
+make obs-init
 ```
-
-**Note** : Loki et les métriques de medicaments-api sont uniquement exposés en interne au réseau Docker.
-Ils sont scrapés par Alloy et ne sont pas directement accessibles depuis la machine hôte pour la sécurité.
 
 ---
 
-## Format des Logs
+## Documentation du Submodule
 
-Votre application devrait générer des logs JSON avec les champs `level` et `path` pour un parsing correct :
+Pour la documentation complète de la stack d'observabilité, consultez les fichiers dans le submodule :
 
-```json
-{
-  "time": "2025-02-08T12:00:00Z",
-  "level": "info",
-  "path": "/v1/medicaments?search=paracetamol",
-  "msg": "Request completed",
-  "status": 200,
-  "duration_ms": 15
-}
-```
+### Documentation Principale
 
-**Parsing des Logs par Alloy :**
+- **[observability/README.md](observability/README.md)** : Guide principal de la stack d'observabilité
+  - Vue d'ensemble et architecture
+  - Quick start et modes de fonctionnement
+  - Configuration et commandes Make
 
-La configuration Alloy utilise `stage.json` pour parser les logs JSON structurés :
+### Guides de Configuration
 
-```alloy
-loki.source.file "read_logs" {
-  targets    = [{__path__ = "/var/log/app/*.log"}]
-  forward_to = [loki.process.process_logs.receiver]
-}
+- **[observability/docs/local-setup.md](observability/docs/local-setup.md)** : Guide de configuration en mode local (submodule)
+  - Ajout du submodule à votre application
+  - Configuration du réseau Docker partagé
+  - Démarrage et utilisation
 
-loki.process "process_logs" {
-  stage.json {}
-  stage.labels {
-    values = {
-      level   = "level",
-      path    = "path",
-      status  = "status"
-    }
-  }
-  forward_to = [loki.write.local.receiver]
-}
-```
+- **[observability/docs/remote-setup.md](observability/docs/remote-setup.md)** : Guide de configuration en mode remote (tunnel)
+  - Configuration des tunnels (Cloudflare, Tailscale, WireGuard)
+  - Authentification et sécurité
+  - Connexion d'applications distantes
 
-Si les logs sont en texte brut, mettez à jour `configs/alloy/config.alloy` pour supprimer le bloc `stage.json` et utiliser le parsing regex.
+- **[observability/docs/tunnels.md](observability/docs/tunnels.md)** : Guide détaillé des tunnels
+  - Configuration Cloudflare Tunnel avec Cloudflare Access
+  - Configuration Tailscale VPN
+  - Configuration WireGuard
+
+### Ressources du Submodule
+
+- **Repository GitHub** : https://github.com/Giygas/observability-stack
+- **Documentation** : [observability/docs/](observability/docs/)
+- **Contribution** : [observability/CONTRIBUTING.md](observability/CONTRIBUTING.md)
+
+**Note** : Pour les questions spécifiques à la stack d'observabilité (configuration, dépannage, alertes, tableaux de bord), consultez la documentation du submodule mentionnée ci-dessus.
 
 ---
 
-## Métriques Collectées
+## Métriques de l'Application
 
-### Depuis l'Application (endpoint `/metrics`)
+medicaments-api expose des métriques Prometheus sur le port 9090 (interne au réseau Docker).
+
+### Métriques HTTP
 
 Via `metrics/metrics.go` :
 
@@ -453,44 +381,94 @@ Via `metrics/metrics.go` :
 - **Description** : Requêtes actuellement en cours
 - **Exemple** : `http_request_in_flight`
 
-### Depuis les Métriques Système (via `prometheus.exporter.unix`)
+### Visualisation des Métriques
 
-Alloy collecte les métriques système suivantes :
+Les métriques sont visualisées dans Grafana via les tableaux de bord préconfigurés fournis par le submodule.
 
-- **Métriques CPU** : Utilisation CPU du processus et du système
-  - `process_cpu_seconds_total`
-  - `node_cpu_seconds_total`
+**Accès aux métriques :**
 
-- **Métriques Mémoire** : Utilisation mémoire du processus et du système
-  - `process_resident_memory_bytes`
-  - `process_virtual_memory_bytes`
-  - `node_memory_MemAvailable_bytes`
-  - `node_memory_MemTotal_bytes`
-
-- **Descripteurs de fichiers** : Descripteurs de fichiers ouverts
-  - `process_open_fds`
-  - `process_max_fds`
-
-- **Métriques Réseau** : Statistiques d'E/S réseau
-  - `node_network_receive_bytes_total`
-  - `node_network_transmit_bytes_total`
-
-- **Métriques Disque** : Statistiques d'E/S disque et système de fichiers
-  - `node_filesystem_size_bytes`
-  - `node_filesystem_avail_bytes`
-  - `node_filesystem_read_bytes_total`
-
-**Note :** La configuration Alloy filtre les métriques du runtime Go des scrapers d'application et système, conservant uniquement les métriques HTTP et système pertinentes.
+- **Grafana** : http://localhost:3000 → Dashboards → medicaments-api Health
+- **Prometheus** : http://localhost:9090 → requête directe des métriques
+- **Alloy** : http://localhost:12345/metrics (métriques du collecteur)
 
 ---
 
-## Identifiants par Défaut
+## Format des Logs
+
+medicaments-api génère des logs JSON structurés avec les champs suivants :
+
+### Format attendu
+
+```json
+{
+  "time": "2025-02-08T12:00:00Z",
+  "level": "info",
+  "path": "/v1/medicaments?search=paracetamol",
+  "msg": "Request completed",
+  "status": 200,
+  "duration_ms": 15
+}
+```
+
+### Champs Requis
+
+| Champ      | Type   | Description                       | Exemple                         |
+| ---------- | ------ | --------------------------------- | ------------------------------- |
+| `time`     | string | Horodatage ISO 8601                | `"2025-02-08T12:00:00Z"`      |
+| `level`    | string | Niveau de log (DEBUG/INFO/WARN/ERROR) | `"info"`                        |
+| `path`     | string | Chemin de la requête HTTP           | `"/v1/medicaments?search=paracetamol"` |
+| `msg`      | string | Message du log                     | `"Request completed"`            |
+| `status`   | number | Code de statut HTTP                | `200`                           |
+| `duration_ms` | number | Durée de la requête en ms         | `15`                            |
+
+### Parsing par Alloy
+
+La configuration Alloy utilise `stage.json` pour parser les logs JSON structurés et extraire les labels :
+
+- **Labels extraits** : `level`, `path`, `status`, `duration_ms`
+- **Filtrage** : Les logs de niveau `DEBUG` sont supprimés avant stockage dans Loki
+- **Timestamp** : Utilisation du champ `time` avec format RFC3339Nano
+
+### Modification du Format
+
+Si vous modifiez le format des logs dans votre application, mettez à jour `configs/alloy/config.alloy` :
+
+```alloy
+// Pour les logs en texte brut, remplacer stage.json par :
+loki.process "process_logs" {
+  stage.regex {
+    expression: "^(?P<timestamp>\\S+) (?P<level>\\S+) (?P<message>.*)$"
+  }
+  // ... configuration restante
+}
+```
+
+---
+
+## Points d'Accès
+
+### Services de l'Application
+
+| Service         | Port Hôte | URL                                     | Description                             |
+| --------------- | ---------- | --------------------------------------- | ------------------------------------- |
+| medicaments-api | 8030       | http://localhost:8030                     | API principale                        |
+| grafana-alloy   | 12345      | http://localhost:12345/metrics           | Métriques du collecteur Alloy         |
+
+### Services d'Observabilité (Submodule)
+
+| Service    | Port Hôte | URL                                     | Description                             |
+| ---------- | ---------- | --------------------------------------- | ------------------------------------- |
+| loki       | Interne    | N/A                                     | Logs (accès via Grafana uniquement)      |
+| prometheus | 9090       | http://localhost:9090                     | Interface Prometheus                   |
+| grafana    | 3000       | http://localhost:3000                     | Interface Grafana avec tableaux de bord |
+
+### Identifiants
 
 **Grafana :**
 
-- Nom d'utilisateur : `admin` (configurable via `GRAFANA_ADMIN_USER`)
-- Mot de passe : Stocké dans `secrets/grafana_password.txt` (créé via `make setup-secrets`)
-- **Important** : Changez le mot de passe après la première connexion (Configuration → Utilisateurs → Changer le mot de passe)
+- Nom d'utilisateur : `admin` (configurable via `GRAFANA_ADMIN_USER` dans le submodule)
+- Mot de passe : Stocké dans `observability/secrets/grafana_password.txt` (créé via `make setup-secrets`)
+- **Important** : Changez le mot de passe après la première connexion
 
 **Autres Services :**
 
@@ -498,167 +476,17 @@ Alloy collecte les métriques système suivantes :
 
 ---
 
-## Utilisation des Ressources
-
-| Service         | RAM        | Disque           | Rétention           |
-| --------------- | ---------- | ---------------- | ------------------- |
-| medicaments-api | ~50MB      | ~20MB            | N/A                 |
-| grafana-alloy   | ~150MB     | ~10MB            | N/A                 |
-| loki            | ~100MB     | ~100MB (données) | 30 jours            |
-| prometheus      | ~150MB     | ~200MB (données) | 30 jours (720h)     |
-| grafana         | ~200MB     | ~50MB            | N/A                 |
-| **Total**       | **~650MB** | **~380MB**       | 30 jours (les deux) |
-
----
-
-## Fichiers de Configuration
-
-### Configuration de l'Application
-
-| Fichier                             | Objectif                                                        |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `.env.docker`                       | Variables d'environnement pour l'application et l'observabilité |
-| `configs/alloy/config.alloy`        | Configuration Alloy locale (mode par défaut)                    |
-| `configs/alloy/config.remote.alloy` | Configuration Alloy remote (mode tunnel)                        |
-
-### Configuration du Submodule Observabilité
-
-Les fichiers de configuration de la stack d'observabilité se trouvent dans le submodule `observability/` :
-
-| Fichier (dans submodule)                                  | Objectif                                                                            |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `configs/loki/config.yaml`                                | Configuration Loki (stockage logs, rétention 30 jours, taux d'ingestion 16MB/sec)   |
-| `configs/prometheus/prometheus.yml`                       | Configuration Prometheus (stockage métriques, rétention 30 jours, règles d'alerte)  |
-| `configs/prometheus/alerts/*.yml`                         | Règles d'alerte Prometheus (service en panne, taux d'erreurs élevé, latence élevée) |
-| `configs/grafana/provisioning/datasources/loki.yml`       | Configuration automatique de la datasource Loki                                     |
-| `configs/grafana/provisioning/datasources/prometheus.yml` | Configuration automatique de la datasource Prometheus                               |
-| `configs/grafana/provisioning/dashboards/*.yml`           | Import automatique des tableaux de bord Grafana                                     |
-| `configs/grafana/dashboards/*.json`                       | Tableaux de bord préconfigurés (ex: api-health.json)                                |
-
-**Note :** Les fichiers du submodule sont maintenus séparément dans le repository [Giygas/observability-stack](https://github.com/Giygas/observability-stack).
-
----
-
-## Submodule Observabilité
-
-### Initialisation
-
-Le submodule d'observabilité doit être initialisé lors de la première utilisation :
-
-```bash
-# Initialiser le submodule (cloner depuis GitHub)
-make obs-init
-
-# Mettre à jour le submodule vers la dernière version
-make obs-update
-
-# Vérifier le statut du submodule
-git submodule status
-```
-
-### Structure du Submodule
-
-```
-observability/
-├── docker-compose.yml         # Orchestration de la stack (loki + prometheus + grafana)
-├── configs/                  # Configurations de la stack
-│   ├── alloy/
-│   ├── loki/
-│   ├── prometheus/
-│   └── grafana/
-├── secrets/                 # Secrets de la stack (gitignoré)
-│   └── grafana_password.txt
-└── docs/                   # Documentation de la stack
-    ├── README.md
-    └── CONTRIBUTING.md
-```
-
-### Commandes Disponibles
-
-| Commande          | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `make obs-init`   | Initialiser le submodule (première fois)            |
-| `make obs-up`     | Démarrer la stack d'observabilité                   |
-| `make obs-down`   | Arrêter la stack d'observabilité                    |
-| `make obs-logs`   | Voir les logs de la stack d'observabilité           |
-| `make obs-status` | Vérifier le statut de la stack d'observabilité      |
-| `make obs-update` | Mettre à jour le submodule vers la dernière version |
-
-### Réinitialisation du Submodule
-
-En cas de problème avec le submodule, vous pouvez le réinitialiser :
-
-```bash
-# Supprimer le submodule
-rm -rf .git/modules/observability
-git submodule deinit -f observability
-git rm -f observability
-
-# Réinitialiser
-git submodule update --init --recursive observability
-```
-
 ## Dépannage
-
-### Grafana ne peut pas se connecter aux datasources
-
-```bash
-# Vérifier que les conteneurs sont en cours d'exécution
-docker compose ps
-
-# Vérifier la connectivité réseau
-# Note : Grafana se connecte à Prometheus sur le port conteneur 9090
-docker compose exec grafana wget -O- http://loki:3100/ready
-docker compose exec grafana wget -O- http://prometheus:9090/-/ready
-
-# Vérifier la configuration des datasources
-docker compose logs grafana | grep -i datasource
-
-# Vérifier la configuration de la datasource Prometheus
-cat observability/grafana/provisioning/datasources/prometheus.yml
-# Devrait afficher : url: http://prometheus:9090
-```
-
-### Les logs n'apparaissent pas dans Grafana
-
-```bash
-# Vérifier qu'Alloy lit les logs
-docker compose logs grafana-alloy | grep -i logs
-
-# Vérifier que les fichiers de logs existent
-docker compose exec grafana-alloy ls -la /var/log/app/
-
-# Vérifier que Loki reçoit les logs
-docker compose logs loki | grep -i received
-
-# Interroger les logs depuis le réseau Docker
-docker compose exec loki wget -O- 'http://localhost:3100/loki/api/v1/labels'
-```
-
-### Les métriques n'apparaissent pas dans Grafana
-
-```bash
-# Vérifier qu'Alloy scrape les métriques
-docker compose logs grafana-alloy | grep -i scrape
-
-# Vérifier que l'endpoint de métriques est accessible
-docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
-
-# Vérifier que Prometheus reçoit les métriques
-docker compose logs prometheus | grep -i received
-
-# Tester la requête Prometheus
-curl 'http://localhost:9090/api/v1/query?query=http_request_total'
-```
 
 ### Problèmes de Submodule
 
 **Le submodule n'est pas initialisé :**
 
 ```bash
-# Erreur : "fatal: not a git repository"
+# Erreur : "fatal: not a git repository" ou "network obs-network not found"
 # Solution : Initialiser le submodule
 make obs-init
+make up
 ```
 
 **Le submodule est désynchronisé :**
@@ -671,266 +499,103 @@ make obs-down
 make obs-up
 ```
 
+### Problèmes de Démarrage
+
 **Le réseau obs-network n'existe pas :**
 
 ```bash
 # Erreur : "network obs-network not found"
 # Solution : Démarrer la stack d'observabilité en premier
 make obs-up
+make up
 ```
 
-### Loki échoue au démarrage avec une erreur de stockage
+**Les services d'observabilité ne démarrent pas :**
 
 ```bash
-# Vérifier les logs de Loki pour les erreurs de configuration de stockage
-docker compose logs loki | grep -i "storage\|ruler"
+# Vérifier les logs de la stack d'observabilité
+make obs-logs
 
-# Erreur courante : "field filesystem not found in type base.RuleStoreConfig"
-# Cela se produit dans Loki 2.9+ quand le type de stockage ruler n'est pas explicitement spécifié
+# Vérifier le statut de tous les conteneurs
+docker compose ps
 
-# Correction : S'assurer que la section ruler de loki/config.yaml a un stockage local explicite :
-#   ruler:
-#     storage:
-#       type: local
-#       local:
-#         directory: /loki/rules
-
-# Redémarrer Loki après avoir corrigé la configuration
-docker compose restart loki
+# Redémarrer les services d'observabilité
+make obs-down
+make obs-up
 ```
 
-### Utilisation élevée des ressources
+### Problèmes de Logs
+
+**Les logs n'apparaissent pas dans Grafana :**
 
 ```bash
-# Vérifier l'utilisation des ressources pour tous les services
-docker stats medicaments-api grafana-alloy loki prometheus grafana
+# Vérifier qu'Alloy lit les logs
+docker compose logs grafana-alloy | grep -i logs
 
-# Vérifier l'utilisation du disque pour les volumes
-docker system df -v
+# Vérifier que les fichiers de logs existent
+docker compose exec grafana-alloy ls -la /var/log/app/
 
-# Réduire la rétention si nécessaire (éditer loki/config.yaml ou prometheus/prometheus.yml)
+# Vérifier que Loki reçoit les logs
+make obs-logs | grep loki | grep -i received
 ```
 
-### Problèmes de Communication entre Services
-
-**Grafana ne peut pas se connecter à Prometheus :**
-
-```bash
-# Vérifier la configuration de la datasource Grafana
-cat observability/grafana/provisioning/datasources/prometheus.yml
-
-# S'assurer qu'elle utilise le port conteneur (9090)
-# Correct : url: http://prometheus:9090
-# Incorrect : url: http://localhost:9090
-
-# Redémarrer Grafana pour recharger la configuration de la datasource
-docker compose restart grafana
-
-# Vérifier la connectivité depuis le conteneur Grafana
-docker compose exec grafana wget -O- http://prometheus:9090/-/ready
-```
+### Problèmes de Métriques
 
 **Les métriques n'apparaissent pas dans Grafana :**
 
 ```bash
-# Vérifier si Alloy scrape les métriques de medicaments-api
-docker compose logs grafana-alloy | grep -i "medicaments-api:9090"
+# Vérifier qu'Alloy scrape les métriques
+docker compose logs grafana-alloy | grep -i scrape
 
-# Vérifier que l'endpoint de métriques de medicaments-api est accessible (via Docker)
+# Vérifier que l'endpoint de métriques est accessible
 docker compose exec grafana-alloy wget -O- http://medicaments-api:9090/metrics
 
-# Vérifier si Prometheus reçoit les métriques d'Alloy
-docker compose logs prometheus | grep -i "received from Alloy"
+# Vérifier que Prometheus reçoit les métriques
+make obs-logs | grep prometheus | grep -i received
 
-# Tester la requête Prometheus pour les métriques de l'application
+# Tester la requête Prometheus
 curl 'http://localhost:9090/api/v1/query?query=http_request_total'
 ```
 
----
+### Dépannage Avancé
 
-## Nettoyage
+Pour des problèmes plus complexes concernant :
 
-```bash
-# Arrêter uniquement les services d'observabilité
-docker compose stop grafana-alloy loki prometheus grafana
+- Configuration détaillée de Loki, Prometheus, Grafana
+- Alertes et règles Prometheus
+- Tableaux de bord personnalisés
+- Configuration des tunnels (Cloudflare, Tailscale, WireGuard)
+- Performance et optimisation
 
-# Supprimer les services d'observabilité (conserve les volumes)
-docker compose rm -f grafana-alloy loki prometheus grafana
+**Consultez la documentation du submodule :**
 
-# Supprimer les services d'observabilité et toutes les données (SUPPRIME TOUT)
-docker compose down -v
+- **[observability/README.md](observability/README.md)** : Guide principal
+- **[observability/docs/local-setup.md](observability/docs/local-setup.md)** : Mode local
+- **[observability/docs/remote-setup.md](observability/docs/remote-setup.md)** : Mode remote
+- **[observability/docs/tunnels.md](observability/docs/tunnels.md)** : Tunnels
 
-# Supprimer uniquement les volumes d'observabilité
-docker volume rm medicaments-api_loki-data medicaments-api_prometheus-data medicaments-api_grafana-data
-```
-
----
-
-## Alerting Prometheus
-
-La stack de monitoring inclut des règles d'alerte Prometheus qui détectent automatiquement les problèmes et affichent les alertes dans Grafana.
-
-### Règles d'Alerte
-
-**Emplacement des règles d'alerte :** `observability/prometheus/alerts/medicaments-api.yml`
-
-#### Alertes Critiques
-
-| Alerte             | Description             | Seuil              | Durée |
-| ------------------ | ----------------------- | ------------------ | ----- |
-| ServiceDown        | Service inaccessible    | `up == 0`          | 5m    |
-| High5xxErrorRate   | Trop d'erreurs serveur  | Taux 5xx > 5%      | 5m    |
-| HighTotalErrorRate | Trop d'erreurs au total | Taux 4xx+5xx > 10% | 5m    |
-
-#### Alertes d'Avertissement
-
-| Alerte           | Description                 | Seuil                       | Durée |
-| ---------------- | --------------------------- | --------------------------- | ----- |
-| HighLatencyP95   | Temps de réponse lents      | Latence P95 > 200ms         | 10m   |
-| HighRequestRate  | Volume de trafic élevé      | Taux de requêtes > 1000/sec | 5m    |
-| Sustained4xxRate | Taux d'erreurs client élevé | Taux 4xx > 5%               | 10m   |
-
-### Visualisation des Alertes dans Grafana
-
-1. Naviguez vers `http://localhost:3000`
-2. Allez dans **Alerting** → **Alert Rules** (dans la barre latérale gauche)
-3. Filtrez par job `medicaments-api`
-4. Visualisez les alertes actives, les alertes masquées et l'historique des alertes
-
-### Personnalisation des Alertes
-
-Éditez `observability/prometheus/alerts/medicaments-api.yml` pour ajuster les seuils :
-
-```yaml
-# Exemple : Changer le seuil de latence P95
-- alert: HighLatencyP95
-  expr: |
-    histogram_quantile(0.95,
-      rate(http_request_duration_seconds_bucket{job="medicaments-api"}[10m])
-    ) > 0.5  # Changer de 0.2 (200ms) à 0.5 (500ms)
-  for: 10m
-  annotations:
-    summary: "Latence P95 élevée détectée"
-    description: "La latence P95 est de {{ $value }}s pour le job {{ $labels.job }}"
-```
-
-Après édition, rechargez la configuration Prometheus :
-
-```bash
-# Redémarrer Prometheus pour appliquer les modifications
-docker compose restart prometheus
-
-# Ou utiliser SIGHUP pour le rechargement à chaud (si configuré)
-docker exec prometheus kill -HUP 1
-```
-
-### Monitoring des Health Checks
-
-Pour le monitoring des métriques système et de l'intégrité des données, utilisez l'endpoint `/v1/diagnostics` dans les alertes Grafana. L'endpoint `/health` est utilisé uniquement pour le statut de santé des données.
-
-Créez un panneau d'alerte Grafana basé sur les données de diagnostics :
-
-1. Allez dans **Dashboards** → **medicaments-api Health**
-2. Ajoutez un nouveau panneau ou éditez un existant
-3. Configurez une alerte basée sur le statut de santé ou l'âge des données
-4. Configurez les conditions d'alerte (par exemple, `data_age_hours > 24`)
-
-**Utilisation des endpoints :**
-
-- `/health` → Statut de santé des données (nombre de médicaments, nombre de génériques, âge des données)
-- `/v1/diagnostics` → Métriques système + intégrité des données (uptime, mémoire, vérifications d'intégrité des données)
+**Ou reportez l'issue sur le repository du submodule :**
+https://github.com/Giygas/observability-stack/issues
 
 ---
 
-## Sujets Avancés
+## Ressources
 
-### Ajout de Tableaux de Bord Personnalisés
+### Documentation de medicaments-api
 
-1. Créez un nouveau tableau de bord JSON dans `observability/grafana/dashboards/`
-2. Mettez à jour `observability/grafana/provisioning/dashboards/dashboard.yml` :
+- **[DOCKER.md](DOCKER.md)** : Guide complet de Docker pour medicaments-api
+- **[README.md](README.md)** : Vue d'ensemble du projet
 
-```yaml
-apiVersion: 1
+### Documentation du Submodule
 
-providers:
-  - name: "medicaments-api"
-    orgId: 1
-    folder: ""
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 10
-    allowUiUpdates: true
-    options:
-      path: /etc/grafana/provisioning/dashboards
-      foldersFromFilesStructure: true
-```
+- **[observability/README.md](observability/README.md)** : Documentation principale
+- **[observability/docs/local-setup.md](observability/docs/local-setup.md)** : Guide de configuration local
+- **[observability/docs/remote-setup.md](observability/docs/remote-setup.md)** : Guide de configuration remote
+- **[observability/docs/tunnels.md](observability/docs/tunnels.md)** : Guide des tunnels
 
-3. Redémarrez Grafana :
+### Liens Externes
 
-```bash
-docker compose restart grafana
-```
-
-### Parsers de Logs Personnalisés
-
-Modifiez `configs/alloy/config.alloy` pour ajouter un parsing de logs personnalisé :
-
-```alloy
-loki.process "custom_parser" {
-  stage.regex {
-    expression: "^(?P<timestamp>\\S+) (?P<level>\\S+) (?P<message>.*)$"
-  }
-  stage.labels {
-    values = {
-      timestamp = "timestamp",
-      level     = "level"
-    }
-  }
-  forward_to = [loki.write.local.receiver]
-}
-```
-
-### Réduction de la Rétention
-
-Pour réduire l'utilisation du disque, éditez les paramètres de rétention :
-
-**Loki** (`observability/configs/loki/config.yaml`) :
-
-```yaml
-limits_config:
-  retention_period: 168h # 7 jours (au lieu de 720h)
-```
-
-**Prometheus** (éditer le flag CLI dans `observability/docker-compose.yml`) :
-
-```yaml
-prometheus:
-  command:
-    - "--config.file=/etc/prometheus/prometheus.yml"
-    - "--storage.tsdb.path=/prometheus"
-    - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-168h}" # Changer ici
-```
-
-**Note :** La rétention de Prometheus est configurée via le flag CLI `--storage.tsdb.retention.time` dans `docker-compose.yml` et non dans le fichier `prometheus.yml`. Prometheus ne supporte pas la configuration de rétention dans son fichier de configuration - c'est une décision de conception de Prometheus. Loki, quant à lui, supporte la configuration de rétention dans son fichier.
-
-Puis redémarrez :
-
-```bash
-docker compose restart loki prometheus
-```
-
-### Export des Métriques
-
-Pour exporter les métriques vers un Prometheus externe :
-
-```yaml
-# Dans observability/prometheus/prometheus.yml
-remote_write:
-  - url: https://external-prometheus.example.com/api/v1/write
-    basic_auth:
-      username: ${EXTERNAL_PROMETHEUS_USER}
-      password: ${EXTERNAL_PROMETHEUS_PASSWORD}
-```
-
----
-
+- **Grafana** : https://grafana.com/docs/
+- **Loki** : https://grafana.com/docs/loki/latest/
+- **Prometheus** : https://prometheus.io/docs/
+- **Grafana Alloy** : https://grafana.com/docs/alloy/

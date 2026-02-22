@@ -306,7 +306,7 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
   - `generique_only_cis` : CIS présents uniquement dans les génériques
   - `presentations_with_orphaned_cis` : Présentations référençant des CIS inexistants
 
-_Pour la documentation complète de la stack d'observabilité (Grafana, Loki, Prometheus), consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
+_Pour la documentation complète de la stack d'observabilité (Grafana, Loki, Prometheus, Alloy), consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
 
 _Pour la configuration Docker et le déploiement, consultez [DOCKER.md](DOCKER.md)._
 
@@ -322,7 +322,7 @@ Le projet utilise une architecture modulaire avec support Docker pour le staging
 
 _Pour les détails de l'architecture Docker et de la configuration des conteneurs, consultez [DOCKER.md](DOCKER.md)._
 
-_Pour la configuration et l'utilisation de la stack d'observabilité, consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
+_Pour la configuration et l'utilisation de la stack d'observabilité avec medicaments-api, consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
 
 ### Core Technologies
 
