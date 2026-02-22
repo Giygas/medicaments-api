@@ -22,11 +22,15 @@ import (
 func main() {
 	// Check if running in healthcheck mode (for Docker HEALTHCHECK)
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		resp, err := http.Get("http://localhost:8000/health")
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get("http://localhost:8000/health")
 		if err != nil || resp.StatusCode != 200 {
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
 			os.Exit(1)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		os.Exit(0)
 	}
 
