@@ -39,6 +39,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -trimpath \
     -o /app/medicaments-api .
 
+# Create logs directory with proper permissions (needed for read-only container)
+RUN mkdir -p /app/logs && chmod 0750 /app/logs
+
 # Stage 2: Runtime (scratch - empty filesystem)
 FROM scratch
 
