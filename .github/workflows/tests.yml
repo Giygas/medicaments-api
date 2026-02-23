@@ -18,8 +18,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Check if any code files changed (skip for docs-only changes)
+  check-changes:
+    name: Check for Code Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.filter.outputs.should_run }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Check for changed files
+        id: filter
+        run: |
+          # Get list of changed files
+          CHANGED=$(git diff --name-only HEAD^ HEAD)
+          echo "Changed files: $CHANGED"
+
+          # Check if any code files changed
+          if echo "$CHANGED" | grep -qE '\.(go|yaml)$' || echo "$CHANGED" | grep -qE '^(Dockerfile|\.github/)'; then
+            echo "Code files changed, running tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "Only docs changed, skipping tests"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
   # Fast quality checks - runs first, fails fast, blocks expensive tests
   quick-checks:
+    if: needs.check-changes.outputs.should-run == 'true'
     name: Quick Quality & Smoke Checks
     runs-on: ubuntu-latest
     steps:
@@ -82,7 +111,8 @@ jobs:
   test-matrix:
     name: Comprehensive Tests
     runs-on: ubuntu-latest
-    needs: quick-checks  # Runs only after quick-checks pass
+    needs: check-changes
+    if: needs.check-changes.outputs.should_run == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -126,7 +156,8 @@ jobs:
   # Run benchmarks separately to get dedicated resources for reliable results
   benchmarks:
     runs-on: ubuntu-latest
-    needs: quick-checks  # Runs only after quick-checks pass
+    needs: check-changes
+    if: needs.check-changes.outputs.should_run == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -154,7 +185,8 @@ jobs:
   # Generate comprehensive coverage report
   coverage-report:
     runs-on: ubuntu-latest
-    needs: quick-checks  # Runs only after quick-checks pass
+    needs: check-changes
+    if: needs.check-changes.outputs.should_run == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -194,7 +226,8 @@ jobs:
   # Generate performance analysis report
   performance-report:
     runs-on: ubuntu-latest
-    needs: benchmarks  # Runs after benchmarks complete
+    needs: benchmarks
+    if: needs.check-changes.outputs.should_run == 'true'
     continue-on-error: true
     steps:
       - name: Download benchmark results
