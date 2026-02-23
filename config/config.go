@@ -13,15 +13,16 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Port              string
-	Address           string
-	Env               Environment // Type-safe environment enum
-	LogLevel          string      // Console logging level (file logging is always DEBUG)
-	LogRetentionWeeks int         // Number of weeks to keep log files
-	MaxLogFileSize    int64       // Maximum log file size in bytes
-	MaxRequestBody    int64       // Maximum request body size in bytes
-	MaxHeaderSize     int64       // Maximum header size in bytes
-	AllowDirectAccess bool        // Allow 0.0.0.0/:: binding (staging/development only)
+	Port               string
+	Address            string
+	Env                Environment // Type-safe environment enum
+	LogLevel           string      // Console logging level (file logging is always DEBUG)
+	LogRetentionWeeks  int         // Number of weeks to keep log files
+	MaxLogFileSize     int64       // Maximum log file size in bytes
+	MaxRequestBody     int64       // Maximum request body size in bytes
+	MaxHeaderSize      int64       // Maximum header size in bytes
+	AllowDirectAccess  bool        // Allow 0.0.0.0/:: binding (staging/development only)
+	DisableRateLimiter bool        // Disable rate limiting middleware
 }
 
 // Environment represents the application environment
@@ -60,8 +61,6 @@ func ParseEnvironment(env string) (Environment, error) {
 		return EnvStaging, nil
 	case "prod", "production":
 		return EnvProduction, nil
-	case "test":
-		return EnvTest, nil
 	default:
 		return EnvDevelopment, fmt.Errorf("invalid environment: %s", env)
 	}
@@ -102,15 +101,16 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:              getEnvWithDefault("PORT", "8000"),
-		Address:           getEnvWithDefault("ADDRESS", "127.0.0.1"),
-		Env:               env, // Use parsed Environment enum
-		LogLevel:          getEnvWithDefault("LOG_LEVEL", "info"),
-		LogRetentionWeeks: getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
-		MaxLogFileSize:    getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
-		MaxRequestBody:    getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576),    // 1MB default
-		MaxHeaderSize:     getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),     // 1MB default
-		AllowDirectAccess: getBoolEnvWithDefault("ALLOW_DIRECT_ACCESS", false),
+		Port:               getEnvWithDefault("PORT", "8000"),
+		Address:            getEnvWithDefault("ADDRESS", "127.0.0.1"),
+		Env:                env, // Use parsed Environment enum
+		LogLevel:           getEnvWithDefault("LOG_LEVEL", "info"),
+		LogRetentionWeeks:  getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
+		MaxLogFileSize:     getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
+		MaxRequestBody:     getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576),    // 1MB default
+		MaxHeaderSize:      getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),     // 1MB default
+		AllowDirectAccess:  getBoolEnvWithDefault("ALLOW_DIRECT_ACCESS", false),
+		DisableRateLimiter: getBoolEnvWithDefault("DISABLE_RATE_LIMITER", false),
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -331,6 +331,7 @@ func GetEnvVars() []string {
 		"MAX_REQUEST_BODY",
 		"MAX_HEADER_SIZE",
 		"ALLOW_DIRECT_ACCESS",
+		"DISABLE_RATE_LIMITER",
 	}
 }
 

@@ -1,6 +1,7 @@
-// Grafana Alloy Configuration for medicaments-api (Local Setup)
+// Remote mode: obs stack on remote machine via tunnel
+// WAL enabled for buffering during outages, auth headers for security
 
-// Read logs from Docker volume mount
+// Read logs from Docker volume
 local.file_match "medicaments_api_logs" {
   path_targets = [{
     __path__ = "/var/log/app/*.log",
@@ -17,7 +18,7 @@ loki.source.file "medicaments_api_logs" {
 
 // Parse JSON and extract labels
 loki.process "parse_json" {
-  forward_to = [loki.write.local_loki.receiver]
+  forward_to = [loki.write.obs.receiver]
   stage.json {
     expressions = {
       timestamp = "time",
@@ -34,6 +35,12 @@ loki.process "parse_json" {
     format = "RFC3339Nano"
   }
 
+  // Drop DEBUG logs before storing
+  stage.drop {
+    source = "level"
+    value  = "DEBUG"
+  }
+
   stage.labels {
     values = {
       level  = "level",
@@ -41,7 +48,6 @@ loki.process "parse_json" {
       threat = "",
     }
   }
-
 
   // Security: All probes
   stage.match {
@@ -106,17 +112,23 @@ loki.process "parse_json" {
   }
 }
 
-// Write to local Loki
-loki.write "local_loki" {
+// Write to remote Loki with WAL buffering
+loki.write "obs" {
   endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-  }
-}
+    url = env("LOKI_URL")
 
-// Collect system metrics
-prometheus.exporter.unix "local_system" {
-  disable_collectors = ["thermal"]
-  enable_collectors = ["processes"]
+    // Cloudflare Access headers (remove headers block if not using Cloudflare)
+    headers = {
+      "CF-Access-Client-Id"     = env("CF_ACCESS_CLIENT_ID", ""),
+      "CF-Access-Client-Secret" = env("CF_ACCESS_CLIENT_SECRET", ""),
+    }
+  }
+
+  // WAL Buffering for outages
+  wal {
+    truncate_frequency = "2h"
+    max_size_bytes     = 2684354560  # 2.5GB
+  }
 }
 
 // Scrape app metrics from medicaments-api container
@@ -140,38 +152,32 @@ prometheus.relabel "filter_app_metrics"{
     action = "drop"
   }
 
-  forward_to = [prometheus.remote_write.local_prometheus.receiver]
+  forward_to = [prometheus.remote_write.obs.receiver]
 }
 
-// Scrape system metrics
-prometheus.scrape "system_metrics" {
-  targets = prometheus.exporter.unix.local_system.targets
-  forward_to = [prometheus.relabel.filter_system_metrics.receiver]
-  scrape_interval = "60s"
-}
-
-// Filter system metrics (add job label, drop unwanted metrics)
-prometheus.relabel "filter_system_metrics" {
-  // Add job label
-  rule {
-    action = "replace"
-    target_label = "job"
-    replacement = "node"
-  }
-
-  // Add instance name
-  rule {
-    action = "replace"
-    target_label = "instance"
-    replacement = "docker-container"
-  }
-
-  forward_to = [prometheus.remote_write.local_prometheus.receiver]
-}
-
-// Write to local Prometheus
-prometheus.remote_write "local_prometheus" {
+// Write to remote Prometheus with WAL buffering
+prometheus.remote_write "obs" {
   endpoint {
-    url = "http://prometheus:9090/api/v1/write"
+    url = env("PROMETHEUS_URL")
+
+    // Cloudflare Access headers (remove headers block if not using Cloudflare)
+    headers = {
+      "CF-Access-Client-Id"     = env("CF_ACCESS_CLIENT_ID", ""),
+      "CF-Access-Client-Secret" = env("CF_ACCESS_CLIENT_SECRET", ""),
+    }
+
+    queue_config {
+      capacity             = 10000
+      max_samples_per_send = 2000
+      batch_send_deadline  = "5s"
+      min_backoff          = "30ms"
+      max_backoff          = "5s"
+    }
+  }
+
+  // WAL Buffering for outages
+  wal {
+    truncate_frequency = "2h"
+    max_size_bytes     = 2684354560  # 2.5GB
   }
 }

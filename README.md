@@ -7,7 +7,7 @@
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
-[![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/Changelog-v1.2.0-blue)](CHANGELOG.md)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), rate limiting par token bucket, et support Docker complet avec stack observabilité.
 
@@ -196,9 +196,13 @@ print(f"Page {data2['page']} of {data2['maxPage']}, pageSize: {data2['pageSize']
 - **Graceful shutdown** : Timeout 30s + 2s pour finaliser requêtes
 - **Concurrency safe** : `sync.RWMutex` et opérations atomiques
 
-## Docker (Optionnel)
+## Docker
 
 ```bash
+# Initial setup (première fois)
+make setup-secrets
+make obs-init
+
 # Build Docker image
 make build
 
@@ -262,6 +266,8 @@ go vet ./...
 - **Documentation interactive** : `http://localhost:8000/docs` ou `http://localhost:8030/docs` (Docker)
 - **Health endpoint** : `http://localhost:8000/health` ou `http://localhost:8030/health` (Docker)
 - **Observabilité (Docker)** : Grafana `http://localhost:3000`, Prometheus `http://localhost:9090`
+  - Géré via le submodule `observability/` (voir [DOCKER.md](DOCKER.md))
+  - Voir [OBSERVABILITY.md](OBSERVABILITY.md) pour l'utilisation avec l'API
 
 ## Limitations et Conditions d'Utilisation
 
@@ -333,6 +339,7 @@ Pour l'historique complet des versions et des changements détaillés, consultez
 
 ### Versions
 
+- **v1.2.0** (Février 2026) - Architecture Docker refactorée avec submodule observabilité, pageSize parameter, limites de recherche
 - **v1.1.0** (Février 2026) - API RESTful v1, améliorations de performance 22-207%, métriques Prometheus
 - **v1.0.0** (Décembre 2025) - Version initiale
 

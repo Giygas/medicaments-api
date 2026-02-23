@@ -2,7 +2,17 @@
 .DEFAULT_GOAL := help
 
 # Version variables
-APP_VERSION := $(shell grep APP_VERSION .env.docker | cut -d'=' -f2)
+# Check if we're on a tagged commit (release)
+IS_TAGGED := $(shell git describe --tags --exact-match > /dev/null 2>&1 && echo "1" || echo "0")
+
+ifeq ($(IS_TAGGED),1)
+    # On a release tag - use clean version (e.g., 1.2.0)
+    APP_VERSION := $(shell git describe --tags --abbrev=0 | sed 's/^v//')
+else
+    # Development build - include commit info (e.g., 1.2.0-67-gb3c7af9-dirty)
+    APP_VERSION := $(shell git describe --tags --always | sed 's/^v//')
+endif
+
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -21,6 +31,7 @@ COMPOSE_FILE := docker-compose.yml
 ENV_FILE := .env.docker
 IMAGE_NAME := medicaments-api
 IMAGE_TAG := $(IMAGE_NAME):$(APP_VERSION)
+OBS_DIR := observability
 
 # Colors for output
 CYAN := \033[36m
@@ -44,39 +55,20 @@ help: ## Display this help message
 
 .PHONY: validate-secrets
 validate-secrets: ## Validate required secrets files exist
-	@if [ ! -f ./secrets/grafana_password.txt ]; then \
-		echo "❌ Error: secrets/grafana_password.txt not found"; \
+	@if [ ! -f ./observability/secrets/grafana_password.txt ]; then \
+		echo "❌ Error: observability/secrets/grafana_password.txt not found"; \
 		echo ""; \
 		echo "Required secrets are missing. Please run:"; \
-		echo "  make setup-secrets"; \
+		echo "  make -C observability setup"; \
 		echo ""; \
-		echo "Or create manually:"; \
-		echo "  mkdir -p secrets"; \
-		echo "  echo 'your-secure-password' > secrets/grafana_password.txt"; \
-		echo "  chmod 600 secrets/grafana_password.txt"; \
 		exit 1; \
 	fi
-	@if [ ! -r ./secrets/grafana_password.txt ]; then \
-		echo "❌ Error: secrets/grafana_password.txt is not readable"; \
-		echo "Run: chmod 644 secrets/grafana_password.txt"; \
+	@if [ ! -r ./observability/secrets/grafana_password.txt ]; then \
+		echo "❌ Error: observability/secrets/grafana_password.txt is not readable"; \
+		echo "Run: chmod 644 observability/secrets/grafana_password.txt"; \
 		exit 1; \
 	fi
 	@echo "✓ Secrets validated successfully"
-
-.PHONY: setup-secrets
-setup-secrets: ## Set up required secrets files
-	@echo "Setting up secrets..."
-	@mkdir -p secrets
-	@if [ ! -f ./secrets/grafana_password.txt ]; then \
-		read -sp "Enter Grafana admin password: " password; \
-		echo ""; \
-		echo "$$password" > ./secrets/grafana_password.txt; \
-		chmod 600 ./secrets/grafana_password.txt; \
-		echo "✓ Created secrets/grafana_password.txt"; \
-	else \
-		echo "✓ secrets/grafana_password.txt already exists"; \
-	fi
-	@echo "✓ Secrets setup complete"
 
 .PHONY: build
 build: ## Build Docker image (auto-detects host arch)
@@ -106,24 +98,23 @@ build-arm64: ## Force arm64 build
 	@echo "$(GREEN)✓ Build complete: $(IMAGE_NAME):arm64$(RESET)"
 
 .PHONY: up
-up: validate-secrets ## Start all services in detached mode
+up: obs-up ## Start all services (obs stack + app)
 	@echo "Starting services..."
 	@APP_VERSION=$(APP_VERSION) \
 		docker compose --env-file $(ENV_FILE) up -d
 	@echo "$(GREEN)✓ Services started!$(RESET)"
 	@echo ""
 	@echo "API:        http://localhost:8030"
-	@echo "Grafana:    http://localhost:3000"
-	@echo "Prometheus: http://localhost:9090"
 
 .PHONY: down
-down: ## Stop all services
+down: ## Stop all services (app + obs stack)
 	@echo "Stopping services..."
 	@docker compose --env-file $(ENV_FILE) down
+	@$(MAKE) obs-down
 	@echo "$(GREEN)✓ Services stopped$(RESET)"
 
 .PHONY: restart
-restart: down up ## Restart all services
+restart: down up ## Restart all services (app + obs stack)
 
 .PHONY: rebuild
 rebuild: ## Rebuild Docker images (without cleanup)
@@ -145,6 +136,33 @@ ps: ## Show service status
 stats: ## Show resource usage
 	@docker stats --no-stream
 
+##@ Observability Submodule
+
+.PHONY: obs-up obs-down obs-update obs-logs obs-status obs-init
+
+obs-init: ## Initialize observability submodule
+	@git submodule update --init --recursive $(OBS_DIR)
+	@$(MAKE) -C $(OBS_DIR) setup
+	@echo "$(GREEN)✓ Observability submodule initialized$(RESET)"
+
+obs-up: ## Start observability stack (via submodule)
+	@echo "Starting observability stack..."
+	@$(MAKE) -C $(OBS_DIR) up
+
+obs-down: ## Stop observability stack (via submodule)
+	@$(MAKE) -C $(OBS_DIR) down
+
+obs-update: ## Update observability submodule
+	@echo "Updating observability submodule..."
+	@git submodule update --remote $(OBS_DIR)
+	@echo "$(GREEN)✓ Observability submodule updated$(RESET)"
+
+obs-logs: ## View observability stack logs
+	@$(MAKE) -C $(OBS_DIR) logs
+
+obs-status: ## Show observability stack status
+	@$(MAKE) -C $(OBS_DIR) status
+
 ##@ Maintenance
 
 .PHONY: clean
@@ -155,7 +173,7 @@ clean: ## Remove containers, networks, volumes, and images
 
 .PHONY: export
 export: ## Export Docker image as tar file (optional: IMAGE=tag)
-	@IMAGE=$$(or $(IMAGE),$(IMAGE_TAG)); \
+	@IMAGE=$${IMAGE:-$(IMAGE_TAG)}; \
 	FILENAME=$$(echo $$IMAGE | tr ':/' '-').tar; \
 	echo "Exporting $$IMAGE to $$FILENAME..."; \
 	docker save $$IMAGE -o $$FILENAME; \
@@ -180,8 +198,8 @@ import: ## Import Docker image from tar file (optional: FILE=tarfile)
 		fi; \
 	fi
 	@echo "Importing $(FILE)..."; \
-	@docker load -i $(FILE)
-	@echo "$(GREEN)✓ Import complete: $(FILE)$(RESET)"
+	docker load -i $(FILE); \
+	echo "$(GREEN)✓ Import complete: $(FILE)$(RESET)"
 
 ##@ Testing
 
@@ -203,7 +221,7 @@ test-race: ## Run tests with race detection
 .PHONY: test-smoke
 test-smoke: ## Run smoke tests
 	@echo "Running smoke tests..."
-	@go test ./tests -run TestSmoke -v
+	@go test ./tests -run .*Smoke.* -v
 
 .PHONY: test-integration
 test-integration: ## Run integration tests

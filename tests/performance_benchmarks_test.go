@@ -175,7 +175,13 @@ func setupRealWorldClient() *http.Client {
 }
 
 // setupRealWorldServer creates a real HTTP server with the full dataset
-// for HTTP-level performance benchmarks
+// for HTTP-level performance benchmarks.
+//
+// Note: We use chi.NewRouter() directly instead of server.NewServer()
+// to isolate benchmark performance from middleware overhead. This allows benchmarks
+// to measure pure handler performance without the additional latency introduced
+// by RequestID, Logging, Metrics, RateLimiting, etc.
+// Full server behavior with all middleware is tested in documentation_claims_verification_test.go.
 func setupRealWorldServer() (*httptest.Server, *http.Client) {
 	realWorldServerOnce.Do(func() {
 		fmt.Println("Setting up real-world HTTP test server...")

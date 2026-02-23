@@ -78,15 +78,16 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RequestID)
 	s.router.Use(BlockDirectAccessMiddleware(s.config.AllowDirectAccess)) // Put BEFORE RealIPMiddleware to see original RemoteAddr
 	s.router.Use(RealIPMiddleware)
-	s.router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
+	if logging.DefaultLoggingService != nil {
+		s.router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
+	}
 	s.router.Use(middleware.RedirectSlashes)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
 
 	s.router.Use(metrics.Metrics)
 
-	// Disable rate limiting in test mode to measure true throughput performance
-	if s.config.Env != config.EnvTest {
+	if !s.config.DisableRateLimiter {
 		s.router.Use(RateLimitHandler)
 	}
 }
@@ -157,6 +158,11 @@ func (s *Server) setupDocumentationRoutes() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeFile(w, r, "cache_test.html")
 	})
+}
+
+// Router returns the chi router
+func (s *Server) Router() chi.Router {
+	return s.router
 }
 
 // Start starts the server
