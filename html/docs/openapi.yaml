@@ -16,7 +16,7 @@ info:
     - [Guide de migration vers v1](https://github.com/Giygas/medicaments-api/blob/main/docs/MIGRATION.md)
     - [Base de données BDPM](https://base-donnees-publique.medicaments.gouv.fr)
 
-  version: 1.1.0
+  version: 1.2.0
   contact:
     name: GitHub Repository
     url: https://github.com/giygas/medicaments-api
@@ -1378,8 +1378,9 @@ components:
       in: query
       required: false
       description: |
-        Nombre d'éléments par page (1-200, défaut: 10).
-        Doit être utilisé avec le paramètre page.
+        Nombre d'éléments par page. Plage valide: 1-200.
+        Valeur par défaut: 10 éléments.
+        Doit être utilisé avec le paramètre page (mutuellement exclusif avec search/cip/libelle).
       schema:
         type: integer
         minimum: 1

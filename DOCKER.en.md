@@ -388,7 +388,7 @@ curl http://localhost:8030/v1/generiques?group=1234
 curl http://localhost:8030/v1/presentations?cip=3400936403114
 
 # Export all data
-curl http://localhost:8030/v1/medicaments?export=all
+curl http://localhost:8030/v1/medicaments/export
 ```
 
 ### Documentation

@@ -206,9 +206,9 @@ go test ./tests -run TestSmoke -v
 - **Couverture handlers** : 75% minimum
 - **Couverture parser** : 75% minimum
 
-### Rapport actuel (v1.1.0)
+### Rapport actuel (v1.2.0)
 
-- **Couverture globale** : 78.5%
+- **Couverture globale** : 78.2%
 - **Handlers** : 85.6%
 - **Medicaments Parser** : 84.2%
 
@@ -235,7 +235,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 | Benchmark | Endpoint v1 | Type de lookup |
 |-----------|--------------|----------------|
-| `BenchmarkMedicamentsExport` | `/v1/medicaments?export=all` | Full export |
+| `BenchmarkMedicamentsExport` | `/v1/medicaments/export` | Full export |
 | `BenchmarkMedicamentsPagination` | `/v1/medicaments?page={n}` | Pagination |
 | `BenchmarkMedicamentsSearch` | `/v1/medicaments?search={q}` | Regex search |
 | `BenchmarkMedicamentByCIS` | `/v1/medicaments/{cis}` | O(1) lookup |
@@ -286,7 +286,7 @@ Exécuté automatiquement sur chaque pull request vers `main` :
 
 Workflow manuel pour restaurer une version précédente :
 
-- Sélection de version par tag (ex: `v1.1.0`) ou répertoire de backup
+- Sélection de version par tag (ex: `v1.2.0`) ou répertoire de backup
 - Restauration automatique du binaire et fichiers HTML
 - Arrêt propre du service avant restauration
 - Health check post-rollback

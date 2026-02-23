@@ -111,7 +111,7 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 
 | Benchmark                         | Endpoint v1                  | Type de lookup |
 | --------------------------------- | ---------------------------- | -------------- |
-| `BenchmarkMedicamentsExport`      | `/v1/medicaments?export=all` | Full export    |
+| `BenchmarkMedicamentsExport`      | `/v1/medicaments/export` | Full export    |
 | `BenchmarkMedicamentsPagination`  | `/v1/medicaments?page={n}`   | Pagination     |
 | `BenchmarkMedicamentsSearch`      | `/v1/medicaments?search={q}` | Regex search   |
 | `BenchmarkMedicamentByCIS`        | `/v1/medicaments/{cis}`      | O(1) lookup    |

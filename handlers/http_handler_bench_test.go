@@ -31,8 +31,8 @@ func BenchmarkMedicamentsExport(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "/v1/medicaments?export=all", nil)
-		handler.ServeMedicamentsV1(rr, req)
+		req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
+		handler.ExportMedicaments(rr, req)
 	}
 }
 

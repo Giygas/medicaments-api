@@ -9,22 +9,84 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Ajouté
 
-- Paramètre `pageSize` pour pagination personnalisée (1-200 éléments par page)
-- Support de la recherche de médicaments en association avec séparateur slash
-- Support Docker avec builds multi-architecture et durcissement de sécurité
-- Stack d'observabilité avec Grafana, Loki, Prometheus et Alloy
+### Modifié
+
+## [1.2.0] - 2026-02-23
+
+### Ajouté
+
+- **Paramètre `pageSize` pour pagination personnalisée** (1-200 éléments par page)
+  - Permet de contrôler le nombre d'éléments retournés par page
+  - Compatible avec `/v1/medicaments?page={n}`
+  - Valeur par défaut : 10, maximum : 200
+- **Limites de résultats de recherche** pour prévenir les abus
+  - Maximum 250 résultats pour `/v1/medicaments?search`
+  - Maximum 100 résultats pour `/v1/generiques?libelle`
+  - Retourne HTTP 429 si les limites sont dépassées
+  - Utilisez `/v1/medicaments/export` pour le jeu de données complet
+- **Support multi-architecture Docker** (amd64, arm64)
+  - Détection automatique de l'architecture hôte
+  - Builds optimisés pour Apple Silicon et x86_64
+- **Gestion des secrets Docker** pour Grafana
+  - Mot de passe Grafana sécurisé via Docker secrets
+  - Commande `make setup-secrets` pour la configuration initiale
+- **Variable d'environnement `DISABLE_RATE_LIMITER`**
+  - Permet de désactiver explicitement le rate limiting
+  - Utiliser avec prudence en production
+- **Stack d'observabilité avec Grafana, Loki, Prometheus et Alloy**
+  - Collecte centralisée des logs et métriques
+  - Tableaux de bord Grafana préconfigurés
+  - Détection des menaces de sécurité dans les logs
+- **Versioning automatique depuis les tags Git**
+  - Makefile détecte automatiquement la version depuis les tags
+  - Injection de version au build-time dans Docker
 
 ### Modifié
 
-- Les endpoints de recherche renvoient maintenant HTTP 429 lorsque les résultats dépassent les limites
-- Maximum 250 résultats pour `/v1/medicaments?search`
-- Maximum 100 résultats pour `/v1/generiques?libelle`
-- Les apostrophes fonctionnent maintenant correctement dans la validation de recherche
+- **Amélioration des performances de ~1%** après simplification des vérifications de sécurité
+- **Niveaux de logging en production** : DEBUG supprimé en console (fichiers toujours en DEBUG)
+- **Normalisation des noms** : `HTTPHandlerImpl` → `Handler` (conventions Go idiomatic)
+- **Optimisation du logger rotatif** avec timeout configurable et nettoyage basé sur le nom de fichier
+- **Métriques Prometheus** : utilisation des motifs de route Chi au lieu des chemins bruts
+- **Amélioration de la validation** : support des apostrophes et messages d'erreur améliorés
+- **Optimisation du build Docker** : cache, copie HTML, suppression de git du builder
+- **Makefile unifié** remplace `docker-build.sh` avec améliorations UX
 
 ### Corrigé
 
-- Attaques par path traversal bloquées en rejetant les points consécutifs
-- Suivi des IP amélioré avec validation de X-Forwarded-For
+- **Health checks** : fermeture correcte du corps de réponse et timeout pour éviter les blocages
+- **Création des logs dans Docker** : corrigé les problèmes de création de fichiers de logs
+- **Support des apostrophes** dans les requêtes de recherche
+- **Pattern de métriques** : corrigé pour utiliser les motifs de route Chi
+- **Memory leaks** : réduit les allocations via une instance unique de logger de secours
+
+### Documentation
+
+- **Documentation Docker complète** avec stack d'observabilité
+- **Documentation éliminée** les sections redondantes entre les fichiers
+- **Traduction** du changelog en français
+- **Mise à jour** AGENTS.md avec les nouvelles fonctionnalités
+- **Refactorisation** de la documentation d'observabilité (déléguée au submodule)
+
+### Tests
+
+- **Couverture de tests améliorée** pour la configuration et les rapports de qualité des données
+- **Tests v1/diagnostics** ajoutés
+- **Refactorisation** de la configuration du serveur de tests
+- **Amélioration** des tests de validation CIP/CIS
+
+### Performance
+
+- Amélioration globale de ~1% des performances après simplification des vérifications de sécurité
+- Optimisation du build Docker avec cache et suppression des dépendances inutiles
+- Réduction des allocations de mémoire via optimisations du logger
+
+### Sécurité
+
+- **Détection des menaces de sécurité** dans Alloy logging
+- **Gestion sécurisée des secrets** Docker pour Grafana
+- **Validation des entrées** améliorée avec support des apostrophes
+- **Vérification X-Forwarded-For** pour un meilleur suivi des IP
 
 ## [1.1.0] - 2026-02-13
 
