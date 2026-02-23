@@ -61,7 +61,6 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Documentation Docker complète** avec stack d'observabilité
 - **Documentation éliminée** les sections redondantes entre les fichiers
 - **Traduction** du changelog en français
-- **Mise à jour** AGENTS.md avec les nouvelles fonctionnalités
 - **Refactorisation** de la documentation d'observabilité (déléguée au submodule)
 
 ### Tests
