@@ -24,8 +24,8 @@ const (
 	maxPageSize     = 200
 	defaultPageSize = 10
 
-	errTooManyMedicamentsResults = "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
-	errTooManyGeneriquesResults  = "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
+	errTooManyMedicamentsResults = "Search too broad. Maximum 250 results returned. Use more specific search terms or /export for full dataset"
+	errTooManyGeneriquesResults  = "Search too broad. Maximum 100 results returned. Use more specific search terms or /export for full dataset"
 )
 
 // Handler implements the interfaces.HTTPHandler interface
@@ -569,7 +569,7 @@ func (h *Handler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
 			results = append(results, gen)
 			// Check if there are more results than the maximum, return error
 			if len(results) > maxGeneriqueSearchResults {
-				h.RespondWithError(w, http.StatusTooManyRequests, errTooManyGeneriquesResults)
+				h.RespondWithError(w, http.StatusBadRequest, errTooManyGeneriquesResults)
 				return
 
 			}
@@ -688,7 +688,7 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			if allMatch {
 				results = append(results, med)
 				if len(results) > maxMedicamentSearchResults {
-					h.RespondWithError(w, http.StatusTooManyRequests, errTooManyMedicamentsResults)
+					h.RespondWithError(w, http.StatusBadRequest, errTooManyMedicamentsResults)
 					return
 				}
 

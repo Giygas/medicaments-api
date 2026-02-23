@@ -169,21 +169,21 @@ Les endpoints de recherche v1 ont maintenant des limites de résultats :
 - `/v1/medicaments?search={query}` : Maximum 250 résultats
 - `/v1/generiques?libelle={nom}` : Maximum 100 résultats
 
-**Réponse HTTP 429** :
+**Réponse HTTP 400** :
 
 Lorsqu'une recherche dépasse la limite, l'API renvoie :
 
 ```json
 {
-  "error": "Too Many Requests",
-  "message": "Too many results returned. Maximum 250 results per search. Use /export for full dataset",
-  "code": 429
+  "error": "Bad Request",
+  "message": "Search too broad. Maximum 250 results returned. Use more specific search terms or /export for full dataset",
+  "code": 400
 }
 ```
 
 **Impact** :
 
-- Les applications effectuant des recherches larges (ex: "a", "par") recevront une erreur 429
+- Les applications effectuant des recherches larges (ex: "a", "par") recevront une erreur 400
 - Il est recommandé de guider les utilisateurs vers `/v1/medicaments/export` pour le dataset complet
 - Les recherches spécifiques retournant ≤ 250/100 résultats continuent de fonctionner normalement
 
@@ -194,10 +194,10 @@ const response = await fetch(
   "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol",
 );
 
-if (response.status === 429) {
+if (response.status === 400) {
   const error = await response.json();
   console.error(error.message);
-  // "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
+  // "Search too broad. Maximum 250 results returned. Use more specific search terms or /export for full dataset"
   // Fallback: Suggest using export endpoint
   alert("Search too broad. Use /export endpoint for complete dataset.");
   // Redirect or show link to /v1/medicaments/export
@@ -594,19 +594,19 @@ curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500+m
 
 **Solution :** Vérifier que le paramètre de recherche est correct et que le médicament existe dans la base BDPM
 
-### 429 Too Many Requests
+### 400 Bad Request - Search Too Broad
 
 **Erreur :**
 
 ```json
 {
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded. Retry after X seconds",
-  "code": 429
+  "error": "Bad Request",
+  "message": "Search too broad. Maximum 250 results returned. Use more specific search terms or /export for full dataset",
+  "code": 400
 }
 ```
 
-**Solution :** Attendre le temps indiqué dans le header `Retry-After` avant de réessayer
+**Solution :** Utiliser des termes de recherche plus spécifiques ou utiliser `/v1/medicaments/export` pour le dataset complet
 
 ## Support
 

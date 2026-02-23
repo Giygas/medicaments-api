@@ -60,7 +60,7 @@ go test ./handlers -run TestServeMedicamentsV1_SearchLimitExceeded -v
 go test ./handlers -run TestServeGeneriquesV1_SearchLimitExceeded -v
 ```
 
-Ces tests vérifient que l'API retourne HTTP 429 lorsque les recherches dépassent les limites :
+Ces tests vérifient que l'API retourne HTTP 400 lorsque les recherches dépassent les limites :
 - 250 résultats maximum pour `/v1/medicaments?search`
 - 100 résultats maximum pour `/v1/generiques?libelle`
 
@@ -423,7 +423,7 @@ go tool pprof cpu.prof
 
 ### Tester les limites de recherche
 
-- Vérifier que les réponses 429 sont correctement gérées par les clients
+- Vérifier que les réponses 400 sont correctement gérées par les clients
 - Tester avec des recherches larges pour valider le comportement
 - Confirmer que le message d'erreur guide vers `/export`
 

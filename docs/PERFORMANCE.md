@@ -220,7 +220,7 @@ Les endpoints de recherche v1 ont des limites de résultats pour prévenir l'abu
 - **Médicaments** : Maximum 250 résultats par recherche
 - **Génériques** : Maximum 100 résultats par recherche
 
-Lorsqu'une recherche dépasse ces limites, l'API retourne **HTTP 429 Too Many Requests** avec un message guidant vers `/v1/medicaments/export`.
+Lorsqu'une recherche dépasse ces limites, l'API retourne **HTTP 400 Bad Request** avec un message guidant vers `/v1/medicaments/export`.
 
 **Raisonnement :**
 - Empêche de télécharger l'ensemble du dataset via des recherches larges multiples

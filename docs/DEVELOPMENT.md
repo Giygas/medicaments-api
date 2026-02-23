@@ -462,9 +462,9 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 - Utiliser `go test -short` pour sauter les tests d'intégration lents
 - Exécuter des tests spécifiques au lieu de tous les tests
 
-**Les recherches retournent HTTP 429 :**
+**Les recherches retournent HTTP 400 :**
 
-- Les recherches larges (> 250 médicaments ou > 100 génériques) renvoient une erreur 429
+- Les recherches larges (> 250 médicaments ou > 100 génériques) renvoient une erreur 400
 - Utilisez `/v1/medicaments/export` pour obtenir le dataset complet
 - Réduisez la spécificité de la recherche (ex: "paracetamol 500" au lieu de "a")
 
@@ -498,9 +498,9 @@ curl -I https://base-donnees-publique.medicaments.gouv.fr
 - Documenter les fonctions exportées
 - Maintenir la documentation à jour avec le code
 
-### Gestion des erreurs 429
+### Gestion des erreurs 400 - Recherche Trop Large
 
-- Les clients doivent gérer les réponses HTTP 429 de manière gracieuse
+- Les clients doivent gérer les réponses HTTP 400 de manière gracieuse
 - Guider les utilisateurs vers `/v1/medicaments/export` pour les recherches larges
 - Afficher un message explicite lorsque la limite est atteinte
 

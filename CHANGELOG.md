@@ -22,7 +22,7 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Limites de résultats de recherche** pour prévenir les abus
   - Maximum 250 résultats pour `/v1/medicaments?search`
   - Maximum 100 résultats pour `/v1/generiques?libelle`
-  - Retourne HTTP 429 si les limites sont dépassées
+  - Retourne HTTP 400 si les limites sont dépassées
   - Utilisez `/v1/medicaments/export` pour le jeu de données complet
 - **Support multi-architecture Docker** (amd64, arm64)
   - Détection automatique de l'architecture hôte
@@ -43,7 +43,7 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Modifié
 
-- **Amélioration des performances de ~1%** après simplification des vérifications de sécurité
+- **Simplification des vérifications de sécurité** pour des temps de réponse plus rapides
 - **Niveaux de logging en production** : DEBUG supprimé en console (fichiers toujours en DEBUG)
 - **Normalisation des noms** : `HTTPHandlerImpl` → `Handler` (conventions Go idiomatic)
 - **Optimisation du logger rotatif** avec timeout configurable et nettoyage basé sur le nom de fichier
@@ -77,9 +77,11 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Performance
 
-- Amélioration globale de ~1% des performances après simplification des vérifications de sécurité
-- Optimisation du build Docker avec cache et suppression des dépendances inutiles
-- Réduction des allocations de mémoire via optimisations du logger
+- Optimisations multiples des performances
+- Simplification des vérifications de sécurité pour des temps de réponse plus rapides
+- Réduction des allocations de mémoire via optimisations du logger rotatif
+- Build Docker optimisé avec cache et suppression des dépendances inutiles
+- Réduction des fuites de mémoire (memory leaks)
 
 ### Sécurité
 
