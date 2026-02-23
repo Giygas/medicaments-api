@@ -26,6 +26,10 @@ var (
 const (
 	cleanupInterval          = 5 * time.Minute
 	metricsCollectionInteval = 30 * time.Second
+
+	// Rate limiter token bucket configuration
+	rateLimitRate  = 3    // tokens per second
+	rateLimitBurst = 1000 // maximum bucket capacity
 )
 
 // RealIPMiddleware extracts the real IP from X-Forwarded-For header
@@ -175,8 +179,8 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 	if !exists {
 		rl.mu.Lock()
 		if bucket, exists = rl.clients[clientIP]; !exists {
-			// Create bucket: 3 tokens per second, max 1000 tokens
-			bucket = ratelimit.NewBucketWithRate(3, 1000)
+			// Create bucket with configured rate and burst
+			bucket = ratelimit.NewBucketWithRate(rateLimitRate, rateLimitBurst)
 			rl.clients[clientIP] = bucket
 		}
 		rl.mu.Unlock()
@@ -387,8 +391,8 @@ func RateLimitHandler(next http.Handler) http.Handler {
 		tokenCost := getTokenCost(r)
 
 		// Add rate limit headers before consuming tokens
-		w.Header().Set("X-RateLimit-Limit", "1000")
-		w.Header().Set("X-RateLimit-Rate", "3")
+		w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(rateLimitBurst, 10))
+		w.Header().Set("X-RateLimit-Rate", strconv.FormatInt(rateLimitRate, 10))
 
 		// Check if the client has enough tokens
 		if bucket.TakeAvailable(tokenCost) < tokenCost {

@@ -23,6 +23,8 @@ var (
 )
 
 func init() {
+	// fallbackLogger provides logging before main logger initialization
+	// Used during early startup and initialization failures
 	fallbackLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
