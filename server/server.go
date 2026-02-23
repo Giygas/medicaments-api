@@ -152,6 +152,13 @@ func (s *Server) setupDocumentationRoutes() {
 		http.ServeFile(w, r, "html/favicon.ico")
 	})
 
+	// OG Image for social sharing
+	s.router.Get("/index_page.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=31536000") // 1 year
+		w.Header().Set("Content-Type", "image/png")
+		http.ServeFile(w, r, "html/index_page.png")
+	})
+
 	// Cache test page
 	s.router.Get("/cache-test", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache") // Don't cache the test page itself
