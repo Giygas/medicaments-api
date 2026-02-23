@@ -207,11 +207,11 @@ func TestConcurrentAccess(t *testing.T) {
 	numWriters := 3
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				// Test all getter methods
 				meds := dc.GetMedicaments()
 				gens := dc.GetGeneriques()
@@ -243,11 +243,11 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+			for range 10 {
 				if dc.BeginUpdate() {
 					// Simulate some work
 					time.Sleep(time.Microsecond * 100)
@@ -356,7 +356,7 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 	time.Sleep(time.Microsecond * 100)
 
 	// Update data multiple times rapidly
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		newMedicaments := []entities.Medicament{
 			{Cis: i + 2, Denomination: "Update"},
 		}
@@ -500,11 +500,11 @@ func TestServerStartTimeConcurrentAccess(t *testing.T) {
 	numReaders := 20
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				// Set a unique time for this goroutine
 				testTime := time.Date(2024, 1, 1, id, j, 0, 0, time.UTC)
 				dc.SetServerStartTime(testTime)
@@ -513,11 +513,29 @@ func TestServerStartTimeConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
+				startTime := dc.GetServerStartTime()
+				// Basic sanity check - should be able to get time without panicking
+				if !startTime.IsZero() {
+					// Time should be reasonable (not in far future or distant past)
+					if startTime.Year() < 2020 || startTime.Year() > 2030 {
+						t.Errorf("Reader %d: Got unexpected time: %v", id, startTime)
+					}
+				}
+			}
+		}(i)
+	}
+
+	// Start concurrent readers
+	for i := range numReaders {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for range 100 {
 				startTime := dc.GetServerStartTime()
 				// Basic sanity check - should be able to get time without panicking
 				if !startTime.IsZero() {
@@ -546,7 +564,7 @@ func BenchmarkGetMedicaments(b *testing.B) {
 
 	// Set up test data
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData(medicaments, []entities.GeneriqueList{},
@@ -566,7 +584,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 
 	// Set up test data
 	medicamentsMap := make(map[int]entities.Medicament)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
@@ -574,7 +592,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 		map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dc.GetMedicamentsMap()
 	}
 }
@@ -585,27 +603,27 @@ func BenchmarkUpdateData(b *testing.B) {
 	dc := NewDataContainer()
 
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
 	generiques := make([]entities.GeneriqueList, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		generiques[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 
 	medicamentsMap := make(map[int]entities.Medicament)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
 	generiquesMap := make(map[int]entities.GeneriqueList)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		generiquesMap[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
 			map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 	}
@@ -708,11 +726,11 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	errors := make(chan error, numReaders+numWriters)
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 50; j++ {
+			for range 50 {
 				cip7 := dc.GetPresentationsCIP7Map()
 				cip13 := dc.GetPresentationsCIP13Map()
 
@@ -730,11 +748,11 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+			for j := range 10 {
 				newCIP7 := map[int]entities.Presentation{
 					1000 + id*10 + j: {Cis: id, Cip7: 1000 + id*10 + j, Cip13: int(3400900000000 + int64(id)*100000000)},
 				}
@@ -754,11 +772,177 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	// Check for any errors
 	errorCount := 0
 	for err := range errors {
-		t.Error(err)
+		t.Fatal(err)
 		errorCount++
 	}
 
 	if errorCount > 0 {
 		t.Errorf("Concurrent access test failed with %d errors", errorCount)
+	}
+}
+
+func TestGetDataQualityReport(t *testing.T) {
+	logging.InitLogger("")
+
+	dc := NewDataContainer()
+
+	// Initial state should have empty report
+	report := dc.GetDataQualityReport()
+	if report == nil {
+		t.Fatal("GetDataQualityReport should never return nil")
+	}
+
+	// Verify initial report is empty
+	if report.MedicamentsWithoutConditions != 0 {
+		t.Errorf("Expected 0 MedicamentsWithoutConditions in initial report, got %d", report.MedicamentsWithoutConditions)
+	}
+
+	if report.MedicamentsWithoutGeneriques != 0 {
+		t.Errorf("Expected 0 MedicamentsWithoutGeneriques in initial report, got %d", report.MedicamentsWithoutGeneriques)
+	}
+
+	if report.GeneriqueOnlyCIS != 0 {
+		t.Errorf("Expected 0 GeneriqueOnlyCIS in initial report, got %d", report.GeneriqueOnlyCIS)
+	}
+
+	// Create a test report
+	testReport := &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{1001, 1002},
+		DuplicateGroupIDs:                  []int{2001, 2002, 2003},
+		MedicamentsWithoutConditions:       150,
+		MedicamentsWithoutGeneriques:       75,
+		MedicamentsWithoutPresentations:    20,
+		MedicamentsWithoutCompositions:     5,
+		GeneriqueOnlyCIS:                   30,
+		MedicamentsWithoutConditionsCIS:    []int{3001, 3002, 3003},
+		MedicamentsWithoutGeneriquesCIS:    []int{4001, 4002},
+		MedicamentsWithoutPresentationsCIS: []int{5001},
+		MedicamentsWithoutCompositionsCIS:  []int{6001},
+		GeneriqueOnlyCISList:               []int{7001, 7002, 7003, 7004},
+	}
+
+	// Update data with the test report
+	dc.UpdateData(
+		[]entities.Medicament{},
+		[]entities.GeneriqueList{},
+		map[int]entities.Medicament{},
+		map[int]entities.GeneriqueList{},
+		map[int]entities.Presentation{},
+		map[int]entities.Presentation{},
+		testReport,
+	)
+
+	// Retrieve and verify the report
+	retrievedReport := dc.GetDataQualityReport()
+	if retrievedReport == nil {
+		t.Fatal("GetDataQualityReport returned nil after UpdateData")
+	}
+
+	if retrievedReport.MedicamentsWithoutConditions != 150 {
+		t.Errorf("Expected MedicamentsWithoutConditions=150, got %d", retrievedReport.MedicamentsWithoutConditions)
+	}
+
+	if retrievedReport.MedicamentsWithoutGeneriques != 75 {
+		t.Errorf("Expected MedicamentsWithoutGeneriques=75, got %d", retrievedReport.MedicamentsWithoutGeneriques)
+	}
+
+	if retrievedReport.MedicamentsWithoutPresentations != 20 {
+		t.Errorf("Expected MedicamentsWithoutPresentations=20, got %d", retrievedReport.MedicamentsWithoutPresentations)
+	}
+
+	if retrievedReport.MedicamentsWithoutCompositions != 5 {
+		t.Errorf("Expected MedicamentsWithoutCompositions=5, got %d", retrievedReport.MedicamentsWithoutCompositions)
+	}
+
+	if retrievedReport.GeneriqueOnlyCIS != 30 {
+		t.Errorf("Expected GeneriqueOnlyCIS=30, got %d", retrievedReport.GeneriqueOnlyCIS)
+	}
+
+	if len(retrievedReport.DuplicateCIS) != 2 {
+		t.Errorf("Expected 2 DuplicateCIS entries, got %d", len(retrievedReport.DuplicateCIS))
+	}
+
+	if len(retrievedReport.DuplicateGroupIDs) != 3 {
+		t.Errorf("Expected 3 DuplicateGroupIDs entries, got %d", len(retrievedReport.DuplicateGroupIDs))
+	}
+
+	if len(retrievedReport.MedicamentsWithoutConditionsCIS) != 3 {
+		t.Errorf("Expected 3 MedicamentsWithoutConditionsCIS entries, got %d", len(retrievedReport.MedicamentsWithoutConditionsCIS))
+	}
+
+	if len(retrievedReport.GeneriqueOnlyCISList) != 4 {
+		t.Errorf("Expected 4 GeneriqueOnlyCISList entries, got %d", len(retrievedReport.GeneriqueOnlyCISList))
+	}
+}
+
+func TestGetDataQualityReportConcurrentAccess(t *testing.T) {
+	logging.InitLogger("")
+
+	dc := NewDataContainer()
+
+	// Set initial report
+	initialReport := &interfaces.DataQualityReport{
+		MedicamentsWithoutConditions: 100,
+		MedicamentsWithoutGeneriques: 50,
+	}
+	dc.UpdateData(
+		[]entities.Medicament{},
+		[]entities.GeneriqueList{},
+		map[int]entities.Medicament{},
+		map[int]entities.GeneriqueList{},
+		map[int]entities.Presentation{},
+		map[int]entities.Presentation{},
+		initialReport,
+	)
+
+	var wg sync.WaitGroup
+	numReaders := 20
+	numWriters := 5
+
+	// Start concurrent readers
+	for i := range numReaders {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for range 100 {
+				report := dc.GetDataQualityReport()
+				// Basic sanity checks - should never panic and should return non-nil
+				if report == nil {
+					t.Errorf("Reader %d: GetDataQualityReport returned nil", id)
+				}
+			}
+		}(i)
+	}
+
+	// Start concurrent writers
+	for i := range numWriters {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := range 10 {
+				newReport := &interfaces.DataQualityReport{
+					MedicamentsWithoutConditions: id + j,
+					MedicamentsWithoutGeneriques: id * j,
+					DuplicateCIS:                 []int{id},
+				}
+				dc.UpdateData(
+					[]entities.Medicament{},
+					[]entities.GeneriqueList{},
+					map[int]entities.Medicament{},
+					map[int]entities.GeneriqueList{},
+					map[int]entities.Presentation{},
+					map[int]entities.Presentation{},
+					newReport,
+				)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Final verification - container should still have a report
+	finalReport := dc.GetDataQualityReport()
+	if finalReport == nil {
+		t.Error("Final report should not be nil")
 	}
 }

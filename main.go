@@ -20,6 +20,20 @@ import (
 )
 
 func main() {
+	// Check if running in healthcheck mode (for Docker HEALTHCHECK)
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get("http://localhost:8000/health")
+		if err != nil || resp.StatusCode != 200 {
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			os.Exit(1)
+		}
+		_ = resp.Body.Close()
+		os.Exit(0)
+	}
+
 	// Load environment variables first
 	if err := loadEnvironment(); err != nil {
 		fmt.Printf("Failed to load environment: %v\n", err)
@@ -42,6 +56,7 @@ func main() {
 		"address", cfg.Address,
 		"env", cfg.Env.String(),
 		"log_level", cfg.LogLevel,
+		"allow_direct_access", cfg.AllowDirectAccess,
 		"max_request_body", cfg.MaxRequestBody,
 		"max_header_size", cfg.MaxHeaderSize)
 
@@ -112,7 +127,11 @@ func loadEnvironment() error {
 
 		// Try again after changing directory
 		if err := godotenv.Load(); err != nil {
-			logging.Warn("Could not load .env file", "error", err)
+			// Check if environment variables are already set (e.g., by Docker)
+			if os.Getenv("PORT") == "" && os.Getenv("ENV") == "" {
+				// Only warn if env vars aren't already configured
+				logging.Warn("Could not load .env file", "error", err)
+			}
 		}
 	}
 

@@ -53,6 +53,17 @@ go test ./handlers -run TestServeGeneriquesV1 -v
 go test ./handlers -run TestServeDiagnosticsV1 -v
 ```
 
+### Tests de limites de recherche
+
+```bash
+go test ./handlers -run TestServeMedicamentsV1_SearchLimitExceeded -v
+go test ./handlers -run TestServeGeneriquesV1_SearchLimitExceeded -v
+```
+
+Ces tests vérifient que l'API retourne HTTP 400 lorsque les recherches dépassent les limites :
+- 250 résultats maximum pour `/v1/medicaments?search`
+- 100 résultats maximum pour `/v1/generiques?libelle`
+
 ## Tests d'Intégration
 
 ### Pipeline complet de parsing
@@ -108,46 +119,19 @@ go test ./tests -coverprofile=tests_coverage.out
 
 ## Benchmarks
 
+Pour les commandes de benchmark détaillées, voir [Guide de développement - Benchmarks](DEVELOPMENT.md#benchmarks) et [Performance et benchmarks](PERFORMANCE.md).
+
 ### Exécuter tous les benchmarks v1
 ```bash
 go test ./handlers -bench=. -benchmem -v
 ```
 
-### Benchmark spécifique v1
-```bash
-go test ./handlers -bench=BenchmarkMedicamentByCIS -benchmem -v
-```
-
-### Benchmark avec profil CPU
-```bash
-go test ./handlers -bench=. -benchmem -cpuprofile=cpu.prof
-go tool pprof cpu.prof
-```
-
 ### Vérification des claims de documentation
 ```bash
-go test -run=TestDocumentationClaimsVerification -v
+go test ./tests -run TestDocumentationClaimsVerification -v
 ```
 
-### Benchmarks de pipeline d'intégration
-```bash
-go test ./tests -run TestIntegrationFullDataParsingPipeline -v
-```
-
-### Benchmarks complets avec sous-tests
-```bash
-# Tests algorithmiques
-go test ./tests -bench=BenchmarkAlgorithmicPerformance -benchmem -run=^$
-
-# Tests HTTP complets
-go test ./tests -bench=BenchmarkHTTPPerformance -benchmem -run=^$
-
-# Tests de recherche réels
-go test ./tests -bench=BenchmarkRealWorldSearch -benchmem -run=^$
-
-# Tests de charge soutenus
-go test ./tests -bench=BenchmarkSustainedPerformance -benchmem -run=^$
-```
+**Pour plus de détails sur les benchmarks et l'analyse des résultats, voir [Performance et benchmarks](PERFORMANCE.md).**
 
 ## Stratégie de Tests
 
@@ -222,9 +206,9 @@ go test ./tests -run TestSmoke -v
 - **Couverture handlers** : 75% minimum
 - **Couverture parser** : 75% minimum
 
-### Rapport actuel (v1.1.0)
+### Rapport actuel (v1.2.0)
 
-- **Couverture globale** : 78.5%
+- **Couverture globale** : 78.2%
 - **Handlers** : 85.6%
 - **Medicaments Parser** : 84.2%
 
@@ -251,7 +235,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 | Benchmark | Endpoint v1 | Type de lookup |
 |-----------|--------------|----------------|
-| `BenchmarkMedicamentsExport` | `/v1/medicaments?export=all` | Full export |
+| `BenchmarkMedicamentsExport` | `/v1/medicaments/export` | Full export |
 | `BenchmarkMedicamentsPagination` | `/v1/medicaments?page={n}` | Pagination |
 | `BenchmarkMedicamentsSearch` | `/v1/medicaments?search={q}` | Regex search |
 | `BenchmarkMedicamentByCIS` | `/v1/medicaments/{cis}` | O(1) lookup |
@@ -302,7 +286,7 @@ Exécuté automatiquement sur chaque pull request vers `main` :
 
 Workflow manuel pour restaurer une version précédente :
 
-- Sélection de version par tag (ex: `v1.1.0`) ou répertoire de backup
+- Sélection de version par tag (ex: `v1.2.0`) ou répertoire de backup
 - Restauration automatique du binaire et fichiers HTML
 - Arrêt propre du service avant restauration
 - Health check post-rollback
@@ -436,6 +420,12 @@ go tool pprof cpu.prof
 - Ajouter des commentaires pour expliquer la logique
 - Utiliser des noms de tests descriptifs
 - Documenter les assertions importantes
+
+### Tester les limites de recherche
+
+- Vérifier que les réponses 400 sont correctement gérées par les clients
+- Tester avec des recherches larges pour valider le comportement
+- Confirmer que le message d'erreur guide vers `/export`
 
 ## Référence des Commandes de Test
 

@@ -14,6 +14,7 @@ import (
 	"github.com/giygas/medicaments-api/handlers"
 	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/interfaces"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/server"
 	"github.com/giygas/medicaments-api/validation"
@@ -59,6 +60,9 @@ var testGeneriquesMap = map[int]entities.GeneriqueList{
 var testDataContainer *data.DataContainer
 
 func TestMain(m *testing.M) {
+	logging.InitLoggerWithEnvironment("", config.EnvTest, "", 4, 100*1024*1024)
+	defer logging.Close()
+
 	fmt.Println("Initializing test data...")
 	// Initialize mock data for tests
 	testDataContainer = data.NewDataContainer()
@@ -83,6 +87,19 @@ func TestMain(m *testing.M) {
 	exitVal := m.Run()
 	fmt.Printf("Tests completed with exit code: %d\n", exitVal)
 	os.Exit(exitVal)
+}
+
+func setupEndpointsTestServer(dataContainer *data.DataContainer) *server.Server {
+	cfg := &config.Config{
+		Port:               "0",
+		Address:            "localhost",
+		Env:                config.EnvTest,
+		LogLevel:           "error",
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		DisableRateLimiter: true,
+	}
+	return server.NewServer(cfg, dataContainer)
 }
 
 func TestEndpoints(t *testing.T) {
@@ -110,18 +127,8 @@ func TestEndpoints(t *testing.T) {
 		{"Test health", "/health", http.StatusOK},
 	}
 
-	router := chi.NewRouter()
-	// Note: rateLimitHandler is now part of server middleware
-	validator := validation.NewDataValidator()
-	healthChecker := health.NewHealthChecker(testDataContainer)
-	httpHandler := handlers.NewHTTPHandler(testDataContainer, validator, healthChecker)
-	router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
-	router.Get("/v1/medicaments", httpHandler.ServeMedicamentsV1)
-	router.Get("/v1/medicaments/{cis}", httpHandler.FindMedicamentByCIS)
-	router.Get("/v1/generiques/{groupID}", httpHandler.FindGeneriquesByGroupID)
-	router.Get("/v1/generiques", httpHandler.ServeGeneriquesV1)
-	router.Get("/v1/presentations/{cip}", httpHandler.ServePresentationsV1)
-	router.Get("/health", httpHandler.HealthCheck)
+	srv := setupEndpointsTestServer(testDataContainer)
+	router := srv.Router()
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -131,6 +138,8 @@ func TestEndpoints(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			req.RemoteAddr = "127.0.0.1:12345"
 
 			rr := httptest.NewRecorder()
 			router.ServeHTTP(rr, req)
@@ -174,7 +183,7 @@ func TestBlockDirectAccessMiddleware(t *testing.T) {
 	fmt.Println("Testing blockDirectAccessMiddleware...")
 
 	router := chi.NewRouter()
-	router.Use(server.BlockDirectAccessMiddleware)
+	router.Use(server.BlockDirectAccessMiddleware(false))
 	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("allowed"))
 	})

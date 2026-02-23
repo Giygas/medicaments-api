@@ -616,8 +616,8 @@
             ultra-performante. Parsing concurrent des sources en **~0.5
             secondes** avec validation croisée et structuration automatique via
             atomic operations pour garantir des mises à jour zero-downtime.
-            Architecture optimisée pour **92K req/sec** avec seulement
-            **30-50MB RAM** stable.
+            Architecture optimisée pour **92K req/sec** avec seulement **30-50MB
+            RAM** stable.
           </p>
           <br />
           <p>
@@ -645,16 +645,16 @@
               <strong style="color: var(--color-text)"
                 >Base URL & Authentication</strong
               >
-              <pre
-                style="
-                  background: var(--color-bg);
-                  padding: 1rem;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin-top: 0.5rem;
-                  font-size: 0.9rem;
-                "
-              ><code># URL de base
+               <pre
+                 style="
+                   background: var(--color-bg);
+                   padding: 1rem;
+                   border-radius: 4px;
+                   overflow-x: auto;
+                   margin-top: 0.5rem;
+                   font-size: 0.9rem;
+                 "
+               ><code># Production (HTTPS)
 BASE_URL="https://medicaments-api.giygas.dev"
 
 # Authentification : Aucune requise
@@ -763,7 +763,54 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   📋
                 </button>
               </div>
+               <div style="position: relative; margin: 0.5rem 0">
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.5rem;
+                      border-radius: 4px;
+                      display: block;
+                      padding-right: 3rem;
+                    "
+                    onclick="copyToClipboard(this.textContent.trim())"
+                  >
+                    curl
+                    https://medicaments-api.giygas.dev/v1/medicaments?search=d'heptaminol
+                  </code>
+                  <button
+                    onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                    style="
+                      position: absolute;
+                      right: 0.5rem;
+                      top: 50%;
+                      transform: translateY(-50%);
+                      background: var(--color-primary);
+                      color: white;
+                      border: none;
+                      border-radius: 4px;
+                      padding: 0.25rem 0.5rem;
+                      font-size: 0.75rem;
+                      cursor: pointer;
+                    "
+                   >
+                    📋
+                   </button>
+                </div>
             </div>
+            <p
+              style="
+                color: var(--color-text-muted);
+                font-size: 0.9rem;
+                margin-top: 1rem;
+              "
+            >
+              Also available in Docker: <a
+                href="/DOCKER.md"
+                target="_blank"
+                style="color: var(--color-secondary)"
+                >DOCKER.md</a
+              >
+            </p>
           </div>
 
           <!-- Health Response Example -->
@@ -887,9 +934,9 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔍</div>
             <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherche multi-mots (logique ET, max 6 mots) ou CIS avec O(1)
-              lookup. Validation stricte (3-50 chars, 1-6 mots alphanumériques)
-              et échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
+              Recherche multi-mots (max 6 mots) ou CIS avec O(1) lookup.
+              Validation stricte (3-50 chars, 1-6 mots alphanumériques).
+              Échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
               <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
               les lookups O(1).
             </p>
@@ -1115,7 +1162,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Recherche par nom
+                    Recherche par nom (max 250 résultats)
                   </td>
                   <td
                     style="
@@ -1226,7 +1273,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Génériques par libellé
+                    Génériques par libellé (max 100 résultats)
                   </td>
                   <td
                     style="
@@ -1326,6 +1373,32 @@ BASE_URL="https://medicaments-api.giygas.dev"
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Search Limits Warning -->
+          <div
+            style="
+              background: var(--color-accent);
+              color: white;
+              padding: 1rem 1.5rem;
+              border-radius: 8px;
+              margin-top: 2rem;
+              text-align: center;
+            "
+          >
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
+              Limites de résultats de recherche
+            </div>
+            <div style="font-size: 0.95rem">
+              Les endpoints de recherche renvoient un maximum de
+              <strong>250 résultats</strong> pour les médicaments et
+              <strong>100 résultats</strong> pour les génériques.
+              <br />
+              Pour obtenir la base complète, utilisez
+              <code style="background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 4px"
+                >GET /v1/medicaments/export</code
+              >
+            </div>
           </div>
 
           <!-- Diagnostics Endpoint -->
@@ -2136,14 +2209,21 @@ Content-Type: application/json
               alphanumériques séparés par
               <code style="color: var(--color-highlight)">+</code> ou espace
             </p>
-             <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
-               <strong>Caractères autorisés :</strong> Lettres, chiffres,
-               espaces, tirets (-), apostrophes ('), points (.), et signe plus (+)
-             </p>
-             <p style="color: var(--color-accent); font-size: 0.9rem; margin-top: 0.5rem">
-               <strong>Note :</strong> Les données source BDPM sont en majuscules sans accents.
-               Utilisez des caractères sans accents (ex: "ibuprofene" au lieu de "ibuprofène").
-             </p>
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Caractères autorisés :</strong> Lettres, chiffres,
+              espaces, tirets (-), points (.), et signe plus (+)
+            </p>
+            <p
+              style="
+                color: var(--color-accent);
+                font-size: 0.9rem;
+                margin-top: 0.5rem;
+              "
+            >
+              <strong>Note :</strong> Les données source BDPM sont en majuscules
+              sans accents. Utilisez des caractères sans accents (ex:
+              "ibuprofene" au lieu de "ibuprofène").
+            </p>
             <p style="color: var(--color-text-muted)">
               <strong>Insensible à la casse :</strong> La recherche ne tient pas
               compte des majuscules/minuscules
@@ -2165,9 +2245,9 @@ Content-Type: application/json
                 padding: 0.5rem 0.75rem;
                 border-radius: 4px;
               "
-             >
-               paracetamol-400</code
-             >
+            >
+              paracetamol-400</code
+            >
             <code
               style="
                 background: var(--color-bg);
@@ -2586,8 +2666,10 @@ Response: [...]  // Direct array of all medicaments</code></pre>
           <div class="tech-badge">OpenAPI 3.1</div>
           <div class="tech-badge">Concurrent TSV Parsing</div>
           <div class="tech-badge">gocron Scheduler</div>
-          <div class="tech-badge">75.5% Test Coverage</div>
+          <div class="tech-badge">Prometheus Metrics</div>
+          <div class="tech-badge">78.7% Test Coverage</div>
           <div class="tech-badge">Benchmarks & Performance Tests</div>
+          <div class="tech-badge">Docker Multi-stage Builds</div>
         </div>
       </section>
 

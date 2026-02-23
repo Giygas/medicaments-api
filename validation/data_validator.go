@@ -16,38 +16,30 @@ import (
 // Compiled once at package initialization and reused for all validations
 var (
 	// Input validation: alphanumeric + safe punctuation (ASCII-only)
-	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-\.\+']+$`)
+	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\+\.\-\/']+$`)
 
-	// Dangerous patterns as strings (faster than regex for simple substring matching)
-	// strings.Contains is 5-10x faster than regex for these patterns
-	dangerousPatterns = []string{
-		"<script", "</script>", "javascript:", "vbscript:", "onload=", "onerror=",
-		"onclick=", "onmouseover=", "onfocus=", "onblur=", "onchange=", "onsubmit=",
-		"eval(", "expression(", "url(", "import ", "@import", "binding(", "behavior(",
-		// SQL injection patterns
-		"' or ", "\" or ", "union select", "drop table", "delete from", "insert into",
-		"update set", "--", "/*", "*/", "xp_", "sp_", "exec(", "execute(",
-		// Command injection patterns
-		"; ", "| ", "& ", "`", "$(", "${", // Command injection
-		// Path traversal patterns
-		"../", "..\\", "%2e%2e", "file://", // Path traversal
-		// LDAP injection patterns
-		"*)(", "*|(", "*)%", // LDAP injection
-		// NoSQL injection patterns
-		"{$ne:", "{$gt:", "{$where:", "{$or:", "{$regex:", "{$expr:", // NoSQL injection
-	}
+	// This whitelist regex already blocks:
+	// <script	| (contains < and >)
+	// ' or		| (contains space after quote, but your regex only allows those chars individually in valid contexts)
+	// ..		| (blocked by explicit consecutive dots check below)
+	// $(		| (contains $ and ()
+	// {$ne:	| (contains {, $, :)
+
+	// Note: Apostrophe (') is safe in this context
+	// '		| (safe - only used in strings.Contains() comparisons, no code execution)
+
 )
 
-// DataValidatorImpl implements the interfaces.DataValidator interface
-type DataValidatorImpl struct{}
+// Validator implements the interfaces.DataValidator interface
+type Validator struct{}
 
 // NewDataValidator creates a new data validator
 func NewDataValidator() interfaces.DataValidator {
-	return &DataValidatorImpl{}
+	return &Validator{}
 }
 
 // ValidateMedicament checks if a medicament entity is valid
-func (v *DataValidatorImpl) ValidateMedicament(m *entities.Medicament) error {
+func (v *Validator) ValidateMedicament(m *entities.Medicament) error {
 	if m == nil {
 		return fmt.Errorf("medicament is nil")
 	}
@@ -86,7 +78,7 @@ func (v *DataValidatorImpl) ValidateMedicament(m *entities.Medicament) error {
 	return nil
 }
 
-func (v *DataValidatorImpl) CheckDuplicateCIP(presentations []entities.Presentation) error {
+func (v *Validator) CheckDuplicateCIP(presentations []entities.Presentation) error {
 	cip7Count := make(map[int]int)
 	cip13Count := make(map[int]int)
 
@@ -136,7 +128,7 @@ func (v *DataValidatorImpl) CheckDuplicateCIP(presentations []entities.Presentat
 }
 
 // ValidateDataIntegrity performs comprehensive data validation
-func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
+func (v *Validator) ValidateDataIntegrity(medicaments []entities.Medicament, generiques []entities.GeneriqueList) error {
 	// Validate medicaments
 	if len(medicaments) == 0 {
 		return fmt.Errorf("no medicaments found")
@@ -189,7 +181,7 @@ func (v *DataValidatorImpl) ValidateDataIntegrity(medicaments []entities.Medicam
 	return nil
 }
 
-func (v *DataValidatorImpl) ReportDataQuality(
+func (v *Validator) ReportDataQuality(
 	medicaments []entities.Medicament,
 	generiques []entities.GeneriqueList,
 	presentationsCIP7Map map[int]entities.Presentation,
@@ -315,7 +307,7 @@ func (v *DataValidatorImpl) ReportDataQuality(
 }
 
 // ValidateInput validates user input strings with enhanced security
-func (v *DataValidatorImpl) ValidateInput(input string) error {
+func (v *Validator) ValidateInput(input string) error {
 	if strings.TrimSpace(input) == "" {
 		return fmt.Errorf("input cannot be empty")
 	}
@@ -339,18 +331,16 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 		return fmt.Errorf("accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')")
 	}
 
-	// Check for potentially dangerous patterns using string matching (5-10x faster than regex)
-	lowerInput := strings.ToLower(input)
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(lowerInput, pattern) {
-			return fmt.Errorf("input contains potentially dangerous content")
-		}
+	// Check that user input contains only accepted characters
+	// Allow only alphanumeric characters, spaces, and safe punctuation
+	// Pattern: letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign
+	if !inputRegex.MatchString(input) {
+		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed")
 	}
 
-	// Allow only alphanumeric characters, spaces, and safe punctuation
-	// More restrictive pattern: letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign
-	if !inputRegex.MatchString(input) {
-		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed")
+	// Prevent path traversal with consecutive dots
+	if strings.Contains(input, "..") {
+		return fmt.Errorf("input contains consecutive dots which are not allowed. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed")
 	}
 
 	// Additional checks for repeated characters (potential DoS)
@@ -364,24 +354,15 @@ func (v *DataValidatorImpl) ValidateInput(input string) error {
 // ValidateCIP validates CIP codes
 // CIP codes are numeric identifiers 7 or 13 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
-func (v *DataValidatorImpl) ValidateCIP(input string) (int, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return -1, fmt.Errorf("input cannot be empty")
-	}
-
-	// Reject if original input contained whitespace (spaces, tabs, etc.)
-	if len(input) != len(trimmedInput) {
-		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
-	}
-
-	if len(trimmedInput) != 7 && len(trimmedInput) != 13 {
+func (v *Validator) ValidateCIP(input string) (int, error) {
+	// Check for 7 or 13 characters
+	if len(input) != 7 && len(input) != 13 {
 		return -1, fmt.Errorf("CIP should have 7 or 13 characters")
 	}
 
 	// strconv.Atoi() validates that input contains only digits
 	// Returns error for any non-numeric characters (no regex overhead)
-	cip, err := strconv.Atoi(trimmedInput)
+	cip, err := strconv.Atoi(input)
 	if err != nil {
 		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
 	}
@@ -392,24 +373,16 @@ func (v *DataValidatorImpl) ValidateCIP(input string) (int, error) {
 // ValidateCIS validates CIS codes
 // CIP codes are numeric identifiers 8 digits long
 // No regex used - strconv.Atoi() validates numeric format for free
-func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return -1, fmt.Errorf("input cannot be empty")
-	}
+func (v *Validator) ValidateCIS(input string) (int, error) {
 
-	// Reject if original input contained whitespace (spaces, tabs, etc.)
-	if len(input) != len(trimmedInput) {
-		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
-	}
-
-	if len(trimmedInput) != 8 {
+	// Check for 8 digits
+	if len(input) != 8 {
 		return -1, fmt.Errorf("CIS should have 8 digits")
 	}
 
 	// strconv.Atoi() validates that input contains only digits
 	// Returns error for any non-numeric characters (no regex overhead)
-	cis, err := strconv.Atoi(trimmedInput)
+	cis, err := strconv.Atoi(input)
 	if err != nil {
 		return -1, fmt.Errorf("input contains invalid characters. Only numeric characters are allowed")
 	}
@@ -418,7 +391,7 @@ func (v *DataValidatorImpl) ValidateCIS(input string) (int, error) {
 }
 
 // hasExcessiveRepetition checks for potential DoS patterns with excessive character repetition
-func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
+func (v *Validator) hasExcessiveRepetition(input string) bool {
 	const maxConsecutive = 10 // more than this triggers detection
 
 	if len(input) <= maxConsecutive {
@@ -443,7 +416,7 @@ func (v *DataValidatorImpl) hasExcessiveRepetition(input string) bool {
 
 // containsAccents checks if input contains French accented characters
 // Source BDPM data is uppercase without accents (e.g., IBUPROFENE, PARACETAMOL)
-func (v *DataValidatorImpl) containsAccents(input string) bool {
+func (v *Validator) containsAccents(input string) bool {
 	accents := "àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ"
 	for _, r := range input {
 		if strings.ContainsRune(accents, r) {

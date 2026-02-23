@@ -19,7 +19,16 @@ type LoggingService struct {
 var (
 	DefaultLoggingService *LoggingService
 	initOnce              sync.Once
+	fallbackLogger        *slog.Logger
 )
+
+func init() {
+	// fallbackLogger provides logging before main logger initialization
+	// Used during early startup and initialization failures
+	fallbackLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+}
 
 // InitLogger initializes global logger instance
 func InitLogger(logDir string) {
@@ -90,7 +99,51 @@ func GetFileLogLevel() slog.Level {
 	return slog.LevelDebug
 }
 
-// doInit contains the actual initialization logic (extracted for reuse by ResetForTest)
+// newConsoleLogger creates a new console logger with the specified log level
+func newConsoleLogger(consoleLevel slog.Level) *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: consoleLevel,
+	}))
+}
+
+// testHelper provides common methods for test and benchmark cleanup
+type testHelper interface {
+	Helper()
+	Cleanup(func())
+}
+
+// ResetGlobalLogger resets the global logger for tests or benchmarks
+// Only called from test/benchmark code - not part of public API
+// Exported for use by tests in other packages (e.g., tests/)
+func ResetGlobalLogger[T testHelper](h T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
+	// Mark as helper for better error reporting
+	h.Helper()
+
+	// Close existing logger to prevent resource leaks (goroutines, file handles)
+	Close()
+
+	// Clear service reference
+	DefaultLoggingService = nil
+
+	// Reset sync.Once to allow reinitialization
+	initOnce = sync.Once{}
+
+	// Reinitialize with new settings
+	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
+
+	// Set short shutdown timeout to avoid slow test/benchmark execution
+	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
+		DefaultLoggingService.RotatingLogger.SetShutdownTimeout(100 * time.Millisecond)
+	}
+
+	// Register cleanup to run after test/benchmark completes
+	h.Cleanup(func() {
+		Close()
+		DefaultLoggingService = nil
+	})
+}
+
+// doInit contains the actual initialization logic (extracted for use by tests)
 func doInit(logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
 	// Handle empty log directory (common in tests)
 	if logDir == "" {
@@ -118,9 +171,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 
 	// Log detected environment for debugging (skip in tests to avoid noise)
 	if env != config.EnvTest {
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Info("Initializing logger",
 			"environment", env.String(),
 			"console_level", consoleLevel.String(),
@@ -131,9 +182,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	// Create logs directory if it doesn't exist
 	if err := os.MkdirAll(logDir, 0750); err != nil {
 		// If we can't create logs directory, just log to console
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Error("Failed to create logs directory", "error", err)
 		DefaultLoggingService = &LoggingService{
 			Logger:         consoleLogger,
@@ -152,9 +201,7 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	rotatingLogger.mu.Unlock()
 	if err != nil {
 		// Fallback to console logger if rotation fails
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: consoleLevel,
-		}))
+		consoleLogger := newConsoleLogger(consoleLevel)
 		consoleLogger.Error("Failed to initialize rotating logger", "error", err)
 		DefaultLoggingService = &LoggingService{
 			Logger:         consoleLogger,
@@ -164,7 +211,15 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 		return
 	}
 
-	// Start cleanup goroutine with proper cancellation
+	// Start cleanup goroutine with proper cancellation.
+	//
+	// Shutdown protocol:
+	// 1. Close() calls rotatingLogger.cancel() to signal shutdown
+	// 2. This goroutine receives on rotatingLogger.ctx.Done() and returns
+	// 3. defer close(cleanupDone) signals that cleanup is finished
+	// 4. Close() waits on cleanupDone with configurable timeout (default 5s)
+	// 5. Use SetShutdownTimeout() in tests to avoid slow test execution
+	rotatingLogger.cleanupStarted = true
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
@@ -206,56 +261,6 @@ func doInit(logDir string, env config.Environment, logLevelStr string, retention
 	slog.SetDefault(logger)
 }
 
-// ResetForTest resets the global logger - ONLY for testing
-// Provides proper test isolation by cleaning up resources and reinitializing
-// Must be called with test.TempDir() and t.Cleanup() for automatic cleanup
-func ResetForTest(t *testing.T, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
-	t.Helper() // Mark as test helper for better error reporting
-
-	// Close existing logger to prevent resource leaks (goroutines, file handles)
-	Close()
-
-	// Clear service reference
-	DefaultLoggingService = nil
-
-	// Reset sync.Once to allow reinitialization
-	initOnce = sync.Once{}
-
-	// Reinitialize with new settings
-	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
-
-	// Register cleanup to run after test completes
-	// This is key improvement over save/restore pattern
-	t.Cleanup(func() {
-		Close()
-		DefaultLoggingService = nil
-	})
-}
-
-// ResetForBenchmark resets the global logger - ONLY for benchmarks
-// Provides proper benchmark isolation by cleaning up resources and reinitializing
-func ResetForBenchmark(b *testing.B, logDir string, env config.Environment, logLevelStr string, retentionWeeks int, maxFileSize int64) {
-	b.Helper() // Mark as benchmark helper for better error reporting
-
-	// Close existing logger to prevent resource leaks (goroutines, file handles)
-	Close()
-
-	// Clear service reference
-	DefaultLoggingService = nil
-
-	// Reset sync.Once to allow reinitialization
-	initOnce = sync.Once{}
-
-	// Reinitialize with new settings
-	doInit(logDir, env, logLevelStr, retentionWeeks, maxFileSize)
-
-	// Register cleanup to run after benchmark completes
-	b.Cleanup(func() {
-		Close()
-		DefaultLoggingService = nil
-	})
-}
-
 // Close closes logging service and cleans up resources
 func Close() {
 	if DefaultLoggingService != nil && DefaultLoggingService.RotatingLogger != nil {
@@ -269,11 +274,7 @@ func Close() {
 
 func Info(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-		fallback.Info(msg, args...)
+		fallbackLogger.Info(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Info(msg, args...)
@@ -281,11 +282,7 @@ func Info(msg string, args ...any) {
 
 func Error(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelError,
-		}))
-		fallback.Error(msg, args...)
+		fallbackLogger.Error(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Error(msg, args...)
@@ -293,11 +290,7 @@ func Error(msg string, args ...any) {
 
 func Warn(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelWarn,
-		}))
-		fallback.Warn(msg, args...)
+		fallbackLogger.Warn(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Warn(msg, args...)
@@ -305,11 +298,7 @@ func Warn(msg string, args ...any) {
 
 func Debug(msg string, args ...any) {
 	if DefaultLoggingService == nil || DefaultLoggingService.Logger == nil {
-		// Fallback to console logger if not initialized
-		fallback := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		}))
-		fallback.Debug(msg, args...)
+		fallbackLogger.Debug(msg, args...)
 		return
 	}
 	DefaultLoggingService.Logger.Debug(msg, args...)

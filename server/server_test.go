@@ -10,7 +10,10 @@ import (
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/health"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -378,5 +381,87 @@ func BenchmarkNewServer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = NewServer(cfg, dc)
+	}
+}
+
+func TestServer_DisableRateLimiterConfig(t *testing.T) {
+	tests := []struct {
+		name               string
+		disableRateLimiter bool
+		requestCount       int
+		expectRateLimited  bool
+		expectHeaders      bool
+	}{
+		{
+			name:               "rate limiter enabled via config",
+			disableRateLimiter: false,
+			requestCount:       10,
+			expectRateLimited:  true,
+			expectHeaders:      true,
+		},
+		{
+			name:               "rate limiter disabled via config",
+			disableRateLimiter: true,
+			requestCount:       20,
+			expectRateLimited:  false,
+			expectHeaders:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logging.InitLogger("")
+
+			cfg := &config.Config{
+				Port:               "0",
+				Address:            "localhost",
+				Env:                config.EnvTest,
+				LogLevel:           "error",
+				MaxRequestBody:     1048576,
+				MaxHeaderSize:      1048576,
+				DisableRateLimiter: tt.disableRateLimiter,
+			}
+
+			dc := data.NewDataContainer()
+			srv := NewServer(cfg, dc)
+
+			validator := validation.NewDataValidator()
+			healthChecker := health.NewHealthChecker(dc)
+			httpHandler := handlers.NewHTTPHandler(dc, validator, healthChecker)
+
+			srv.router.Get("/v1/medicaments/export", httpHandler.ExportMedicaments)
+
+			clientIP := "127.0.0.1:1234"
+			rateLimitedCount := 0
+			headersPresent := false
+
+			for range tt.requestCount {
+				req, _ := http.NewRequest("GET", "/v1/medicaments/export", nil)
+				req.RemoteAddr = clientIP
+				rr := httptest.NewRecorder()
+				srv.router.ServeHTTP(rr, req)
+
+				if rr.Code == http.StatusTooManyRequests {
+					rateLimitedCount++
+				}
+
+				if rr.Header().Get("X-RateLimit-Limit") != "" {
+					headersPresent = true
+				}
+			}
+
+			if tt.expectRateLimited && rateLimitedCount == 0 {
+				t.Errorf("Expected rate limiting with DisableRateLimiter=%v, but got 0 429 responses", tt.disableRateLimiter)
+			}
+			if !tt.expectRateLimited && rateLimitedCount > 0 {
+				t.Errorf("Expected no rate limiting with DisableRateLimiter=%v, but got %d 429 responses", tt.disableRateLimiter, rateLimitedCount)
+			}
+			if tt.expectHeaders && !headersPresent {
+				t.Errorf("Expected rate limit headers with DisableRateLimiter=%v, but none were present", tt.disableRateLimiter)
+			}
+			if !tt.expectHeaders && headersPresent {
+				t.Errorf("Expected no rate limit headers with DisableRateLimiter=%v, but they were present", tt.disableRateLimiter)
+			}
+		})
 	}
 }

@@ -1,318 +1,317 @@
-# Tests Directory
+# Répertoire de Tests
 
-This directory contains specialized tests for the medicaments-api, organized by purpose for better maintainability.
+Ce répertoire contient des tests spécialisés pour medicaments-api, organisés par objectif pour une meilleure maintenabilité.
 
-## 📁 Test Organization
+## 📁 Organisation des Tests
 
-### **Performance & Benchmark Tests**
+### **Tests de Performance et Benchmarks**
 
-| File | Purpose | Commands |
+| Fichier | Objectif | Commandes |
 |------|---------|----------|
-| `performance_benchmarks_test.go` | Core performance benchmarks with production logging | `go test ./tests -bench=. -benchmem`<br>`go test ./tests -bench=BenchmarkAlgorithmicPerformance -v`<br>`go test ./tests -bench=BenchmarkHTTPPerformance -v`<br>`go test ./tests -bench=BenchmarkRealWorldSearch -v`<br>`go test ./tests -bench=BenchmarkSustainedPerformance -v` |
-| `documentation_claims_verification_test.go` | Validates all documentation claims against real data | `go test ./tests -run TestDocumentationClaimsVerification -v` |
+| `performance_benchmarks_test.go` | Benchmarks de performance de base avec logging de production | `go test ./tests -bench=. -benchmem`<br>`go test ./tests -bench=BenchmarkAlgorithmicPerformance -v`<br>`go test ./tests -bench=BenchmarkHTTPPerformance -v`<br>`go test ./tests -bench=BenchmarkRealWorldSearch -v`<br>`go test ./tests -bench=BenchmarkSustainedPerformance -v` |
+| `documentation_claims_verification_test.go` | Valide toutes les revendications de la documentation contre les données réelles | `go test ./tests -run TestDocumentationClaimsVerification -v` |
 
-### **Verification & Validation Tests**
+### **Tests de Vérification & Validation**
 
-| File | Purpose | Commands |
+| Fichier | Objectif | Commandes |
 |------|---------|----------|
-| `documentation_claims_verification_test.go` | Validates all documentation claims against real data | `go test ./tests -run TestDocumentationClaimsVerification -v` |
+| `documentation_claims_verification_test.go` | Valide toutes les revendications de la documentation contre les données réelles | `go test ./tests -run TestDocumentationClaimsVerification -v` |
 
-### **Integration Tests**
+### **Tests d'Intégration**
 
-| File | Purpose | Commands |
+| Fichier | Objectif | Commandes |
 |------|---------|----------|
-| `integration_test.go` | Full pipeline integration testing | `go test ./tests -run TestIntegration -v` |
-| `cross_file_consistency_integration_test.go` | Cross-file data consistency validation | `go test ./tests -run TestIntegrationCrossFileConsistency -v` |
+| `integration_test.go` | Tests d'intégration complets du pipeline | `go test ./tests -run TestIntegration -v` |
+| `cross_file_consistency_integration_test.go` | Validation de la cohérence des données inter-fichiers | `go test ./tests -run TestIntegrationCrossFileConsistency -v` |
 
-### **API Endpoint Tests**
+### **Tests des Endpoints API**
 
-| File | Purpose | Commands |
+| Fichier | Objectif | Commandes |
 |------|---------|----------|
-| `endpoints_test.go` | API endpoint behavior validation | `go test ./tests -run TestEndpoints -v` |
-| `etag_test.go` | HTTP caching mechanism testing | `go test ./tests -run TestETagFunctionality -v` |
+| `endpoints_test.go` | Validation du comportement des endpoints API | `go test ./tests -run TestEndpoints -v` |
+| `etag_test.go` | Tests du mécanisme de cache HTTP | `go test ./tests -run TestETagFunctionality -v` |
 
-### **Smoke Tests**
+### **Tests de Fumée (Smoke Tests)**
 
-| File | Purpose | Commands |
+| Fichier | Objectif | Commandes |
 |------|---------|----------|
-| `smoke_test.go` | Quick validation and smoke tests | `go test ./tests -run TestApplicationStartupSmoke -v` |
+| `smoke_test.go` | Validation rapide et tests de fumée | `go test ./tests -run TestApplicationStartupSmoke -v` |
 
-## 🚀 Quick Start Commands
+## 🚀 Commandes de Démarrage Rapide
 
-### **Run All Tests**
+### **Exécuter Tous les Tests**
 ```bash
-# All tests in tests directory
+# Tous les tests dans le répertoire tests
 go test ./tests -v
 
-# All tests in entire project
+# Tous les tests dans tout le projet
 go test -v ./...
 ```
 
-### **Performance Testing**
+### **Tests de Performance**
 ```bash
-# All benchmarks with production environment (optimal performance)
+# Tous les benchmarks avec environnement de production (performance optimale)
 go test ./tests -bench=. -benchmem
 
-# Algorithmic benchmarks (handler-level)
+# Benchmarks algorithmiques (niveau handler)
 go test ./tests -bench=BenchmarkAlgorithmicPerformance -benchmem -v
 
-# HTTP benchmarks (network-level)
+# Benchmarks HTTP (niveau réseau)
 go test ./tests -bench=BenchmarkHTTPPerformance -benchmem -v
 
-# Real-world search benchmarks
+# Benchmarks de recherche réels
 go test ./tests -bench=BenchmarkRealWorldSearch -benchmem -v
 
-# Sustained performance benchmarks
+# Benchmarks de performance soutenus
 go test ./tests -bench=BenchmarkSustainedPerformance -benchmem -v
 ```
 
-### **Documentation Verification**
+### **Vérification de la Documentation**
 ```bash
-# Verify all documentation claims
+# Vérifier toutes les revendications de la documentation
 go test ./tests -run TestDocumentationClaimsVerification -v
 ```
 
-### **Integration Testing**
+### **Tests d'Intégration**
 ```bash
-# Full pipeline tests
+# Tests complets du pipeline
 go test ./tests -run TestIntegrationFullDataParsingPipeline -v
 go test ./tests -run TestIntegrationConcurrentUpdates -v
 go test ./tests -run TestIntegrationErrorHandling -v
 
-# Cross-file consistency
+# Cohérence inter-fichiers
 go test ./tests -run TestIntegrationCrossFileConsistency -v
 ```
 
-### **Endpoint & Middleware Tests**
+### **Tests d'Endpoints & Middleware**
 ```bash
-# All endpoint tests
+# Tous les tests d'endpoints
 go test ./tests -run TestEndpoints -v
 
-# Middleware tests
+# Tests de middleware
 go test ./tests -run TestBlockDirectAccessMiddleware -v
 go test ./tests -run TestRateLimiter -v
 go test ./tests -run TestRealIPMiddleware -v
 go test ./tests -run TestRequestSizeMiddleware -v
 go test ./tests -run TestCompressionOptimization -v
 
-# ETag tests
+# Tests ETag
 go test ./tests -run TestETagFunctionality -v
 ```
 
-### **Smoke Tests**
+### **Tests de Fumée (Smoke Tests)**
 ```bash
-# Quick validation
+# Validation rapide
 go test ./tests -run TestApplicationStartupSmoke -v
 ```
 
-## 📊 Performance Summary
+## 📊 Résumé de Performance
 
-Performance benchmarks use production environment (`config.EnvProduction`) for optimal performance. This means:
+Les benchmarks de performance utilisent l'environnement de production (`config.EnvProduction`) pour une performance optimale. Cela signifie :
 
-- **Console logging**: WARN level and above only (no INFO/DEBUG output to console)
-- **File logging**: Full JSON output (all levels written to rotating log files)
-- **Result**: Eliminates console I/O overhead during benchmarks for accurate measurements
+- **Logging console** : Niveau WARN et supérieurs uniquement (pas de sortie INFO/DEBUG sur la console)
+- **Logging fichier** : Sortie JSON complète (tous les niveaux écrits dans les fichiers de logs rotatifs)
+- **Résultat** : Élimine l'overhead d'E/S console pendant les benchmarks pour des mesures précises
 
-### Example Verification Report Output
+### Exemple de Sortie du Rapport de Vérification
 
-When running documentation claims verification:
+Lors de l'exécution de la vérification des revendications de la documentation :
 
 ```bash
 go test ./tests -run TestDocumentationClaimsVerification -v
 ```
 
-You'll see output like:
-
+Vous verrez une sortie comme :
 ```
 === COMPREHENSIVE DOCUMENTATION CLAIMS VERIFICATION ===
 
 --- ALGORITHMIC PERFORMANCE VERIFICATION ---
-  /v1/medicaments/{cis}: 441695.7 req/sec (claimed: 400000.0 req/sec, diff: 10.4%)
-  /v1/medicaments/{cis}: 2.0 µs (claimed: 3.0 µs, diff: -33.3%)
-  /v1/generiques/{groupID}: 244390.5 req/sec (claimed: 200000.0 req/sec, diff: 22.2%)
-  /v1/generiques/{groupID}: 4.0 µs (claimed: 5.0 µs, diff: -20.0%)
-  /v1/medicaments?page={n}: 40152.5 req/sec (claimed: 40000.0 req/sec, diff: 0.4%)
-  /v1/medicaments?page={n}: 24.0 µs (claimed: 30.0 µs, diff: -20.0%)
-  /v1/medicaments?search={query}: 1634.3 req/sec (claimed: 1600.0 req/sec, diff: 2.1%)
-  /v1/medicaments?search={query}: 611.0 µs (claimed: 750.0 µs, diff: -18.5%)
-  /v1/generiques?libelle={nom}: 16742.9 req/sec (claimed: 18000.0 req/sec, diff: -7.0%)
-  /v1/generiques?libelle={nom}: 59.0 µs (claimed: 60.0 µs, diff: -1.7%)
-  /v1/presentations?cip={code}: 438566.6 req/sec (claimed: 430000.0 req/sec, diff: 2.0%)
-  /v1/presentations?cip={code}: 2.0 µs (claimed: 2.0 µs, diff: 0.0%)
-  /v1/medicaments?cip={code}: 394485.4 req/sec (claimed: 375000.0 req/sec, diff: 5.2%)
-  /v1/medicaments?cip={code}: 2.0 µs (claimed: 5.0 µs, diff: -60.0%)
-  /health: 416206.4 req/sec (claimed: 400000.0 req/sec, diff: 4.1%)
-  /health: 2.0 µs (claimed: 3.0 µs, diff: -33.3%)
+  /v1/medicaments/{cis}: 441695.7 req/sec (revendiqué: 400000.0 req/sec, diff: 10.4%)
+  /v1/medicaments/{cis}: 2.0 µs (revendiqué: 3.0 µs, diff: -33.3%)
+  /v1/generiques/{groupID}: 244390.5 req/sec (revendiqué: 200000.0 req/sec, diff: 22.2%)
+  /v1/generiques/{groupID}: 4.0 µs (revendiqué: 5.0 µs, diff: -20.0%)
+  /v1/medicaments?page={n}: 40152.5 req/sec (revendiqué: 40000.0 req/sec, diff: 0.4%)
+  /v1/medicaments?page={n}: 24.0 µs (revendiqué: 30.0 µs, diff: -20.0%)
+  /v1/medicaments?search={query}: 1634.3 req/sec (revendiqué: 1600.0 req/sec, diff: 2.1%)
+  /v1/medicaments?search={query}: 611.0 µs (revendiqué: 750.0 µs, diff: -18.5%)
+  /v1/generiques?libelle={nom}: 16742.9 req/sec (revendiqué: 18000.0 req/sec, diff: -7.0%)
+  /v1/generiques?libelle={nom}: 59.0 µs (revendiqué: 60.0 µs, diff: -1.7%)
+  /v1/presentations?cip={code}: 438566.6 req/sec (revendiqué: 430000.0 req/sec, diff: 2.0%)
+  /v1/presentations?cip={code}: 2.0 µs (revendiqué: 2.0 µs, diff: 0.0%)
+  /v1/medicaments?cip={code}: 394485.4 req/sec (revendiqué: 375000.0 req/sec, diff: 5.2%)
+  /v1/medicaments?cip={code}: 2.0 µs (revendiqué: 5.0 µs, diff: -60.0%)
+  /health: 416206.4 req/sec (revendiqué: 400000.0 req/sec, diff: 4.1%)
+  /health: 2.0 µs (revendiqué: 3.0 µs, diff: -33.3%)
 
 --- HTTP PERFORMANCE VERIFICATION ---
-  /v1/medicaments/{cis}: 90015.7 req/sec (claimed: 78000.0 req/sec, diff: 15.4%)
-  /v1/medicaments?page={n}: 49463.0 req/sec (claimed: 41000.0 req/sec, diff: 20.6%)
-  /v1/medicaments?search={query}: 7412.0 req/sec (claimed: 6100.0 req/sec, diff: 21.5%)
-  /v1/generiques?libelle={nom}: 46865.7 req/sec (claimed: 36000.0 req/sec, diff: 30.2%)
-  /v1/presentations?cip={code}: 91614.3 req/sec (claimed: 77000.0 req/sec, diff: 19.0%)
-  /v1/medicaments?cip={code}: 92352.7 req/sec (claimed: 75000.0 req/sec, diff: 23.1%)
-  /health: 114412.3 req/sec (claimed: 92000.0 req/sec, diff: 24.4%)
+  /v1/medicaments/{cis}: 90015.7 req/sec (revendiqué: 78000.0 req/sec, diff: 15.4%)
+  /v1/medicaments?page={n}: 49463.0 req/sec (revendiqué: 41000.0 req/sec, diff: 20.6%)
+  /v1/medicaments?search={query}: 7412.0 req/sec (revendiqué: 6100.0 req/sec, diff: 21.5%)
+  /v1/generiques?libelle={nom}: 46865.7 req/sec (revendiqué: 36000.0 req/sec, diff: 30.2%)
+  /v1/presentations?cip={code}: 91614.3 req/sec (revendiqué: 77000.0 req/sec, diff: 19.0%)
+  /v1/medicaments?cip={code}: 92352.7 req/sec (revendiqué: 75000.0 req/sec, diff: 23.1%)
+  /health: 114412.3 req/sec (revendiqué: 92000.0 req/sec, diff: 24.4%)
 
 --- MEMORY USAGE VERIFICATION ---
-  Application memory: 75.3 MB alloc, 158.1 MB sys (claimed: 70.0-90.0 MB)
+  Application memory: 75.3 MB alloc, 158.1 MB sys (revendiqué: 70.0-90.0 MB)
 
 --- PARSING PERFORMANCE VERIFICATION ---
-  Parsing time: 0.5 seconds (claimed: 0.7 seconds)
+  Parsing time: 0.5 seconds (revendiqué: 0.7 seconds)
 
 === VERIFICATION REPORT ===
-  ✅ PASS /v1/medicaments/{cis} algorithmic throughput: 441695.7 req/sec (claimed: 400000.0 req/sec, diff: 10.4%)
-  ✅ PASS /v1/medicaments/{cis} algorithmic latency: 2.0 µs (claimed: 3.0 µs, diff: -33.3%)
-  ✅ PASS /v1/generiques/{groupID} algorithmic throughput: 244390.5 req/sec (claimed: 200000.0 req/sec, diff: 22.2%)
-  ✅ PASS /v1/generiques/{groupID} algorithmic latency: 4.0 µs (claimed: 5.0 µs, diff: -20.0%)
-✅ PASS /v1/medicaments?page={n} algorithmic throughput: 40152.5 req/sec (claimed: 40000.0 req/sec, diff: 0.4%)
-✅ PASS /v1/medicaments?page={n} algorithmic latency: 24.0 µs (claimed: 30.0 µs, diff: -20.0%)
-✅ PASS /v1/medicaments?search={query} algorithmic throughput: 1634.3 req/sec (claimed: 1600.0 req/sec, diff: 2.1%)
-✅ PASS /v1/medicaments?search={query} algorithmic latency: 611.0 µs (claimed: 750.0 µs, diff: -18.5%)
-✅ PASS /v1/generiques?libelle={nom} algorithmic throughput: 16742.9 req/sec (claimed: 18000.0 req/sec, diff: -7.0%)
-✅ PASS /v1/generiques?libelle={nom} algorithmic latency: 59.0 µs (claimed: 60.0 µs, diff: -1.7%)
-✅ PASS /v1/presentations?cip={code} algorithmic throughput: 438566.6 req/sec (claimed: 430000.0 req/sec, diff: 2.0%)
-✅ PASS /v1/presentations?cip={code} algorithmic latency: 2.0 µs (claimed: 2.0 µs, diff: 0.0%)
-✅ PASS /v1/medicaments?cip={code} algorithmic throughput: 394485.4 req/sec (claimed: 375000.0 req/sec, diff: 5.2%)
-✅ PASS /v1/medicaments?cip={code} algorithmic latency: 2.0 µs (claimed: 5.0 µs, diff: -60.0%)
-✅ PASS /health algorithmic throughput: 416206.4 req/sec (claimed: 400000.0 req/sec, diff: 4.1%)
-✅ PASS /health algorithmic latency: 2.0 µs (claimed: 3.0 µs, diff: -33.3%)
-✅ PASS /v1/medicaments/{cis} HTTP throughput: 90015.7 req/sec (claimed: 78000.0 req/sec, diff: 15.4%)
-✅ PASS /v1/medicaments?page={n} HTTP throughput: 49463.0 req/sec (claimed: 41000.0 req/sec, diff: 20.6%)
-✅ PASS /v1/medicaments?search={query} HTTP throughput: 7412.0 req/sec (claimed: 6100.0 req/sec, diff: 21.5%)
-✅ PASS /v1/generiques?libelle={nom} HTTP throughput: 46865.7 req/sec (claimed: 36000.0 req/sec, diff: 30.2%)
-✅ PASS /v1/presentations?cip={code} HTTP throughput: 91614.3 req/sec (claimed: 77000.0 req/sec, diff: 19.0%)
-✅ PASS /v1/medicaments?cip={code} HTTP throughput: 92352.7 req/sec (claimed: 75000.0 req/sec, diff: 23.1%)
-✅ PASS /health HTTP throughput: 114412.3 req/sec (claimed: 92000.0 req/sec, diff: 24.4%)
-✅ PASS Application memory usage: 75.3 MB (claimed: 80.0 MB, diff: -5.9%)
-✅ PASS Concurrent TSV parsing: 0.5 seconds (claimed: 0.7 seconds, diff: -30.9%)
+  ✅ PASS /v1/medicaments/{cis} algorithmic throughput: 441695.7 req/sec (revendiqué: 400000.0 req/sec, diff: 10.4%)
+  ✅ PASS /v1/medicaments/{cis} algorithmic latency: 2.0 µs (revendiqué: 3.0 µs, diff: -33.3%)
+  ✅ PASS /v1/generiques/{groupID} algorithmic throughput: 244390.5 req/sec (revendiqué: 200000.0 req/sec, diff: 22.2%)
+  ✅ PASS /v1/generiques/{groupID} algorithmic latency: 4.0 µs (revendiqué: 5.0 µs, diff: -20.0%)
+  ✅ PASS /v1/medicaments?page={n} algorithmic throughput: 40152.5 req/sec (revendiqué: 40000.0 req/sec, diff: 0.4%)
+  ✅ PASS /v1/medicaments?page={n} algorithmic latency: 24.0 µs (revendiqué: 30.0 µs, diff: -20.0%)
+  ✅ PASS /v1/medicaments?search={query} algorithmic throughput: 1634.3 req/sec (revendiqué: 1600.0 req/sec, diff: 2.1%)
+  ✅ PASS /v1/medicaments?search={query} algorithmic latency: 611.0 µs (revendiqué: 750.0 µs, diff: -18.5%)
+  ✅ PASS /v1/generiques?libelle={nom} algorithmic throughput: 16742.9 req/sec (revendiqué: 18000.0 req/sec, diff: -7.0%)
+  ✅ PASS /v1/generiques?libelle={nom} algorithmic latency: 59.0 µs (revendiqué: 60.0 µs, diff: -1.7%)
+  ✅ PASS /v1/presentations?cip={code} algorithmic throughput: 438566.6 req/sec (revendiqué: 430000.0 req/sec, diff: 2.0%)
+  ✅ PASS /v1/presentations?cip={code} algorithmic latency: 2.0 µs (revendiqué: 2.0 µs, diff: 0.0%)
+  ✅ PASS /v1/medicaments?cip={code} algorithmic throughput: 394485.4 req/sec (revendiqué: 375000.0 req/sec, diff: 5.2%)
+  ✅ PASS /v1/medicaments?cip={code} algorithmic latency: 2.0 µs (revendiqué: 5.0 µs, diff: -60.0%)
+  ✅ PASS /health algorithmic throughput: 416206.4 req/sec (revendiqué: 400000.0 req/sec, diff: 4.1%)
+  ✅ PASS /health algorithmic latency: 2.0 µs (revendiqué: 3.0 µs, diff: -33.3%)
+  ✅ PASS /v1/medicaments/{cis} HTTP throughput: 90015.7 req/sec (revendiqué: 78000.0 req/sec, diff: 15.4%)
+  ✅ PASS /v1/medicaments?page={n} HTTP throughput: 49463.0 req/sec (revendiqué: 41000.0 req/sec, diff: 20.6%)
+  ✅ PASS /v1/medicaments?search={query} HTTP throughput: 7412.0 req/sec (revendiqué: 6100.0 req/sec, diff: 21.5%)
+  ✅ PASS /v1/generiques?libelle={nom} HTTP throughput: 46865.7 req/sec (revendiqué: 36000.0 req/sec, diff: 30.2%)
+  ✅ PASS /v1/presentations?cip={code} HTTP throughput: 91614.3 req/sec (revendiqué: 77000.0 req/sec, diff: 19.0%)
+  ✅ PASS /v1/medicaments?cip={code} HTTP throughput: 92352.7 req/sec (revendiqué: 75000.0 req/sec, diff: 23.1%)
+  ✅ PASS /health HTTP throughput: 114412.3 req/sec (revendiqué: 92000.0 req/sec, diff: 24.4%)
+  ✅ PASS Application memory usage: 75.3 MB (revendiqué: 80.0 MB, diff: -5.9%)
+  ✅ PASS Concurrent TSV parsing: 0.5 seconds (revendiqué: 0.7 seconds, diff: -30.9%)
 
 SUMMARY: 25/25 claims verified (100.0%)
 ```
 
-### Interpreting the Report
+### Interprétation du Rapport
 
-**Status Indicators:**
-- ✅ PASS = Meets or exceeds claim (within tolerance)
-- ❌ FAIL = Below minimum threshold (more than tolerance below claim)
+**Indicateurs de Statut :**
+- ✅ PASS = Répond ou dépasse la revendication (dans la tolérance)
+- ❌ FAIL = En dessous du seuil minimum (plus de tolérance en dessous de la revendication)
 
-**Performance Sections:**
-- **Algorithmic**: Handler-level benchmarks with subset dataset (~500 items)
-- **HTTP**: Network-level benchmarks with full dataset (~15K+ items)
-- **Memory**: Application memory usage under load
-- **Parsing**: Concurrent TSV file processing time
+**Sections de Performance :**
+- **Algorithmic** : Benchmarks de niveau handler avec sous-ensemble de données (~500 éléments)
+- **HTTP** : Benchmarks de niveau réseau avec ensemble complet de données (~15K+ éléments)
+- **Memory** : Utilisation mémoire de l'application sous charge
+- **Parsing** : Temps de traitement des fichiers TSV en parallèle
 
-**Metrics:**
-- **Throughput**: Requests per second (higher is better)
-- **Latency**: Microseconds per operation (lower is better)
-- **Diff**: Percentage difference from claimed value
-  - Positive = Measured higher than claimed (good!)
-  - Negative = Measured lower than claimed (within tolerance is OK)
+**Métriques :**
+- **Throughput** : Requêtes par seconde (plus élevé est meilleur)
+- **Latency** : Microsecondes par opération (plus bas est meilleur)
+- **Diff** : Différence en pourcentage de la valeur revendiquée
+  - Positif = Mesuré plus élevé que revendiqué (bon !)
+  - Négatif = Mesuré plus bas que revendiqué (dans la tolérance c'est OK)
 
-**Tolerance Settings:**
-- Algorithmic claims: 20% tolerance (30% for search endpoints)
-- HTTP throughput claims: 25% tolerance (for network variance)
-- Memory claim: Range of 70-90 MB (80 MB average)
-- Parsing time: 100% tolerance (for CI variability)
+**Paramètres de Tolérance :**
+- Revendications algorithmiques : 20% de tolérance (30% pour les endpoints de recherche)
+- Revendications de throughput HTTP : 25% de tolérance (pour la variance réseau)
+- Revendication mémoire : Plage de 70-90 MB (80 MB moyen)
+- Temps de parsing : 100% de tolérance (pour la variabilité CI)
 
-**Environment Impact:**
-Using `config.EnvProduction` ensures benchmarks run with production-like logging:
-- Console: WARN and above only (minimal I/O overhead)
-- File: Full JSON output (all levels captured)
-- Result: More accurate performance measurements
+**Impact de l'Environnement :**
+L'utilisation de `config.EnvProduction` assure que les benchmarks s'exécutent avec un logging de type production :
+- Console : WARN et supérieurs uniquement (overhead d'E/S minimal)
+- Fichier : Sortie JSON complète (tous les niveaux capturés)
+- Résultat : Mesures de performance plus précises
 
-### Current Performance Claims
+### Revendications de Performance Actuelles
 
-Recent optimizations have significantly improved performance:
+Les optimisations récentes ont considérablement amélioré la performance :
 
-**1. Pre-computed Normalized Names** (previous commit):
-- Added `DenominationNormalized` field to Medicament entity
-- Added `LibelleNormalized` field to GeneriqueList entity
-- Normalization happens once during parsing instead of on every request
-- **Result**: 10x search performance improvement
+**1. Noms Normalisés Pré-calculés** (commit précédent) :
+- Ajout du champ `DenominationNormalized` à l'entité Medicament
+- Ajout du champ `LibelleNormalized` à l'entité GeneriqueList
+- La normalisation se produit une fois pendant le parsing au lieu de chaque requête
+- **Résultat** : Amélioration de 10x de la performance de recherche
 
-**2. Environment-aware Logging** (current commit):
-- Production/test environments use reduced console logging
-- Console: WARN/ERROR only (vs INFO in dev)
-- File: Full JSON output always
-- **Result**: Eliminates console I/O overhead during benchmarks
+**2. Logging Sensible à l'Environnement** (commit actuel) :
+- Les environnements de production/test utilisent un logging console réduit
+- Console : WARN/ERREUR uniquement (vs INFO en dev)
+- Fichier : Sortie JSON complète toujours
+- **Résultat** : Élimine l'overhead d'E/S console pendant les benchmarks
 
-**Combined Effect**: 2-3x HTTP throughput improvement on most endpoints
+**Effet Combiné** : Amélioration de 2-3x du throughput HTTP sur la plupart des endpoints
 
-### Current Performance Claims (Documentation)
+### Revendications de Performance Actuelles (Documentation)
 
-**Algorithmic Benchmarks** (handler-level with subset dataset ~500 items):
-- `/v1/medicaments/{cis}`: 400,000 req/sec, 3.0µs latency
-- `/v1/generiques/{groupID}`: 200,000 req/sec, 5.0µs latency
-- `/v1/medicaments?page={n}`: 40,000 req/sec, 30.0µs latency
-- `/v1/medicaments?search={query}`: 1,600 req/sec, 750.0µs latency
-- `/v1/generiques?libelle={nom}`: 18,000 req/sec, 60.0µs latency
-- `/v1/presentations?cip={code}`: 430,000 req/sec, 2.0µs latency
-- `/v1/medicaments?cip={code}`: 375,000 req/sec, 5.0µs latency
-- `/health`: 400,000 req/sec, 3.0µs latency
+**Benchmarks Algorithmiques** (niveau handler avec sous-ensemble de données ~500 éléments) :
+- `/v1/medicaments/{cis}` : 400,000 req/sec, 3.0µs latence
+- `/v1/generiques/{groupID}` : 200,000 req/sec, 5.0µs latence
+- `/v1/medicaments?page={n}` : 40,000 req/sec, 30.0µs latence
+- `/v1/medicaments?search={query}` : 1,600 req/sec, 750.0µs latence
+- `/v1/generiques?libelle={nom}` : 18,000 req/sec, 60.0µs latence
+- `/v1/presentations?cip={code}` : 430,000 req/sec, 2.0µs latence
+- `/v1/medicaments?cip={code}` : 375,000 req/sec, 5.0µs latence
+- `/health` : 400,000 req/sec, 3.0µs latence
 
-**HTTP Benchmarks** (network-level with full dataset ~15K+ items):
-- `/v1/medicaments/{cis}`: 78,000 req/sec
-- `/v1/medicaments?page={n}`: 41,000 req/sec
-- `/v1/medicaments?search={query}`: 6,100 req/sec
-- `/v1/generiques?libelle={nom}`: 36,000 req/sec
-- `/v1/presentations?cip={code}`: 77,000 req/sec
-- `/v1/medicaments?cip={code}`: 75,000 req/sec
-- `/health`: 92,000 req/sec
+**Benchmarks HTTP** (niveau réseau avec ensemble complet de données ~15K+ éléments) :
+- `/v1/medicaments/{cis}` : 78,000 req/sec
+- `/v1/medicaments?page={n}` : 41,000 req/sec
+- `/v1/medicaments?search={query}` : 6,100 req/sec
+- `/v1/generiques?libelle={nom}` : 36,000 req/sec
+- `/v1/presentations?cip={code}` : 77,000 req/sec
+- `/v1/medicaments?cip={code}` : 75,000 req/sec
+- `/health` : 92,000 req/sec
 
-**Memory Usage**: 70-90 MB (80 MB midpoint)
-**Concurrent Parsing**: ~0.5-0.7 seconds for full dataset
+**Utilisation Mémoire** : 70-90 MB (80 MB médian)
+**Parsing Concurrent** : ~0.5-0.7 secondes pour l'ensemble complet de données
 
-## 📋 Test Coverage
+## 📋 Couverture de Tests
 
-### Test Types
+### Types de Tests
 
-- **Unit Tests**: In individual package directories (`*_test.go`)
-- **Integration Tests**: `integration_test.go`, `cross_file_consistency_integration_test.go`
-- **Performance Tests**: `performance_benchmarks_test.go`
-- **Documentation Verification**: `documentation_claims_verification_test.go`
-- **Endpoint Tests**: `endpoints_test.go`
-- **Middleware Tests**: In `server/middleware_test.go`
-- **ETag Tests**: `etag_test.go`
-- **Smoke Tests**: `smoke_test.go`
+- **Tests Unitaires** : Dans les répertoires de paquets individuels (`*_test.go`)
+- **Tests d'Intégration** : `integration_test.go`, `cross_file_consistency_integration_test.go`
+- **Tests de Performance** : `performance_benchmarks_test.go`
+- **Vérification de Documentation** : `documentation_claims_verification_test.go`
+- **Tests d'Endpoints** : `endpoints_test.go`
+- **Tests de Middleware** : Dans `server/middleware_test.go`
+- **Tests ETag** : `etag_test.go`
+- **Tests de Fumée** : `smoke_test.go`
 
 ## 📝 Notes
 
-- All tests use `package main` to access main application code
-- Tests are organized by purpose, not by file size
-- Performance benchmarks use production environment for optimal measurements
-- Integration tests use real BDPM data for authentic testing
-- Documentation verification ensures accuracy of public claims
+- Tous les tests utilisent `package main` pour accéder au code de l'application principale
+- Les tests sont organisés par objectif, pas par taille de fichier
+- Les benchmarks de performance utilisent l'environnement de production pour des mesures optimales
+- Les tests d'intégration utilisent des données BDPM réelles pour des tests authentiques
+- La vérification de documentation assure l'exactitude des revendications publiques
 
-## 🔧 Development
+## 🔧 Développement
 
-### Running Benchmarks
+### Exécution des Benchmarks
 
-When running performance benchmarks, they automatically use production environment:
+Lors de l'exécution des benchmarks de performance, ils utilisent automatiquement l'environnement de production :
 
 ```go
-// All benchmark functions initialize with production logging
+// Toutes les fonctions de benchmark initialisent avec le logging de production
 logging.InitLoggerWithEnvironment("", config.EnvProduction, 4, 100*1024*1024)
 ```
 
-This ensures:
-- No console I/O overhead (WARN/ERROR to console only)
-- File logging captures all output for analysis
-- Accurate performance measurements (production-like environment)
+Cela assure :
+- Pas d'overhead d'E/S console (WARN/ERREUR sur la console uniquement)
+- Le logging fichier capture toute la sortie pour analyse
+- Mesures de performance précises (environnement de type production)
 
-### Adding New Tests
+### Ajout de Nouveaux Tests
 
-1. **Performance benchmarks** → Add to `performance_benchmarks_test.go`
-2. **Integration tests** → Add to `integration_test.go` or create new file
-3. **New verification** → Add to `documentation_claims_verification_test.go`
-4. **Unit tests** → Keep in respective package directories
+1. **Benchmarks de performance** → Ajouter à `performance_benchmarks_test.go`
+2. **Tests d'intégration** → Ajouter à `integration_test.go` ou créer un nouveau fichier
+3. **Nouvelle vérification** → Ajouter à `documentation_claims_verification_test.go`
+4. **Tests unitaires** → Garder dans les répertoires de paquets respectifs
 
-### Test Organization Guidelines
+### Lignes Directrices d'Organisation des Tests
 
-- **Keep tests organized by purpose**: Performance, Integration, Verification, Endpoint, Smoke
-- **Use descriptive test names**: Make it clear what each test validates
-- **Test edge cases**: Include both happy path and error scenarios
-- **Use test helpers**: Common setup/teardown in helper functions
-- **Avoid test pollution**: Clean up resources in test cleanup (defer, t.Cleanup())
-- **Use production environment for benchmarks**: Ensures realistic performance measurements
+- **Garder les tests organisés par objectif** : Performance, Intégration, Vérification, Endpoint, Fumée
+- **Utiliser des noms de tests descriptifs** : Clarifier ce que chaque test valide
+- **Tester les cas limites** : Inclure à la fois le chemin heureux et les scénarios d'erreur
+- **Utiliser des helpers de test** : Configuration commune/nettoyage dans des fonctions helper
+- **Éviter la pollution des tests** : Nettoyer les ressources dans le nettoyage de tests (defer, t.Cleanup())
+- **Utiliser l'environnement de production pour les benchmarks** : Assure des mesures de performance réalistes
 
-This organization keeps the root directory clean while maintaining comprehensive test coverage.
+Cette organisation garde le répertoire racine propre tout en maintenant une couverture de tests complète.

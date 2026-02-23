@@ -530,11 +530,11 @@ func BenchmarkHealthCheck(b *testing.B) {
 		isUpdating:  false,
 	}
 
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		mockDataStore.medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		mockDataStore.generiques[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 

@@ -141,7 +141,7 @@ func TestDataContainer_ConcurrentReads(t *testing.T) {
 	var wg sync.WaitGroup
 	numReaders := 100
 
-	for i := 0; i < numReaders; i++ {
+	for range numReaders {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -184,7 +184,7 @@ func TestDataContainer_ConcurrentReadsDuringUpdate(t *testing.T) {
 	var wg sync.WaitGroup
 	numReaders := 50
 	var sawOldData atomic.Bool
-	for i := 0; i < numReaders; i++ {
+	for range numReaders {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -274,7 +274,7 @@ func TestDataContainer_ThreadSafety(t *testing.T) {
 
 	// Concurrent updates and reads
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()

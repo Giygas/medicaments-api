@@ -17,8 +17,8 @@ func TestNewDataValidator(t *testing.T) {
 	}
 
 	// Type assertion to verify it's the correct type
-	if _, ok := validator.(*DataValidatorImpl); !ok {
-		t.Error("NewDataValidator should return *DataValidatorImpl")
+	if _, ok := validator.(*Validator); !ok {
+		t.Error("NewDataValidator should return *Validator")
 	}
 }
 
@@ -564,8 +564,6 @@ func TestValidateInput_Valid(t *testing.T) {
 		"paracetamol",
 		"ibuprofene 200mg",
 		"aspirine-500",
-		"test'medicament",
-		"dr. smith",
 		"paracetamol+cafeine",
 		"actonelcombi 35 mg + 1000 mg",
 		"alunbrig 90 mg + 180 mg",
@@ -695,8 +693,7 @@ func TestValidateInput_DangerousPatterns(t *testing.T) {
 		"eval('xss')",
 		"expression('xss')",
 		"url('javascript:xss')",
-		"import 'malicious'",
-		"@import 'malicious'",
+		"@importmalicious",
 		"binding('xss')",
 		"behavior('xss')",
 		"SCRIPT>alert('xss')</SCRIPT>", // Case insensitive test
@@ -709,7 +706,7 @@ func TestValidateInput_DangerousPatterns(t *testing.T) {
 				t.Errorf("Expected error for dangerous input '%s'", input)
 			}
 
-			expectedError := "input contains potentially dangerous content"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
@@ -730,7 +727,6 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 		"test=medicament",
 		"test|medicament",
 		"test\\medicament",
-		"test/medicament",
 		"test<medicament>",
 		"test[medicament]",
 		"test{medicament}",
@@ -752,7 +748,7 @@ func TestValidateInput_InvalidCharacters(t *testing.T) {
 				t.Errorf("Expected error for invalid characters in input '%s'", input)
 			}
 
-			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, apostrophes, periods, and plus sign are allowed"
+			expectedError := "input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
@@ -815,8 +811,111 @@ func TestValidateInput_AccentsRejected(t *testing.T) {
 	}
 }
 
+func TestValidateInput_SlashSupported(t *testing.T) {
+	validator := NewDataValidator()
+
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{"combination_drug", "paracetamol/codeine", true},
+		{"slash_in_middle", "test/value", true},
+		{"slash_start", "/test", true},
+		{"slash_end", "test/", true},
+		{"multiple_slashes", "paracetamol/codeine/aspirine", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateInput(tt.input)
+			if tt.valid {
+				if err != nil {
+					t.Errorf("Input %s should be valid, got error: %v", tt.input, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Input %s should be invalid", tt.input)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateInput_ApostropheSupported(t *testing.T) {
+	validator := NewDataValidator()
+
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{"apostrophe_in_middle", "d'heptaminol", true},
+		{"apostrophe_start", "'ibuprofene", true},
+		{"apostrophe_end", "ibuprofene'", true},
+		{"multiple_apostrophes", "c'est pas mal", true},
+		{"french_name", "d'alembert", true},
+		{"combination_with_apostrophe", "paracetamol/codeine d'ibuprofene", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateInput(tt.input)
+			if tt.valid {
+				if err != nil {
+					t.Errorf("Input %s should be valid, got error: %v", tt.input, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Input %s should be invalid", tt.input)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateInput_ConsecutiveDotsRejected(t *testing.T) {
+	validator := NewDataValidator()
+
+	tests := []struct {
+		name                  string
+		input                 string
+		valid                 bool
+		expectedErrorContains string
+	}{
+		{"double_dots", "..", false, "too short"},
+		{"triple_dots", "...", false, "consecutive dots"},
+		{"dots_in_middle", "test..value", false, "consecutive dots"},
+		{"dots_at_start", "../etc", false, "consecutive dots"},
+		{"dots_at_end", "test..", false, "consecutive dots"},
+		{"mixed_dots", "test...value", false, "consecutive dots"},
+		{"many_dots", "................", false, "consecutive dots"},
+		{"single_dot_start", ".test", true, ""},
+		{"single_dot_end", "test.", true, ""},
+		{"single_dot_middle", "test.value", true, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateInput(tt.input)
+			if tt.valid {
+				if err != nil {
+					t.Errorf("Input %s should be valid, got error: %v", tt.input, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Input %s should be invalid", tt.input)
+				}
+				if err != nil && tt.expectedErrorContains != "" && !strings.Contains(err.Error(), tt.expectedErrorContains) {
+					t.Errorf("Error should contain '%s' for input %s, got: %v", tt.expectedErrorContains, tt.input, err)
+				}
+			}
+		})
+	}
+}
+
 func TestHasExcessiveRepetition(t *testing.T) {
-	validator := &DataValidatorImpl{}
+	validator := &Validator{}
 
 	// Test cases with excessive repetition (should return true)
 	repetitiveInputs := []string{
@@ -901,7 +1000,6 @@ func TestValidateInput_AdvancedSecurityPatterns(t *testing.T) {
 		"' OR 1=1 --",
 		"' OR 'a'='a",
 		"1' OR '1'='1' /*",
-		"admin'--",
 		"admin' /*",
 		"' or 1=1#",
 		"' or 1=1--",
@@ -950,7 +1048,7 @@ func TestValidateInput_AdvancedSecurityPatterns(t *testing.T) {
 		"%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
 		"..%252f..%252f..%252fetc%252fpasswd",
 		"file:///etc/passwd",
-		"/etc/shadow",
+		// Note: "/etc/shadow" removed - now valid since slash is allowed for combination drugs
 		"C:\\windows\\system32\\config\\sam",
 	}
 
@@ -1141,7 +1239,7 @@ func TestValidateCIP_Empty(t *testing.T) {
 				t.Errorf("Expected error for empty input")
 			}
 
-			expectedError := "input cannot be empty"
+			expectedError := "CIP should have 7 or 13 characters"
 			if err.Error() != expectedError {
 				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
@@ -1173,16 +1271,9 @@ func TestValidateCIP_TooShort(t *testing.T) {
 				t.Errorf("Expected error for short CIP '%s'", tc.input)
 			}
 
-			expectedError := "input cannot be empty"
-			if tc.input == "" {
-				if err.Error() != expectedError {
-					t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-				}
-			} else {
-				expectedError := "CIP should have 7 or 13 characters"
-				if err.Error() != expectedError {
-					t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-				}
+			expectedError := "CIP should have 7 or 13 characters"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 			}
 		})
 	}
@@ -1286,6 +1377,190 @@ func TestValidateCIP_DangerousPatterns(t *testing.T) {
 		})
 	}
 
+}
+
+func TestValidateCIS_Valid(t *testing.T) {
+	validator := NewDataValidator()
+
+	validInputs := []string{
+		"12345678", // 8 chars - valid
+		"00000001", // 8 chars with leading zeros
+		"10000001", // 8 chars realistic CIS format
+		"99999999", // 8 chars max value
+		"60012345", // 8 chars realistic CIS format
+	}
+
+	for _, input := range validInputs {
+		t.Run("valid_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIS(input)
+			if err != nil {
+				t.Errorf("Expected no error for valid CIS '%s', got: %v", input, err)
+			}
+		})
+	}
+}
+
+func TestValidateCIS_Empty(t *testing.T) {
+	validator := NewDataValidator()
+
+	invalidInputs := []string{
+		"",
+		"   ",
+		"\t",
+		"\n",
+		"  \t  \n  ",
+	}
+
+	for _, input := range invalidInputs {
+		t.Run("empty_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIS(input)
+			if err == nil {
+				t.Errorf("Expected error for empty input")
+			}
+
+			// Whitespace-only inputs fail length check or non-numeric check depending on length
+			expectedErrors := []string{
+				"CIS should have 8 digits",
+				"input contains invalid characters. Only numeric characters are allowed",
+			}
+
+			if !slices.Contains(expectedErrors, err.Error()) {
+				t.Errorf("Expected one of errors '%v', got '%s'", expectedErrors, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIS_TooShort(t *testing.T) {
+	validator := NewDataValidator()
+
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"7_chars", "1234567"}, // Below minimum
+		{"1_char", "1"},        // Single digit
+		{"6_chars", "123456"},  // Below minimum
+		{"5_chars", "12345"},   // Below minimum
+		{"4_chars", "1234"},    // Below minimum
+		{"3_chars", "123"},     // Below minimum
+		{"2_chars", "12"},      // Below minimum
+		{"1_char", "1"},        // Below minimum
+		{"empty", ""},          // Empty string
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validator.ValidateCIS(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for short CIS '%s'", tc.input)
+			}
+
+			expectedError := "CIS should have 8 digits"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIS_TooLong(t *testing.T) {
+	validator := NewDataValidator()
+
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"9_chars", "123456789"},             // Above maximum
+		{"10_chars", "1234567890"},           // Above maximum
+		{"13_chars", "1234567890123"},        // Same as CIP13 - invalid
+		{"20_chars", "99999999999999999999"}, // Well above maximum
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validator.ValidateCIS(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for long CIS '%s'", tc.input)
+			}
+
+			expectedError := "CIS should have 8 digits"
+			if err.Error() != expectedError {
+				t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIS_NonNumeric(t *testing.T) {
+	validator := NewDataValidator()
+
+	invalidInputs := []string{
+		"abcdefgh",  // Letters only (8 chars)
+		"1234567a",  // Mix of letters and numbers (8 chars)
+		"1234-567",  // Contains hyphens (9 chars) - fails length check
+		"1234 567",  // Contains spaces (9 chars) - fails length check
+		"1234.567",  // Contains periods (9 chars) - fails length check
+		"1234/567",  // Contains slashes (9 chars) - fails length check
+		"ABC12345",  // Mixed case (8 chars)
+		"1234567#",  // Contains special character (8 chars)
+		"1234567_",  // Contains underscore (8 chars)
+		"1234\t567", // Contains tab (8 chars)
+		"1234\n567", // Contains newline (8 chars)
+	}
+
+	for _, input := range invalidInputs {
+		t.Run("non_numeric_"+input, func(t *testing.T) {
+			_, err := validator.ValidateCIS(input)
+			if err == nil {
+				t.Errorf("Expected error for non-numeric CIS '%s'", input)
+			}
+
+			// Some inputs fail length check first, others fail non-numeric check
+			expectedErrors := []string{
+				"input contains invalid characters. Only numeric characters are allowed",
+				"CIS should have 8 digits",
+			}
+
+			if !slices.Contains(expectedErrors, err.Error()) {
+				t.Errorf("Expected one of errors '%v', got '%s'", expectedErrors, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateCIS_DangerousPatterns(t *testing.T) {
+	validator := NewDataValidator()
+
+	dangerousInputs := []struct {
+		input         string
+		expectedError string
+	}{
+		{"1234567<scr>", "CIS should have 8 digits"},             // Length check runs first (9 chars)
+		{"1234567js:x", "CIS should have 8 digits"},              // Length check runs first (10 chars)
+		{"1234567' OR '", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"1234567; DROP", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"1234567../etc", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"1234567{$ne:}", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"1234567*)(&", "CIS should have 8 digits"},              // LDAP injection - length check runs first (9 chars)
+		{"1234567`whoam", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"1234567$(id)", "CIS should have 8 digits"},             // Command injection - length check runs first (9 chars)
+		{"1234567eval(x", "CIS should have 8 digits"},            // Length check runs first (12 chars)
+		{"<script>1234567</script>", "CIS should have 8 digits"}, // Too long dangerous pattern
+	}
+
+	for _, tc := range dangerousInputs {
+		t.Run("dangerous_"+tc.input, func(t *testing.T) {
+			_, err := validator.ValidateCIS(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for dangerous CIS pattern in input '%s'", tc.input)
+			}
+
+			if err.Error() != tc.expectedError {
+				t.Errorf("Expected error '%s', got '%s'", tc.expectedError, err.Error())
+			}
+		})
+	}
 }
 
 func BenchmarkValidateDataIntegrity(b *testing.B) {

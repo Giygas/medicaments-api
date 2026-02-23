@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 	"github.com/giygas/medicaments-api/validation"
 	"github.com/go-chi/chi/v5"
@@ -185,7 +187,7 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
 		NewMockHealthCheckerBuilder().Build(),
-	).(*HTTPHandlerImpl)
+	).(*Handler)
 
 	router := chi.NewRouter()
 	router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
@@ -240,7 +242,7 @@ func TestServePresentationsV1_ETagCaching(t *testing.T) {
 // GENERIQUES V1 TESTS
 // ============================================================================
 
-// TestServeGeneriqueByGroupIDV1 tests the v1 path-based group ID lookup
+// TestServeGeneriqueByGroupIDV1 tests to v1 path-based group ID lookup
 func TestServeGeneriqueByGroupIDV1(t *testing.T) {
 	generiquesMap := map[int]entities.GeneriqueList{
 		100: {
@@ -564,7 +566,7 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 					Build(),
 				NewMockDataValidatorBuilder().Build(),
 				NewMockHealthCheckerBuilder().Build(),
-			).(*HTTPHandlerImpl)
+			).(*Handler)
 
 			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
 			rr := httptest.NewRecorder()
@@ -751,6 +753,257 @@ func TestServeMedicamentsV1_Errors(t *testing.T) {
 	}
 }
 
+// TestServeMedicamentsV1_PageSize tests pagination with pageSize parameter
+func TestServeMedicamentsV1_PageSize(t *testing.T) {
+	// Create 25 medicaments for testing different pageSize values
+	medicaments := make([]entities.Medicament, 25)
+	for i := 0; i < 25; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		expectedPage  int
+		expectedSize  int
+		expectedMax   int
+		expectedCode  int
+	}{
+		{"default pageSize", "?page=1", 10, 1, 10, 3, 200},
+		{"pageSize 5", "?page=1&pageSize=5", 5, 1, 5, 5, 200},
+		{"pageSize 20", "?page=1&pageSize=20", 20, 1, 20, 2, 200},
+		{"pageSize at max (200)", "?page=1&pageSize=200", 25, 1, 200, 1, 200},
+		{"pageSize 1", "?page=1&pageSize=1", 1, 1, 1, 25, 200},
+		{"second page with pageSize 10", "?page=2&pageSize=10", 10, 2, 10, 3, 200},
+		{"pageSize without page", "?pageSize=10", 0, 0, 0, 0, 400},
+		{"pageSize 0", "?page=1&pageSize=0", 0, 0, 0, 0, 400},
+		{"pageSize negative", "?page=1&pageSize=-5", 0, 0, 0, 0, 400},
+		{"pageSize 201 (exceeds max)", "?page=1&pageSize=201", 0, 0, 0, 0, 400},
+		{"pageSize non-numeric", "?page=1&pageSize=abc", 0, 0, 0, 0, 400},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeMedicamentsV1(rr, req)
+
+			if rr.Code != tt.expectedCode {
+				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
+			}
+
+			if tt.expectedCode == http.StatusOK {
+				var response map[string]any
+				err := json.Unmarshal(rr.Body.Bytes(), &response)
+				if err != nil {
+					t.Fatalf("Failed to unmarshal JSON: %v", err)
+				}
+
+				data, ok := response["data"].([]any)
+				if !ok {
+					t.Fatal("Expected 'data' field to be an array")
+				}
+				if len(data) != tt.expectedCount {
+					t.Errorf("Expected %d items, got %d", tt.expectedCount, len(data))
+				}
+
+				if page, ok := response["page"].(float64); ok && int(page) != tt.expectedPage {
+					t.Errorf("Expected page %d, got %d", tt.expectedPage, int(page))
+				}
+
+				if pageSize, ok := response["pageSize"].(float64); ok && int(pageSize) != tt.expectedSize {
+					t.Errorf("Expected pageSize %d, got %d", tt.expectedSize, int(pageSize))
+				}
+
+				if maxPage, ok := response["maxPage"].(float64); ok && int(maxPage) != tt.expectedMax {
+					t.Errorf("Expected maxPage %d, got %d", tt.expectedMax, int(maxPage))
+				}
+			}
+		})
+	}
+}
+
+// TestServeMedicamentsV1_PageSize_ETagCaching tests ETag caching with different pageSize values
+func TestServeMedicamentsV1_PageSize_ETagCaching(t *testing.T) {
+	medicaments := make([]entities.Medicament, 30)
+	for i := 0; i < 30; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"pageSize 10", "/v1/medicaments?page=1&pageSize=10"},
+		{"pageSize 50", "/v1/medicaments?page=1&pageSize=50"},
+		{"pageSize 100", "/v1/medicaments?page=1&pageSize=100"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// First request - generate ETag
+			req1 := httptest.NewRequest("GET", tt.url, nil)
+			rr1 := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(rr1, req1)
+
+			if rr1.Code != http.StatusOK {
+				t.Errorf("Expected status 200, got %d", rr1.Code)
+			}
+
+			etag := rr1.Header().Get("ETag")
+			if etag == "" {
+				t.Error("ETag header should be present")
+			}
+
+			if !hasQuotedETag(etag) {
+				t.Errorf("ETag should be quoted, got: %s", etag)
+			}
+
+			// Second request with matching ETag - should return 304
+			req2 := httptest.NewRequest("GET", tt.url, nil)
+			req2.Header.Set("If-None-Match", etag)
+			rr2 := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(rr2, req2)
+
+			if rr2.Code != http.StatusNotModified {
+				t.Errorf("Expected 304 Not Modified, got %d", rr2.Code)
+			}
+
+			// Third request with different pageSize - should return 200 with different ETag
+			if tt.url == "/v1/medicaments?page=1&pageSize=10" {
+				req3 := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=50", nil)
+				rr3 := httptest.NewRecorder()
+				handler.ServeMedicamentsV1(rr3, req3)
+
+				if rr3.Code != http.StatusOK {
+					t.Errorf("Expected status 200, got %d", rr3.Code)
+				}
+
+				etag3 := rr3.Header().Get("ETag")
+				if etag3 == etag {
+					t.Error("Different pageSize should produce different ETag")
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkServeMedicamentsV1_PageSize_10 benchmarks pagination with pageSize=10
+func BenchmarkServeMedicamentsV1_PageSize_10(b *testing.B) {
+	medicaments := make([]entities.Medicament, 1000)
+	for i := 0; i < 1000; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=10", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeMedicamentsV1(rr, req)
+	}
+}
+
+// BenchmarkServeMedicamentsV1_PageSize_200 benchmarks pagination with pageSize=200
+func BenchmarkServeMedicamentsV1_PageSize_200(b *testing.B) {
+	medicaments := make([]entities.Medicament, 1000)
+	for i := 0; i < 1000; i++ {
+		denom := fmt.Sprintf("MEDICAMENT %d", i+1)
+		medicaments[i] = entities.Medicament{
+			Cis:                    10000001 + i,
+			Denomination:           denom,
+			DenominationNormalized: strings.ToLower(denom),
+			FormePharmaceutique:    "Comprimé",
+			VoiesAdministration:    []string{"Orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST",
+			Presentation:           []entities.Presentation{},
+		}
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithMedicaments(medicaments).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	).(*Handler)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/v1/medicaments?page=1&pageSize=200", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeMedicamentsV1(rr, req)
+	}
+}
+
 // TestServeMedicamentsV1_ETagCaching tests ETag caching for export and search endpoints
 func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 	// Create test medicaments with presentations for CIP search
@@ -794,7 +1047,7 @@ func TestServeMedicamentsV1_ETagCaching(t *testing.T) {
 			Build(),
 		NewMockDataValidatorBuilder().Build(),
 		NewMockHealthCheckerBuilder().Build(),
-	).(*HTTPHandlerImpl)
+	).(*Handler)
 
 	// Test Search ETag caching
 	t.Run("search ETag caching", func(t *testing.T) {
@@ -1252,6 +1505,570 @@ func hasQuotedETag(etag string) bool {
 	return len(etag) >= 2 && etag[0] == '"' && etag[len(etag)-1] == '"'
 }
 
+// ============================================================================
+// DIAGNOSTICS V1 TESTS
+// ============================================================================
+
+// TestServeDiagnosticsV1_Success tests that diagnostics endpoint returns successful response
+func TestServeDiagnosticsV1_Success(t *testing.T) {
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
+
+	req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeDiagnosticsV1(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rr.Code)
+	}
+
+	// Verify cache headers
+	if rr.Header().Get("Cache-Control") != "public, max-age=10" {
+		t.Errorf("Expected Cache-Control 'public, max-age=10', got '%s'", rr.Header().Get("Cache-Control"))
+	}
+}
+
+// TestServeDiagnosticsV1_ResponseStructure tests that diagnostics response has correct structure
+func TestServeDiagnosticsV1_ResponseStructure(t *testing.T) {
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
+
+	req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeDiagnosticsV1(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", rr.Code)
+	}
+
+	var response map[string]any
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal JSON response: %v", err)
+	}
+
+	// Check required top-level fields
+	requiredFields := []string{
+		"timestamp", "uptime_seconds", "next_update",
+		"data_age_hours", "system", "data_integrity",
+	}
+	for _, field := range requiredFields {
+		if _, ok := response[field]; !ok {
+			t.Errorf("Response missing required field: %s", field)
+		}
+	}
+
+	// Check timestamp is valid RFC3339
+	if timestamp, ok := response["timestamp"].(string); ok {
+		if _, err := time.Parse(time.RFC3339, timestamp); err != nil {
+			t.Errorf("Invalid timestamp format: %v", err)
+		}
+	} else {
+		t.Error("timestamp should be a string")
+	}
+
+	// Check uptime_seconds is a non-negative float
+	if uptime, ok := response["uptime_seconds"].(float64); ok {
+		if uptime < 0 {
+			t.Errorf("uptime_seconds should be non-negative, got %f", uptime)
+		}
+	} else {
+		t.Error("uptime_seconds should be a float")
+	}
+
+	// Check next_update is valid RFC3339
+	if nextUpdate, ok := response["next_update"].(string); ok {
+		if _, err := time.Parse(time.RFC3339, nextUpdate); err != nil {
+			t.Errorf("Invalid next_update format: %v", err)
+		}
+	} else {
+		t.Error("next_update should be a string")
+	}
+
+	// Check data_age_hours is a non-negative float
+	if dataAge, ok := response["data_age_hours"].(float64); ok {
+		if dataAge < 0 {
+			t.Errorf("data_age_hours should be non-negative, got %f", dataAge)
+		}
+	} else {
+		t.Error("data_age_hours should be a float")
+	}
+
+	// Check system field structure
+	system, ok := response["system"].(map[string]any)
+	if !ok {
+		t.Fatal("system should be a map")
+	}
+
+	if goroutines, ok := system["goroutines"].(float64); ok {
+		if goroutines <= 0 {
+			t.Errorf("goroutines should be positive, got %f", goroutines)
+		}
+	} else {
+		t.Error("system.goroutines should be a number")
+	}
+
+	memory, ok := system["memory"].(map[string]any)
+	if !ok {
+		t.Fatal("system.memory should be a map")
+	}
+
+	if allocMB, ok := memory["alloc_mb"].(float64); ok {
+		if allocMB < 0 {
+			t.Errorf("memory.alloc_mb should be non-negative, got %f", allocMB)
+		}
+	} else {
+		t.Error("memory.alloc_mb should be a number")
+	}
+
+	if sysMB, ok := memory["sys_mb"].(float64); ok {
+		if sysMB < 0 {
+			t.Errorf("memory.sys_mb should be non-negative, got %f", sysMB)
+		}
+	} else {
+		t.Error("memory.sys_mb should be a number")
+	}
+
+	if numGC, ok := memory["num_gc"].(float64); ok {
+		if numGC < 0 {
+			t.Errorf("memory.num_gc should be non-negative, got %f", numGC)
+		}
+	} else {
+		t.Error("memory.num_gc should be a number")
+	}
+}
+
+// TestServeDiagnosticsV1_DataIntegrityCategories tests all data integrity categories are present
+func TestServeDiagnosticsV1_DataIntegrityCategories(t *testing.T) {
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
+
+	req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeDiagnosticsV1(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", rr.Code)
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal JSON response: %v", err)
+	}
+
+	dataIntegrity, ok := response["data_integrity"].(map[string]any)
+	if !ok {
+		t.Fatal("data_integrity should be a map")
+	}
+
+	// Check all 6 required categories
+	requiredCategories := []string{
+		"medicaments_without_conditions",
+		"medicaments_without_generiques",
+		"medicaments_without_presentations",
+		"medicaments_without_compositions",
+		"generique_only_cis",
+		"presentations_with_orphaned_cis",
+	}
+	for _, category := range requiredCategories {
+		if _, ok := dataIntegrity[category]; !ok {
+			t.Errorf("data_integrity missing required category: %s", category)
+		}
+	}
+
+	// Check each category has count and sample_cis/sample_cip
+	countCategories := map[string]string{
+		"medicaments_without_conditions":    "sample_cis",
+		"medicaments_without_generiques":    "sample_cis",
+		"medicaments_without_presentations": "sample_cis",
+		"medicaments_without_compositions":  "sample_cis",
+		"generique_only_cis":                "sample_cis",
+		"presentations_with_orphaned_cis":   "sample_cip",
+	}
+	for category, sampleField := range countCategories {
+		cat, ok := dataIntegrity[category].(map[string]any)
+		if !ok {
+			t.Errorf("Category %s should be a map", category)
+			continue
+		}
+		if _, ok := cat["count"]; !ok {
+			t.Errorf("Category %s missing 'count' field", category)
+		}
+		if _, ok := cat[sampleField]; !ok {
+			t.Errorf("Category %s missing '%s' field", category, sampleField)
+		}
+	}
+}
+
+// TestServeDiagnosticsV1_DataIntegrityValues tests data integrity values match report
+func TestServeDiagnosticsV1_DataIntegrityValues(t *testing.T) {
+	report := &interfaces.DataQualityReport{
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        5,
+		MedicamentsWithoutGeneriques:        10,
+		MedicamentsWithoutPresentations:     3,
+		MedicamentsWithoutCompositions:      2,
+		GeneriqueOnlyCIS:                    4,
+		PresentationsWithOrphanedCIS:        1,
+		MedicamentsWithoutConditionsCIS:     []int{1, 2, 3, 4, 5},
+		MedicamentsWithoutGeneriquesCIS:     []int{6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		MedicamentsWithoutPresentationsCIS:  []int{16, 17, 18},
+		MedicamentsWithoutCompositionsCIS:   []int{19, 20},
+		GeneriqueOnlyCISList:                []int{21, 22, 23, 24},
+		PresentationsWithOrphanedCISCIPList: []int{100, 200, 300},
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().WithDataQualityReport(report).Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
+
+	req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeDiagnosticsV1(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", rr.Code)
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal JSON response: %v", err)
+	}
+
+	dataIntegrity := response["data_integrity"].(map[string]any)
+
+	// Verify counts match report
+	counts := map[string]int{
+		"medicaments_without_conditions":    5,
+		"medicaments_without_generiques":    10,
+		"medicaments_without_presentations": 3,
+		"medicaments_without_compositions":  2,
+		"generique_only_cis":                4,
+		"presentations_with_orphaned_cis":   1,
+	}
+	for category, expectedCount := range counts {
+		cat := dataIntegrity[category].(map[string]any)
+		if count, ok := cat["count"].(float64); ok {
+			if int(count) != expectedCount {
+				t.Errorf("Category %s: expected count %d, got %f", category, expectedCount, count)
+			}
+		} else {
+			t.Errorf("Category %s: count should be a number", category)
+		}
+	}
+
+	// Verify sample CIS lists
+	sampleCISCategories := map[string][]int{
+		"medicaments_without_conditions":    {1, 2, 3, 4, 5},
+		"medicaments_without_generiques":    {6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		"medicaments_without_presentations": {16, 17, 18},
+		"medicaments_without_compositions":  {19, 20},
+		"generique_only_cis":                {21, 22, 23, 24},
+	}
+	for category, expectedCIS := range sampleCISCategories {
+		cat := dataIntegrity[category].(map[string]any)
+		sampleCIS, ok := cat["sample_cis"].([]any)
+		if !ok {
+			t.Errorf("Category %s: sample_cis should be an array", category)
+			continue
+		}
+		if len(sampleCIS) != len(expectedCIS) {
+			t.Errorf("Category %s: expected %d sample CIS, got %d", category, len(expectedCIS), len(sampleCIS))
+		}
+	}
+
+	// Verify sample CIP list for orphaned presentations
+	orphanedCat := dataIntegrity["presentations_with_orphaned_cis"].(map[string]any)
+	sampleCIP, ok := orphanedCat["sample_cip"].([]any)
+	if !ok {
+		t.Error("presentations_with_orphaned_cis: sample_cip should be an array")
+	} else if len(sampleCIP) != 3 {
+		t.Errorf("presentations_with_orphaned_cis: expected 3 sample CIP, got %d", len(sampleCIP))
+	}
+}
+
+// TestServeDiagnosticsV1_EdgeCases tests edge cases and boundary conditions
+func TestServeDiagnosticsV1_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name             string
+		serverStartTime  time.Time
+		lastUpdated      time.Time
+		verifyAssertions func(*testing.T, map[string]any)
+	}{
+		{
+			name:            "zero server start time",
+			serverStartTime: time.Time{},
+			lastUpdated:     time.Now(),
+			verifyAssertions: func(t *testing.T, response map[string]any) {
+				uptime := response["uptime_seconds"].(float64)
+				if uptime != 0 {
+					t.Errorf("Expected uptime 0 for zero start time, got %f", uptime)
+				}
+			},
+		},
+		{
+			name:            "recent data",
+			serverStartTime: time.Now().Add(-1 * time.Hour),
+			lastUpdated:     time.Now().Add(-30 * time.Minute),
+			verifyAssertions: func(t *testing.T, response map[string]any) {
+				dataAge := response["data_age_hours"].(float64)
+				if dataAge < 0 || dataAge > 1 {
+					t.Errorf("Recent data: expected data_age_hours < 1, got %f", dataAge)
+				}
+			},
+		},
+		{
+			name:            "old data",
+			serverStartTime: time.Now().Add(-24 * time.Hour),
+			lastUpdated:     time.Now().Add(-3 * time.Hour),
+			verifyAssertions: func(t *testing.T, response map[string]any) {
+				dataAge := response["data_age_hours"].(float64)
+				if dataAge < 2 || dataAge > 4 {
+					t.Errorf("Old data: expected data_age_hours between 2 and 4, got %f", dataAge)
+				}
+			},
+		},
+		{
+			name:            "empty data quality report",
+			serverStartTime: time.Now().Add(-1 * time.Hour),
+			lastUpdated:     time.Now(),
+			verifyAssertions: func(t *testing.T, response map[string]any) {
+				dataIntegrity := response["data_integrity"].(map[string]any)
+				categories := []string{
+					"medicaments_without_conditions",
+					"medicaments_without_generiques",
+					"medicaments_without_presentations",
+					"medicaments_without_compositions",
+					"generique_only_cis",
+					"presentations_with_orphaned_cis",
+				}
+				for _, category := range categories {
+					cat := dataIntegrity[category].(map[string]any)
+					count := cat["count"].(float64)
+					if count != 0 {
+						t.Errorf("Category %s: expected count 0, got %f", category, count)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var report *interfaces.DataQualityReport
+			if tt.name == "empty data quality report" {
+				report = &interfaces.DataQualityReport{
+					DuplicateCIS:                        []int{},
+					DuplicateGroupIDs:                   []int{},
+					MedicamentsWithoutConditions:        0,
+					MedicamentsWithoutGeneriques:        0,
+					MedicamentsWithoutPresentations:     0,
+					MedicamentsWithoutCompositions:      0,
+					GeneriqueOnlyCIS:                    0,
+					PresentationsWithOrphanedCIS:        0,
+					MedicamentsWithoutConditionsCIS:     []int{},
+					MedicamentsWithoutGeneriquesCIS:     []int{},
+					MedicamentsWithoutPresentationsCIS:  []int{},
+					MedicamentsWithoutCompositionsCIS:   []int{},
+					GeneriqueOnlyCISList:                []int{},
+					PresentationsWithOrphanedCISCIPList: []int{},
+				}
+			}
+
+			builder := NewMockDataStoreBuilder().
+				WithServerStartTime(tt.serverStartTime).
+				WithLastUpdated(tt.lastUpdated)
+
+			if report != nil {
+				builder = builder.WithDataQualityReport(report)
+			}
+
+			handler := NewHTTPHandler(
+				builder.Build(),
+				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().Build(),
+			)
+
+			req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeDiagnosticsV1(rr, req)
+
+			if rr.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d", rr.Code)
+			}
+
+			var response map[string]any
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to unmarshal JSON response: %v", err)
+			}
+
+			tt.verifyAssertions(t, response)
+		})
+	}
+}
+
+// TestServeDiagnosticsV1_Comprehensive provides comprehensive table-driven tests
+func TestServeDiagnosticsV1_Comprehensive(t *testing.T) {
+	now := time.Now()
+
+	report := &interfaces.DataQualityReport{
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        2,
+		MedicamentsWithoutGeneriques:        5,
+		MedicamentsWithoutPresentations:     3,
+		MedicamentsWithoutCompositions:      1,
+		GeneriqueOnlyCIS:                    4,
+		PresentationsWithOrphanedCIS:        2,
+		MedicamentsWithoutConditionsCIS:     []int{100, 200},
+		MedicamentsWithoutGeneriquesCIS:     []int{300, 400, 500, 600, 700},
+		MedicamentsWithoutPresentationsCIS:  []int{800, 900, 1000},
+		MedicamentsWithoutCompositionsCIS:   []int{1100},
+		GeneriqueOnlyCISList:                []int{1200, 1300, 1400, 1500},
+		PresentationsWithOrphanedCISCIPList: []int{1234567, 7654321, 9999999},
+	}
+
+	tests := []struct {
+		name           string
+		serverStart    time.Time
+		lastUpdated    time.Time
+		nextUpdate     time.Time
+		expectedStatus int
+		validate       func(*testing.T, map[string]any)
+	}{
+		{
+			name:           "healthy system with recent data",
+			serverStart:    now.Add(-1 * time.Hour),
+			lastUpdated:    now.Add(-30 * time.Minute),
+			nextUpdate:     now.Add(2 * time.Hour),
+			expectedStatus: http.StatusOK,
+			validate: func(t *testing.T, response map[string]any) {
+				dataAge := response["data_age_hours"].(float64)
+				if dataAge < 0 || dataAge > 1 {
+					t.Errorf("Expected data_age_hours < 1, got %f", dataAge)
+				}
+
+				uptime := response["uptime_seconds"].(float64)
+				if uptime < 3000 || uptime > 4000 { // ~1 hour
+					t.Errorf("Expected uptime ~3600s, got %f", uptime)
+				}
+			},
+		},
+		{
+			name:           "system with data quality issues",
+			serverStart:    now.Add(-24 * time.Hour),
+			lastUpdated:    now.Add(-2 * time.Hour),
+			nextUpdate:     now.Add(4 * time.Hour),
+			expectedStatus: http.StatusOK,
+			validate: func(t *testing.T, response map[string]any) {
+				dataIntegrity := response["data_integrity"].(map[string]any)
+
+				expectedCounts := map[string]int{
+					"medicaments_without_conditions":    2,
+					"medicaments_without_generiques":    5,
+					"medicaments_without_presentations": 3,
+					"medicaments_without_compositions":  1,
+					"generique_only_cis":                4,
+					"presentations_with_orphaned_cis":   2,
+				}
+
+				for category, expectedCount := range expectedCounts {
+					cat := dataIntegrity[category].(map[string]any)
+					count := cat["count"].(float64)
+					if int(count) != expectedCount {
+						t.Errorf("Category %s: expected count %d, got %f", category, expectedCount, count)
+					}
+				}
+
+				// Check that sample lists are not empty when count > 0
+				withoutConditions := dataIntegrity["medicaments_without_conditions"].(map[string]any)
+				sampleCIS := withoutConditions["sample_cis"].([]any)
+				if len(sampleCIS) != 2 {
+					t.Errorf("Expected 2 sample CIS, got %d", len(sampleCIS))
+				}
+			},
+		},
+		{
+			name:           "zero server start time",
+			serverStart:    time.Time{},
+			lastUpdated:    now,
+			nextUpdate:     now.Add(1 * time.Hour),
+			expectedStatus: http.StatusOK,
+			validate: func(t *testing.T, response map[string]any) {
+				uptime := response["uptime_seconds"].(float64)
+				if uptime != 0 {
+					t.Errorf("Expected uptime 0 for zero start time, got %f", uptime)
+				}
+			},
+		},
+		{
+			name:           "long running server",
+			serverStart:    now.Add(-7 * 24 * time.Hour),
+			lastUpdated:    now.Add(-30 * time.Minute),
+			nextUpdate:     now.Add(2 * time.Hour),
+			expectedStatus: http.StatusOK,
+			validate: func(t *testing.T, response map[string]any) {
+				uptime := response["uptime_seconds"].(float64)
+				// ~7 days in seconds
+				if uptime < 600000 || uptime > 610000 {
+					t.Errorf("Expected uptime ~604800s (7 days), got %f", uptime)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewHTTPHandler(
+				NewMockDataStoreBuilder().
+					WithServerStartTime(tt.serverStart).
+					WithLastUpdated(tt.lastUpdated).
+					WithDataQualityReport(report).
+					Build(),
+				NewMockDataValidatorBuilder().Build(),
+				NewMockHealthCheckerBuilder().
+					WithNextUpdate(tt.nextUpdate).
+					Build(),
+			)
+
+			req := httptest.NewRequest("GET", "/v1/diagnostics", nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeDiagnosticsV1(rr, req)
+
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+
+			var response map[string]any
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to unmarshal JSON response: %v", err)
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, response)
+			}
+		})
+	}
+}
+
 // containsSubstring checks if a string contains a substring
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || findSubstring(s, substr))
@@ -1265,4 +2082,77 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestServeMedicamentsV1_SearchLimitExceeded(t *testing.T) {
+	medicaments := make([]entities.Medicament, 300)
+	for i := 0; i < 300; i++ {
+		medicaments[i] = entities.Medicament{
+			Cis:                    60000000 + i,
+			Denomination:           fmt.Sprintf("A-MEDICAMENT-%d", i),
+			DenominationNormalized: fmt.Sprintf("a-medicament-%d", i),
+			FormePharmaceutique:    "comprimé",
+			VoiesAdministration:    []string{"orale"},
+			StatusAutorisation:     "Autorisation active",
+			TypeProcedure:          "Procédure nationale",
+			EtatComercialisation:   "Commercialisée",
+			DateAMM:                "2020-01-01",
+			Titulaire:              "TEST PHARMA",
+		}
+	}
+
+	mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
+
+	req := httptest.NewRequest("GET", "/v1/medicaments?search=a", nil)
+	w := httptest.NewRecorder()
+	handler.ServeMedicamentsV1(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	var errorResponse map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+		t.Fatalf("Failed to parse error response: %v", err)
+	}
+
+	if message, ok := errorResponse["message"].(string); !ok || !strings.Contains(message, "Maximum 250 results") {
+		t.Errorf("Expected error message about 250 limit, got: %s", message)
+	}
+}
+
+func TestServeGeneriquesV1_SearchLimitExceeded(t *testing.T) {
+	generiques := make([]entities.GeneriqueList, 150)
+	for i := 0; i < 150; i++ {
+		generiques[i] = entities.GeneriqueList{
+			GroupID:           1000 + i,
+			Libelle:           fmt.Sprintf("A-GENERIC-%d", i),
+			LibelleNormalized: fmt.Sprintf("a-generic-%d", i),
+			Medicaments:       []entities.GeneriqueMedicament{},
+			OrphanCIS:         nil,
+		}
+	}
+
+	mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
+	mockValidator := NewMockDataValidatorBuilder().Build()
+	handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
+
+	req := httptest.NewRequest("GET", "/v1/generiques?libelle=a", nil)
+	w := httptest.NewRecorder()
+	handler.ServeGeneriquesV1(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	var errorResponse map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &errorResponse); err != nil {
+		t.Fatalf("Failed to parse error response: %v", err)
+	}
+
+	if message, ok := errorResponse["message"].(string); !ok || !strings.Contains(message, "Maximum 100 results") {
+		t.Errorf("Expected error message about 100 limit, got: %s", message)
+	}
 }

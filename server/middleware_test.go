@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -19,7 +20,6 @@ func TestGetTokenCost(t *testing.T) {
 
 		// V1 Medicaments endpoint
 		{"V1 export route", "/v1/medicaments/export", "", 200},
-		{"V1 export all (deprecated query param)", "/v1/medicaments", "export=all", 5},
 		{"V1 page query", "/v1/medicaments", "page=1", 20},
 		{"V1 search query", "/v1/medicaments", "search=paracetamol", 50},
 		{"V1 CIP query", "/v1/medicaments", "cip=1234567", 10},
@@ -48,18 +48,14 @@ func TestGetTokenCost(t *testing.T) {
 
 		// ===== EDGE CASES =====
 		// Multi-parameter scenarios (should return default 5)
-		// Invalid param with valid CIP param should cost 10 (CIP is only valid param)
-		{"V1 medicaments export query+CIP (CIP wins)", "/v1/medicaments", "export=all&cip=1234567", 10},
 		{"V1 medicaments page+search", "/v1/medicaments", "page=1&search=test", 5},
 		{"V1 generiques unknown param", "/v1/generiques", "unknown=value", 5},
 
 		// Invalid parameter values (cost based on param type, handler validates value)
-		{"V1 export invalid value (query param)", "/v1/medicaments", "export=invalid", 5}, // Falls to default
-		{"V1 export case insensitive", "/v1/medicaments", "export=ALL", 5},                // Case sensitive, falls to default
-		{"V1 page non-numeric", "/v1/medicaments", "page=abc", 20},                        // page param present, handler will reject
-		{"V1 page zero", "/v1/medicaments", "page=0", 20},                                 // page param present, handler will reject
-		{"V1 search empty string", "/v1/medicaments", "search=", 5},                       // Falls to default (empty value)
-		{"V1 CIP empty string", "/v1/medicaments", "cip=", 5},                             // Falls to default (empty value)
+		{"V1 page non-numeric", "/v1/medicaments", "page=abc", 20},  // page param present, handler will reject
+		{"V1 page zero", "/v1/medicaments", "page=0", 20},           // page param present, handler will reject
+		{"V1 search empty string", "/v1/medicaments", "search=", 5}, // Falls to default (empty value)
+		{"V1 CIP empty string", "/v1/medicaments", "cip=", 5},       // Falls to default (empty value)
 
 		// Health endpoint with params (should return default 5)
 		{"V1 health with params", "/v1/health", "test=value", 5},
@@ -89,12 +85,12 @@ func TestHasSingleParam(t *testing.T) {
 		allowedParams []string
 		expected      bool
 	}{
-		{"Single param present", "export=all", []string{"export", "page"}, true},
-		{"Single param from list", "page=1", []string{"export", "page", "search"}, true},
-		{"No params present", "", []string{"export", "page"}, false},
-		{"Two params present", "export=all&page=1", []string{"export", "page"}, false},
+		{"Single param present", "page=1", []string{"page", "search"}, true},
+		{"Single param from list", "page=1", []string{"page", "search", "cip"}, true},
+		{"No params present", "", []string{"page", "search"}, false},
+		{"Two params present", "page=1&search=test", []string{"page", "search"}, false},
 		{"Three params present", "a=1&b=2&c=3", []string{"a", "b", "c"}, false},
-		{"Param not in allowed list", "other=value", []string{"export", "page"}, false},
+		{"Param not in allowed list", "other=value", []string{"page", "search"}, false},
 		{"Empty string param", "param=", []string{"param"}, false},
 		{"Empty allowed list", "param=1", []string{}, false},
 	}
@@ -109,5 +105,33 @@ func TestHasSingleParam(t *testing.T) {
 					tt.expected, tt.query, tt.allowedParams, result)
 			}
 		})
+	}
+}
+
+func TestBlockDirectAccessMiddleware_WithAllowDirectAccess(t *testing.T) {
+	// Create handler that sets a flag
+	handlerCalled := false
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Create middleware with AllowDirectAccess=true
+	middleware := BlockDirectAccessMiddleware(true)(testHandler)
+
+	// Create request without proxy headers (would normally be blocked)
+	req := httptest.NewRequest("GET", "/health", nil)
+	req.RemoteAddr = "192.168.1.100:12345"
+
+	// Execute request
+	recorder := httptest.NewRecorder()
+	middleware.ServeHTTP(recorder, req)
+
+	// Should pass through without blocking
+	if !handlerCalled {
+		t.Error("Handler should be called when AllowDirectAccess=true")
+	}
+	if recorder.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got: %d", recorder.Code)
 	}
 }

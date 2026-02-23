@@ -35,7 +35,7 @@ func TestRealIPMiddleware_SingleIP(t *testing.T) {
 }
 
 func TestRealIPMiddleware_WithoutXForwardedFor(t *testing.T) {
-	// Request without X-Forwarded-For header (should keep original RemoteAddr)
+	// Request without X-Forwarded-For header (should keep original RemoteAddr without port)
 	req := httptest.NewRequest("GET", "/", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 
@@ -50,8 +50,8 @@ func TestRealIPMiddleware_WithoutXForwardedFor(t *testing.T) {
 	}
 
 	originalAddr := rr.Header().Get("X-Original-RemoteAddr")
-	if originalAddr != "192.168.1.1:12345" {
-		t.Errorf("Expected RemoteAddr to remain unchanged, got '%s'", originalAddr)
+	if originalAddr != "192.168.1.1" {
+		t.Errorf("Expected RemoteAddr without port, got '%s'", originalAddr)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestBlockDirectAccessMiddleware_LocalhostIPv4(t *testing.T) {
 	req.RemoteAddr = "127.0.0.1:12345"
 
 	rr := httptest.NewRecorder()
-	handler := BlockDirectAccessMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := BlockDirectAccessMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("allowed"))
 	}))
@@ -76,7 +76,7 @@ func TestBlockDirectAccessMiddleware_LocalhostIPv6(t *testing.T) {
 	req.RemoteAddr = "[::1]:12345"
 
 	rr := httptest.NewRecorder()
-	handler := BlockDirectAccessMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := BlockDirectAccessMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("allowed"))
 	}))
@@ -92,7 +92,7 @@ func TestBlockDirectAccessMiddleware_DirectIP(t *testing.T) {
 	req.RemoteAddr = "192.168.1.1:12345"
 
 	rr := httptest.NewRecorder()
-	handler := BlockDirectAccessMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := BlockDirectAccessMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("allowed"))
 	}))
@@ -110,7 +110,7 @@ func TestBlockDirectAccessMiddleware_WithXForwardedFor(t *testing.T) {
 	req.RemoteAddr = "192.168.1.1:12345"
 
 	rr := httptest.NewRecorder()
-	handler := BlockDirectAccessMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := BlockDirectAccessMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("allowed"))
 	}))
@@ -128,7 +128,7 @@ func TestBlockDirectAccessMiddleware_WithXRealIP(t *testing.T) {
 	req.RemoteAddr = "192.168.1.1:12345"
 
 	rr := httptest.NewRecorder()
-	handler := BlockDirectAccessMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := BlockDirectAccessMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("allowed"))
 	}))

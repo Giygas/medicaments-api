@@ -21,8 +21,9 @@ L'architecture repose sur 6 interfaces principales :
 Gère le stockage atomique des données en mémoire avec des opérations thread-safe via `atomic.Value`, garantissant des mises à jour zero-downtime.
 
 **Responsabilités :**
+
 - Stockage atomique des médicaments et génériques
-- Maps O(1) pour lookups CIS et group ID (*voir [Performance et benchmarks](PERFORMANCE.md) pour les métriques*)
+- Maps O(1) pour lookups CIS et group ID (_voir [Performance et benchmarks](PERFORMANCE.md) pour les métriques_)
 - Opérations thread-safe pour lecture/écriture concurrente
 - Bascullement instantané sans interruption de service
 
@@ -31,18 +32,20 @@ Gère le stockage atomique des données en mémoire avec des opérations thread-
 Orchestre les requêtes et route les appels vers les bons handlers sans assertions de type.
 
 **Responsabilités :**
+
 - Dispatch des requêtes vers les handlers appropriés
 - Gestion des erreurs HTTP
 - Sérialisation des réponses JSON
 - Middleware stack orchestration
 
-*Pour plus d'informations sur les endpoints v1, consultez le [Guide de migration v1](MIGRATION.md).*
+_Pour plus d'informations sur les endpoints v1, consultez le [Guide de migration v1](MIGRATION.md)._
 
 ### Parser
 
 Télécharge et traite les 5 fichiers TSV BDPM en parallèle, construisant les maps pour lookups O(1) (CIS → médicament, groupe ID → générique).
 
 **Responsabilités :**
+
 - Téléchargement concurrent des fichiers TSV BDPM
 - Parsing avec détection automatique de charset (UTF-8/ISO8859-1)
 - Validation et nettoyage des données
@@ -54,6 +57,7 @@ Télécharge et traite les 5 fichiers TSV BDPM en parallèle, construisant les m
 Planifie les mises à jour automatiques (6h et 18h) en coordonnant le parsing et le stockage.
 
 **Responsabilités :**
+
 - Planification via gocron (6h et 18h)
 - Coordination Parser → DataStore
 - Gestion des mises à jour atomiques
@@ -64,6 +68,7 @@ Planifie les mises à jour automatiques (6h et 18h) en coordonnant le parsing et
 Surveille la fraîcheur des données et collecte les métriques système.
 
 **Responsabilités :**
+
 - Vérification de l'âge des données (alerte si > 25h)
 - Collecte des métriques système (goroutines, mémoire, GC)
 - État de santé (healthy/degraded/unhealthy)
@@ -74,13 +79,17 @@ Surveille la fraîcheur des données et collecte les métriques système.
 Assainit les entrées utilisateur et valide l'intégrité des données.
 
 **Responsabilités :**
+
 - Validation des paramètres de requête (3-50 chars, ASCII-only)
 - Détection de patterns dangereux (SQL injection, XSS, etc.)
 - Validation CIS/CIP/CIP13/CIP7 ranges
 - Validation des limites de mots (max 6 pour recherche)
 - Validation CheckDuplicateCIP pour intégrité des présentations
+- **Limites de résultats** : Maximum 250 résultats pour recherche médicaments, 100 pour génériques
+   - Retourne HTTP 400 si dépassé pour prévenir l'abus
+   - Guide les utilisateurs vers `/export` pour le dataset complet
 
-*Voir le [Guide de tests](TESTING.md) pour les stratégies de validation des tests.*
+_Voir le [Guide de tests](TESTING.md) pour les stratégies de validation des tests._
 
 ## Flux de Données
 
@@ -105,20 +114,22 @@ Assainit les entrées utilisateur et valide l'intégrité des données.
 5. **Swap atomique** : Échange instantané via `atomic.Value`
 6. **Nettoyage** : Anciennes structures libérées par GC
 
-*Pour configurer et lancer le pipeline de parsing, consultez le [Guide de développement](DEVELOPMENT.md).*
+_Pour configurer et lancer le pipeline de parsing, consultez le [Guide de développement](DEVELOPMENT.md)._
 
 ## Middleware Stack Complet
 
 Stack Chi v5 optimisée pour la sécurité et la performance :
 
 1. **RequestID** - Traçabilité unique par requête
-2. **BlockDirectAccess** - Bloque les accès directs non autorisés
+2. **BlockDirectAccess** - Bloque les accès directs non autorisés (désactivé avec ALLOW_DIRECT_ACCESS=true pour Docker)
 3. **RealIP** - Détection IP réelle derrière les proxies
 4. **Logging structuré** - Logs avec slog pour monitoring
 5. **RedirectSlashes** - Normalisation des URLs
 6. **Recoverer** - Gestion des paniques avec recovery
 7. **RequestSize** - Limites taille corps/headers (configurable)
-8. **RateLimiting** - Token bucket avec coûts variables par endpoint
+8. **RateLimiting** - Token bucket avec coûts variables par endpoint et limites de résultats de recherche
+   - Limite 250 résultats pour `/v1/medicaments?search`, 100 pour `/v1/generiques?libelle`
+   - Retourne HTTP 400 avec message guidant vers `/export`
 
 ### Ordre d'exécution
 
@@ -134,11 +145,13 @@ L'API implémente un système de cache HTTP efficace pour optimiser les performa
 ### Stratégies de cache
 
 **Ressources statiques (documentation, OpenAPI, favicon)**
+
 - Headers `Cache-Control` avec durées adaptées
 - 1 heure pour la documentation
 - 1 an pour le favicon
 
 **Réponses API**
+
 - `Last-Modified` : Date de dernière modification des données
 - `ETag` : Hash SHA256 pour validation conditionnelle
 - Réponses `304 Not Modified` sur requêtes répétées
@@ -146,6 +159,7 @@ L'API implémente un système de cache HTTP efficace pour optimiser les performa
 ### Compression
 
 Compression gzip appliquée automatiquement :
+
 - Réduit la taille des réponses JSON jusqu'à 80%
 - Négociation content-encoding automatique
 - Transparente pour le client
@@ -292,15 +306,32 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
   - `generique_only_cis` : CIS présents uniquement dans les génériques
   - `presentations_with_orphaned_cis` : Présentations référençant des CIS inexistants
 
+_Pour la documentation complète de la stack d'observabilité (Grafana, Loki, Prometheus, Alloy), consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
+
+_Pour la configuration Docker et le déploiement, consultez [DOCKER.md](DOCKER.md)._
+
 ## Stack Technique
+
+### Architecture et Déploiement
+
+Le projet utilise une architecture modulaire avec support Docker pour le staging et la production :
+
+- **Environnement de développement** : Exécution directe (`go run .`)
+- **Environnement Docker (staging)** : Conteneurs avec observabilité complète
+- **Observabilité** : Stack séparée via submodule Git (Grafana, Loki, Prometheus, Alloy)
+
+_Pour les détails de l'architecture Docker et de la configuration des conteneurs, consultez [DOCKER.md](DOCKER.md)._
+
+_Pour la configuration et l'utilisation de la stack d'observabilité avec medicaments-api, consultez [OBSERVABILITY.md](OBSERVABILITY.md)._
 
 ### Core Technologies
 
-- **Encoding** : Support Windows-1252/UTF-8/ISO8859-1 → UTF-8 pour les fichiers TSV sources
 - **Framework web** : Chi v5 avec middleware stack complet
 - **Scheduling** : gocron pour les mises à jour automatiques (6h/18h)
 - **Logging** : Structured logging avec slog et rotation de fichiers
 - **Rate limiting** : juju/ratelimit (token bucket algorithm)
+- **Atomic operations** : go.uber.org/atomic pour mises à jour zero-downtime
+- **Configuration** : Validation d'environnement avec godotenv
 
 ### Data Processing
 
@@ -311,7 +342,6 @@ L'endpoint `/v1/diagnostics` fournit des métriques détaillées pour le monitor
 
 ### Development & Operations
 
-- **Configuration** : Validation d'environnement avec godotenv
 - **Tests** : Tests unitaires avec couverture de code et benchmarks
 - **Documentation** : OpenAPI 3.1 avec Swagger UI interactive
 - **Profiling** : pprof intégré pour le développement (port 6060)
@@ -337,26 +367,31 @@ require (
 L'architecture privilégie la simplicité, l'efficacité et la résilience :
 
 ### Atomic operations
+
 - Mises à jour sans temps d'arrêt
 - Swap instantané via `atomic.Value`
 - Pas de downtime pour les utilisateurs
 
 ### Stateless architecture
+
 - Facilite la montée en charge horizontale
 - Chaque requête est indépendante
 - Pas d'état partagé entre les requêtes
 
 ### Modular design
+
 - Séparation claire des responsabilités
 - Interface-based design pour testabilité
 - Remplaçabilité des composants
 
 ### Memory optimization
+
 - Cache intelligent pour des réponses rapides
 - O(1) lookups pour les requêtes fréquentes
 - Minimalisation des allocations
 
 ### Concurrency safety
+
 - `sync.RWMutex` pour les accès concurrents
 - Opérations atomiques pour les swaps de données
 - Pas de race conditions dans le code critique

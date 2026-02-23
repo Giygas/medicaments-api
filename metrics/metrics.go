@@ -34,10 +34,18 @@ var (
 			Help: "Current in-flight requests",
 		},
 	)
+
+	RateLimiterBucketsTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "rate_limiter_buckets_total",
+			Help: "Total number of rate limiter buckets (IPs seen in last ~5 minutes)",
+		},
+	)
 )
 
 func init() {
 	prometheus.MustRegister(HTTPRequestTotals)
 	prometheus.MustRegister(HTTPRequestDuration)
 	prometheus.MustRegister(HTTPRequestInFlight)
+	prometheus.MustRegister(RateLimiterBucketsTotal)
 }

@@ -111,7 +111,7 @@ go test ./tests/ -run TestDocumentationClaimsVerification -v
 
 | Benchmark                         | Endpoint v1                  | Type de lookup |
 | --------------------------------- | ---------------------------- | -------------- |
-| `BenchmarkMedicamentsExport`      | `/v1/medicaments?export=all` | Full export    |
+| `BenchmarkMedicamentsExport`      | `/v1/medicaments/export` | Full export    |
 | `BenchmarkMedicamentsPagination`  | `/v1/medicaments?page={n}`   | Pagination     |
 | `BenchmarkMedicamentsSearch`      | `/v1/medicaments?search={q}` | Regex search   |
 | `BenchmarkMedicamentByCIS`        | `/v1/medicaments/{cis}`      | O(1) lookup    |
@@ -196,25 +196,7 @@ Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-
 
 ## Architecture Mémoire
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     Memory Layout                           │
-├─────────────────────────────────────────────────────────────┤
-│ medicaments       │ ~20MB │ Slice des médicaments           │
-│ generiques        │ ~6MB  │ Slice des generiques            │
-│ medicamentsMap    │ ~15MB │ O(1) lookup par CIS             │
-│ generiquesMap     │ ~4MB  │ O(1) lookup par groupe ID       │
-│ Total             │ 60-90MB│ RAM usage stable (Go optimisé)  │
-│ Startup           │ ~150MB│ Pic initial après chargement     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Caractéristiques mémoire
-
-- **O(1) lookups** : Maps pour accès instantané par CIS ou group ID
-- **Stabilité** : 55-80MB stable (67.5MB médiane)
-- **Startup** : ~150MB pic initial après chargement des données
-- **Zero-downtime** : Swap atomique sans allocation de structures temporaires
+Pour les détails de l'architecture mémoire, voir [Architecture du système - Architecture Mémoire](ARCHITECTURE.md#architecture-mémoire).
 
 ## Interprétation des Résultats
 
@@ -231,6 +213,19 @@ Ces deux optimisations travaillent ensemble pour améliorer le débit HTTP de 2-
 - L'export complet prend ~1.26ms pour sérialiser 15,811 médicaments
 - Le transfert réseau prend plusieurs secondes pour ~20MB de données
 - Les tests de production incluent l'overhead HTTP complet (middleware, logging, sérialisation, réseau)
+
+### Limites de recherche et protection contre l'abus
+
+Les endpoints de recherche v1 ont des limites de résultats pour prévenir l'abus :
+- **Médicaments** : Maximum 250 résultats par recherche
+- **Génériques** : Maximum 100 résultats par recherche
+
+Lorsqu'une recherche dépasse ces limites, l'API retourne **HTTP 400 Bad Request** avec un message guidant vers `/v1/medicaments/export`.
+
+**Raisonnement :**
+- Empêche de télécharger l'ensemble du dataset via des recherches larges multiples
+- Force l'utilisation appropriée du endpoint `/export` pour le dataset complet (~20MB)
+- Protège contre les abus de rate limiting (1000 tokens, 3/sec recharge)
 
 ## CI/CD
 

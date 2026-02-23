@@ -16,17 +16,19 @@ import (
 
 // RotatingLogger manages rotating log files with weekly retention
 type RotatingLogger struct {
-	logDir      string
-	currentFile *os.File
-	currentWeek string
-	retention   time.Duration
-	maxFileSize int64
-	currentSize atomic.Int64
-	mu          sync.RWMutex
-	lastCleanup time.Time
-	ctx         context.Context
-	cancel      context.CancelFunc
-	cleanupDone chan struct{}
+	logDir          string
+	currentFile     *os.File
+	currentWeek     string
+	retention       time.Duration
+	maxFileSize     int64
+	currentSize     atomic.Int64
+	mu              sync.RWMutex
+	lastCleanup     time.Time
+	ctx             context.Context
+	cancel          context.CancelFunc
+	cleanupDone     chan struct{}
+	cleanupStarted  bool
+	shutdownTimeout time.Duration
 }
 
 // NewRotatingLogger creates a new rotating logger instance
@@ -38,20 +40,66 @@ func NewRotatingLogger(logDir string, retentionWeeks int) *RotatingLogger {
 func NewRotatingLoggerWithSizeLimit(logDir string, retentionWeeks int, maxFileSize int64) *RotatingLogger {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &RotatingLogger{
-		logDir:      logDir,
-		retention:   time.Duration(retentionWeeks) * 7 * 24 * time.Hour,
-		maxFileSize: maxFileSize,
-		lastCleanup: time.Now(),
-		ctx:         ctx,
-		cancel:      cancel,
-		cleanupDone: make(chan struct{}),
+		logDir:          logDir,
+		retention:       time.Duration(retentionWeeks) * 7 * 24 * time.Hour,
+		maxFileSize:     maxFileSize,
+		lastCleanup:     time.Now(),
+		ctx:             ctx,
+		cancel:          cancel,
+		cleanupDone:     make(chan struct{}),
+		shutdownTimeout: 5 * time.Second,
 	}
+}
+
+// SetShutdownTimeout configures how long Close() waits for the background
+// cleanup goroutine to gracefully shut down. Use a short duration in tests
+// (e.g., 100ms) to avoid slow test execution.
+func (rl *RotatingLogger) SetShutdownTimeout(d time.Duration) {
+	rl.shutdownTimeout = d
 }
 
 // getWeekKey returns the week key in YYYY-Www format (ISO week)
 func getWeekKey(t time.Time) string {
 	year, week := t.ISOWeek()
 	return fmt.Sprintf("%d-W%02d", year, week)
+}
+
+// weekKeyFromFilename parses the ISO week key out of a log filename.
+// Returns ("", false) if the name does not match the expected pattern.
+// This is used by cleanupOldLogs to make retention decisions based on the
+// week encoded in the filename rather than the file's mtime (which can be
+// updated by external tools like rsync or backup agents).
+func weekKeyFromFilename(name string) (string, bool) {
+	// Matches both "app-2024-W03.log" and "app-2024-W03_01.log"
+	re := regexp.MustCompile(`^app-(\d{4}-W\d{2})(?:_\d{2})?\.log$`)
+	m := re.FindStringSubmatch(name)
+	if len(m) < 2 {
+		return "", false
+	}
+	return m[1], true
+}
+
+// weekKeyToTime converts a YYYY-Www key to the Monday of that ISO week.
+func weekKeyToTime(key string) (time.Time, error) {
+	// key format: "2024-W03"
+	parts := strings.SplitN(key, "-W", 2)
+	if len(parts) != 2 {
+		return time.Time{}, fmt.Errorf("invalid week key: %s", key)
+	}
+	year, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid year in week key %s: %w", key, err)
+	}
+	week, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid week in week key %s: %w", key, err)
+	}
+	// ISO week 1 is the week containing the first Thursday of the year.
+	// time.Date with day-of-year arithmetic is the simplest portable approach.
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	_, jan4Week := jan4.ISOWeek()
+	monday := jan4.AddDate(0, 0, (week-jan4Week)*7-int(jan4.Weekday())+1)
+	return monday, nil
 }
 
 // doRotate performs actual rotation (caller must hold write lock)
@@ -190,7 +238,10 @@ func (rl *RotatingLogger) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-// cleanupOldLogs removes log files older than the retention period
+// cleanupOldLogs removes log files older than the retention period.
+// Uses the week encoded in the filename rather than the file's mtime,
+// so external tools (rsync, backup agents) that update mtime don't prevent
+// old files from being cleaned up.
 func (rl *RotatingLogger) cleanupOldLogs() error {
 	// Read directory contents (ticker in goroutine controls frequency)
 	entries, err := os.ReadDir(rl.logDir)
@@ -202,18 +253,21 @@ func (rl *RotatingLogger) cleanupOldLogs() error {
 	var deletedCount int
 
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") || !strings.HasSuffix(entry.Name(), ".log") {
+		if entry.IsDir() {
 			continue
 		}
 
-		// Get file info to check modification time
-		info, err := entry.Info()
+		weekKey, ok := weekKeyFromFilename(entry.Name())
+		if !ok {
+			continue // not a file we manage
+		}
+
+		weekStart, err := weekKeyToTime(weekKey)
 		if err != nil {
 			continue
 		}
 
-		// Delete if older than retention period
-		if info.ModTime().Before(cutoff) {
+		if weekStart.Before(cutoff) {
 			fullPath := filepath.Join(rl.logDir, entry.Name())
 			if err := os.Remove(fullPath); err == nil {
 				deletedCount++
@@ -234,19 +288,12 @@ func (rl *RotatingLogger) Close() error {
 	// Signal cancellation to stop background goroutine
 	rl.cancel()
 
-	// Wait for cleanup goroutine to finish with shorter timeout for tests
-	timeout := 5 * time.Second
-	// Check if we're in a test environment and use shorter timeout
-	if len(os.Args) > 0 && strings.Contains(os.Args[0], "test") {
-		timeout = 100 * time.Millisecond
-	}
-
-	select {
-	case <-rl.cleanupDone:
-		// Cleanup finished
-	case <-time.After(timeout):
-		// Timeout - only log warning if not in test
-		if timeout > 100*time.Millisecond {
+	if rl.cleanupStarted {
+		select {
+		case <-rl.cleanupDone:
+			// Cleanup finished gracefully
+		case <-time.After(rl.shutdownTimeout):
+			// Timeout - log warning
 			fmt.Printf("Warning: background cleanup goroutine did not shutdown gracefully\n")
 		}
 	}
@@ -258,76 +305,6 @@ func (rl *RotatingLogger) Close() error {
 		return rl.currentFile.Close()
 	}
 	return nil
-}
-
-// SetupLogger configures slog to log to both console and rotating file
-func SetupLogger(logDir string) *slog.Logger {
-	return SetupLoggerWithRetention(logDir, 4) // Default 4 weeks retention
-}
-
-// SetupLoggerWithRetention configures slog with custom retention period
-// Note: This function is deprecated - use InitLoggerWithRetention for proper resource management
-func SetupLoggerWithRetention(logDir string, retentionWeeks int) *slog.Logger {
-	// Create logs directory if it doesn't exist
-	if err := os.MkdirAll(logDir, 0750); err != nil {
-		// If we can't create logs directory, just log to console
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-		consoleLogger.Error("Failed to create logs directory", "error", err)
-		return consoleLogger
-	}
-
-	// Create rotating logger
-	rotatingLogger := NewRotatingLogger(logDir, retentionWeeks)
-
-	// Initialize rotation
-	rotatingLogger.mu.Lock()
-	rotateErr := rotatingLogger.doRotate(getWeekKey(time.Now()))
-	rotatingLogger.mu.Unlock()
-	if rotateErr != nil {
-		consoleLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-		consoleLogger.Error("Failed to initialize rotating logger", "error", rotateErr)
-		return consoleLogger
-	}
-
-	// Start cleanup goroutine with proper cancellation
-	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		defer close(rotatingLogger.cleanupDone)
-
-		for {
-			select {
-			case <-rotatingLogger.ctx.Done():
-				// Context cancelled, exit gracefully
-				return
-			case <-ticker.C:
-				if err := rotatingLogger.cleanupOldLogs(); err != nil {
-					slog.Warn("Failed to cleanup old logs during rotation", "error", err)
-				}
-			}
-		}
-	}()
-
-	// Create multi-handler that writes to both console and rotating file
-	// Console gets text format, file gets JSON format for better parsing
-	consoleHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-
-	fileHandler := slog.NewJSONHandler(rotatingLogger, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-
-	// Combine handlers - write to both
-	multiHandler := &multiHandler{
-		handlers: []slog.Handler{consoleHandler, fileHandler},
-	}
-
-	return slog.New(multiHandler)
 }
 
 // multiHandler implements slog.Handler to write to multiple handlers

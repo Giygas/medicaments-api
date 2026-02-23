@@ -16,7 +16,7 @@ info:
     - [Guide de migration vers v1](https://github.com/Giygas/medicaments-api/blob/main/docs/MIGRATION.md)
     - [Base de données BDPM](https://base-donnees-publique.medicaments.gouv.fr)
 
-  version: 1.1.0
+  version: 1.2.0
   contact:
     name: GitHub Repository
     url: https://github.com/giygas/medicaments-api
@@ -53,6 +53,7 @@ paths:
         - Médicaments (v1)
       parameters:
         - $ref: "#/components/parameters/QueryPage"
+        - $ref: "#/components/parameters/QueryPageSize"
         - $ref: "#/components/parameters/QuerySearch"
         - $ref: "#/components/parameters/QueryCip"
       responses:
@@ -142,6 +143,12 @@ paths:
                     error: "Bad Request"
                     message: "search query too complex: maximum 6 words allowed"
                     code: 400
+                consecutive-dots:
+                  summary: Points consécutifs non autorisés
+                  value:
+                    error: "Bad Request"
+                    message: "input contains consecutive dots which are not allowed"
+                    code: 400
         "404":
           description: Aucun résultat
           content:
@@ -154,6 +161,19 @@ paths:
                     error: "Not Found"
                     message: "No medicaments found"
                     code: 404
+        "429":
+          description: Trop de résultats retournés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                too-many-results:
+                  summary: Limite de recherche dépassée
+                  value:
+                    error: "Too Many Requests"
+                    message: "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
+                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -497,7 +517,7 @@ paths:
                     message: "Invalid CIP"
                     code: 400
         "404":
-          description: Présentation non trouvée
+          description: Aucun générique trouvé
           content:
             application/json:
               schema:
@@ -506,8 +526,21 @@ paths:
                 not-found:
                   value:
                     error: "Not Found"
-                    message: "Presentation not found"
+                    message: "No generiques found"
                     code: 404
+        "429":
+          description: Trop de résultats retournés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                too-many-results:
+                  summary: Limite de recherche dépassée
+                  value:
+                    error: "Too Many Requests"
+                    message: "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
+                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -981,7 +1014,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1166,7 +1199,7 @@ paths:
             type: string
             minLength: 3
             maxLength: 50
-            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+            pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
         "200":
           description: Réponse réussie
@@ -1336,10 +1369,23 @@ components:
       name: page
       in: query
       required: false
-      description: Numéro de page (pagination à 10 éléments par page)
+      description: Numéro de page (pagination à 10 éléments par page par défaut, utilisable avec pageSize)
       schema:
         type: integer
         minimum: 1
+    QueryPageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: |
+        Nombre d'éléments par page. Plage valide: 1-200.
+        Valeur par défaut: 10 éléments.
+        Doit être utilisé avec le paramètre page (mutuellement exclusif avec search/cip/libelle).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 10
     QuerySearch:
       name: search
       in: query
@@ -1348,11 +1394,12 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
+        Maximum 250 résultats par recherche (retourne 429 si dépassé).
       schema:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
     QueryCip:
       name: cip
       in: query
@@ -1369,13 +1416,14 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
+        Maximum 100 résultats par recherche (retourne 429 si dépassé).
         Note: Les données source BDPM sont en majuscules sans accents (ex: PARACETAMOL).
         Utilisez des caractères ASCII (sans accents).
       schema:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+']+$"
+        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
     QueryGroup:
       name: group
       in: query

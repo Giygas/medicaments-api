@@ -76,17 +76,18 @@ func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
 // setupMiddleware configures all middleware
 func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.RequestID)
-	s.router.Use(BlockDirectAccessMiddleware) // Put BEFORE RealIPMiddleware to see original RemoteAddr
+	s.router.Use(BlockDirectAccessMiddleware(s.config.AllowDirectAccess)) // Put BEFORE RealIPMiddleware to see original RemoteAddr
 	s.router.Use(RealIPMiddleware)
-	s.router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
+	if logging.DefaultLoggingService != nil {
+		s.router.Use(logging.LoggingMiddleware(logging.DefaultLoggingService.Logger))
+	}
 	s.router.Use(middleware.RedirectSlashes)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(RequestSizeMiddleware(s.config))
 
 	s.router.Use(metrics.Metrics)
 
-	// Disable rate limiting in test mode to measure true throughput performance
-	if s.config.Env != config.EnvTest {
+	if !s.config.DisableRateLimiter {
 		s.router.Use(RateLimitHandler)
 	}
 }
@@ -159,6 +160,11 @@ func (s *Server) setupDocumentationRoutes() {
 	})
 }
 
+// Router returns the chi router
+func (s *Server) Router() chi.Router {
+	return s.router
+}
+
 // Start starts the server
 func (s *Server) Start() error {
 	// Set the actual start time when server begins listening
@@ -181,13 +187,20 @@ func (s *Server) startMetricsServer() {
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())
 
+	metricsAddr := func() string {
+		if s.config.AllowDirectAccess {
+			return "0.0.0.0:9090"
+		}
+		return "127.0.0.1:9090"
+	}()
+
 	s.metricsServer = &http.Server{
-		Addr:              "127.0.0.1:9090",
+		Addr:              metricsAddr,
 		Handler:           metricsMux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	logging.Info("Metrics: http://127.0.0.1:9090/metrics")
+	logging.Info("Metrics: http://" + metricsAddr + "/metrics")
 
 	go func() {
 		if err := s.metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -230,13 +243,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 // startProfilingServer starts the pprof profiling server in development mode
 func (s *Server) startProfilingServer() {
+	profilingAddr := func() string {
+		if s.config.AllowDirectAccess {
+			return "0.0.0.0:6060"
+		}
+		return "127.0.0.1:6060"
+	}()
+
 	s.profilingServer = &http.Server{
-		Addr:              "localhost:6060",
+		Addr:              profilingAddr,
 		Handler:           nil,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	logging.Info("Profiling server started at http://localhost:6060/debug/pprof/")
+	logging.Info("Profiling server started at http://" + profilingAddr + "/debug/pprof/")
 
 	go func() {
 		if err := s.profilingServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

@@ -9,21 +9,21 @@ import (
 	"github.com/giygas/medicaments-api/interfaces"
 )
 
-// HealthCheckerImpl implements the interfaces.HealthChecker interface
-type HealthCheckerImpl struct {
+// Checker implements the interfaces.HealthChecker interface
+type Checker struct {
 	dataStore interfaces.DataStore
 }
 
 // NewHealthChecker creates a new health checker with injected dependencies
 func NewHealthChecker(dataStore interfaces.DataStore) interfaces.HealthChecker {
-	return &HealthCheckerImpl{
+	return &Checker{
 		dataStore: dataStore,
 	}
 }
 
 // HealthCheck returns HTTP-specific health data with stricter thresholds
 // Used by /health HTTP endpoint
-func (h *HealthCheckerImpl) HealthCheck() (status string, data map[string]any, httpStatus int) {
+func (h *Checker) HealthCheck() (status string, data map[string]any, httpStatus int) {
 	// Get data statistics
 	medicaments := h.dataStore.GetMedicaments()
 	generiques := h.dataStore.GetGeneriques()
@@ -68,7 +68,7 @@ func (h *HealthCheckerImpl) HealthCheck() (status string, data map[string]any, h
 }
 
 // CalculateNextUpdate returns the next scheduled update time
-func (h *HealthCheckerImpl) CalculateNextUpdate() time.Time {
+func (h *Checker) CalculateNextUpdate() time.Time {
 	now := time.Now()
 
 	// Get today's 6:00 AM and 6:00 PM times

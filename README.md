@@ -7,9 +7,9 @@
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
-[![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/Changelog-v1.2.0-blue)](CHANGELOG.md)
 
-API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), et rate limiting par token bucket.
+API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), rate limiting par token bucket, et support Docker complet avec stack observabilité.
 
 ## Performance
 
@@ -62,20 +62,28 @@ Voir le [Guide de Migration](docs/MIGRATION.md) pour les détails complets.
 ### Recherche de base (API v1)
 
 ```bash
+# Production (HTTPS)
 # Recherche par nom
 curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol"
 
 # Recherche par CIS (Code Identifiant de Spécialité)
 curl "https://medicaments-api.giygas.dev/v1/medicaments/61504672"
 
-# Pagination (10 médicaments par page)
+# Pagination (10 médicaments par page, défaut)
 curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1"
+
+# Pagination avec pageSize personnalisé (50 médicaments par page)
+curl "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50"
 
 # Recherche par CIP via présentation
 curl "https://medicaments-api.giygas.dev/v1/medicaments?cip=3400936403114"
 
 # Export complet (~20MB)
 curl "https://medicaments-api.giygas.dev/v1/medicaments/export"
+
+# Local (Go native : port 8000, Docker : port 8030)
+curl "http://localhost:8030/v1/medicaments?search=paracetamol"
+curl "http://localhost:8030/health"
 ```
 
 ### Génériques (API v1)
@@ -130,6 +138,13 @@ const response = await fetch(
 );
 const data = await response.json();
 console.log(`Page ${data.page} of ${data.maxPage}`);
+
+// Pagination avec pageSize personnalisé
+const response2 = await fetch(
+  "https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50",
+);
+const data2 = await response2.json();
+console.log(`Page ${data2.page} of ${data2.maxPage}, pageSize: ${data2.pageSize}`);
 ```
 
 ### Python
@@ -149,6 +164,11 @@ data = response.json()
 response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?page=1')
 data = response.json()
 print(f"Page {data['page']} of {data['maxPage']}")
+
+# Pagination avec pageSize personnalisé
+response2 = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?page=1&pageSize=50')
+data2 = response2.json()
+print(f"Page {data2['page']} of {data2['maxPage']}, pageSize: {data2['pageSize']}")
 ```
 
 ## Sécurité et Robustesse
@@ -156,11 +176,14 @@ print(f"Page {data['page']} of {data['maxPage']}")
 ### Mesures de sécurité
 
 - **Validation stricte** : 3-50 caractères alphanumériques + espaces (ASCII-only)
-  - **Note** : Les données source BDPM sont en majuscules sans accents (ex: IBUPROFENE, PARACETAMOL). L'API n'accepte que les caractères ASCII.
+  - **Note** : Les données source BDPM sont en majuscules sans accents ni ponctuation (ex: IBUPROFENE, PARACETAMOL).
+  - ⚠️ **Important** : Les apostrophes (`'`) et slash (`/`) sont acceptées. Les points consécutifs (`..`) sont bloqués.
   - **Recherche multi-mots** : Logique ET avec limite de 6 mots (protection DoS)
 - **Protection injections** : `regexp.QuoteMeta` pour échappement
 - **Rate limiting** : Token bucket (1000 tokens, 3/sec recharge, coûts variables 5-200 tokens selon endpoint)
   - Headers dans les réponses : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Rate`, `Retry-After`
+- **Limites de recherche** : Maximum 250 résultats pour médicaments, 100 pour génériques
+  - Renvoie HTTP 400 si dépassé, avec message guidant vers `/v1/medicaments/export`
 - **Middleware de protection** : Taille des requêtes et headers configurables
 - **CORS configuré** : Géré via nginx en production
 
@@ -173,9 +196,28 @@ print(f"Page {data['page']} of {data['maxPage']}")
 - **Graceful shutdown** : Timeout 30s + 2s pour finaliser requêtes
 - **Concurrency safe** : `sync.RWMutex` et opérations atomiques
 
+## Docker
+
+```bash
+# Initial setup (première fois)
+make setup-secrets
+make obs-init
+
+# Build Docker image
+make build
+
+# Démarrer tous les services (API + observabilité)
+make up
+
+# Accès : http://localhost:8030
+```
+
+Pour la documentation complète Docker, voir [DOCKER.md](DOCKER.md)
+
 ## Documentation
 
 - 📖 **[Spécification OpenAPI complète](html/docs/openapi.yaml)** - Définition complète de l'API avec exemples
+- 🐳 **[Guide Docker complet](DOCKER.md)** - Setup Docker, stack observabilité, monitoring avancé
 - 🏗️ **[Architecture du système](docs/ARCHITECTURE.md)** - Design des interfaces, flux de données, middleware stack
 - ⚡ **[Performance et benchmarks](docs/PERFORMANCE.md)** - Mesures de performance, optimisations, profilage
 - 🛠️ **[Guide de développement](docs/DEVELOPMENT.md)** - Setup, build, test, lint, configuration
@@ -184,11 +226,7 @@ print(f"Page {data['page']} of {data['maxPage']}")
 
 ## Développement Local
 
-### Prérequis
-
-- **Go 1.26+** avec support des modules
-- **2GB RAM** recommandé pour le développement
-- **Connexion internet** pour les mises à jour BDPM
+Pour le guide de développement complet, voir [Guide de développement](docs/DEVELOPMENT.md).
 
 ### Démarrage Rapide
 
@@ -197,42 +235,39 @@ print(f"Page {data['page']} of {data['maxPage']}")
 git clone https://github.com/giygas/medicaments-api.git
 cd medicaments-api
 
-# Installer les dépendances
+# Installer les dépendances et configurer l'environnement
 go mod tidy
-
-# Configurer l'environnement
 cp .env.example .env
-# Éditer .env avec vos paramètres
 
 # Lancer le serveur de développement
 go run .
 ```
 
-### Commandes de Développement
+### Commandes Principales
 
 ```bash
 # Build
 go build -o medicaments-api .
-GOOS=linux GOARCH=amd64 go build -o medicaments-api-linux .
 
-# Tests et qualité
+# Tests
 go test -v ./...
-go test -race -v
-go test -coverprofile=coverage.out -v && go tool cover -html=coverage.out -o coverage.html
-go test -bench=. -benchmem
 
 # Formatage et analyse
 gofmt -w .
 go vet ./...
-golangci-lint run  # si installé
 ```
+
+**Pour plus de détails sur le développement, les tests et les benchmarks, voir [Guide de développement](docs/DEVELOPMENT.md).**
 
 ### Fonctionnalités du serveur de développement
 
-- **Serveur local** : `http://localhost:8000`
+- **Serveur local** : `http://localhost:8000` (Go native) ou `http://localhost:8030` (Docker)
 - **Profiling pprof** : `http://localhost:6060` (quand ENV=dev)
-- **Documentation interactive** : `http://localhost:8000/docs`
-- **Health endpoint** : `http://localhost:8000/health`
+- **Documentation interactive** : `http://localhost:8000/docs` ou `http://localhost:8030/docs` (Docker)
+- **Health endpoint** : `http://localhost:8000/health` ou `http://localhost:8030/health` (Docker)
+- **Observabilité (Docker)** : Grafana `http://localhost:3000`, Prometheus `http://localhost:9090`
+  - Géré via le submodule `observability/` (voir [DOCKER.md](DOCKER.md))
+  - Voir [OBSERVABILITY.md](OBSERVABILITY.md) pour l'utilisation avec l'API
 
 ## Limitations et Conditions d'Utilisation
 
@@ -304,6 +339,7 @@ Pour l'historique complet des versions et des changements détaillés, consultez
 
 ### Versions
 
+- **v1.2.0** (Février 2026) - Architecture Docker refactorée avec submodule observabilité, pageSize parameter, limites de recherche
 - **v1.1.0** (Février 2026) - API RESTful v1, améliorations de performance 22-207%, métriques Prometheus
 - **v1.0.0** (Décembre 2025) - Version initiale
 
