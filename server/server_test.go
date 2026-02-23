@@ -435,7 +435,7 @@ func TestServer_DisableRateLimiterConfig(t *testing.T) {
 			rateLimitedCount := 0
 			headersPresent := false
 
-			for i := 0; i < tt.requestCount; i++ {
+			for range tt.requestCount {
 				req, _ := http.NewRequest("GET", "/v1/medicaments/export", nil)
 				req.RemoteAddr = clientIP
 				rr := httptest.NewRecorder()

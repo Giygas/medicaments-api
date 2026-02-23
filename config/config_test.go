@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"testing"
 )
@@ -172,11 +173,21 @@ func TestValidLogLevels(t *testing.T) {
 }
 
 func cleanupEnv() {
-	_ = os.Unsetenv("PORT")
-	_ = os.Unsetenv("ADDRESS")
-	_ = os.Unsetenv("ENV")
-	_ = os.Unsetenv("LOG_LEVEL")
-	_ = os.Unsetenv("ALLOW_DIRECT_ACCESS")
+	if err := os.Unsetenv("PORT"); err != nil {
+		log.Printf("Failed to unset PORT: %v", err)
+	}
+	if err := os.Unsetenv("ADDRESS"); err != nil {
+		log.Printf("Failed to unset ADDRESS: %v", err)
+	}
+	if err := os.Unsetenv("ENV"); err != nil {
+		log.Printf("Failed to unset ENV: %v", err)
+	}
+	if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+		log.Printf("Failed to unset LOG_LEVEL: %v", err)
+	}
+	if err := os.Unsetenv("ALLOW_DIRECT_ACCESS"); err != nil {
+		log.Printf("Failed to unset ALLOW_DIRECT_ACCESS: %v", err)
+	}
 }
 
 func TestDetectEnvironment(t *testing.T) {
@@ -203,7 +214,11 @@ func TestDetectEnvironment(t *testing.T) {
 			if tt.envValue != "" {
 				_ = os.Setenv("ENV", tt.envValue)
 			}
-			defer os.Unsetenv("ENV")
+			t.Cleanup(func() {
+				if err := os.Unsetenv("ENV"); err != nil {
+					t.Logf("Failed to unset ENV: %v", err)
+				}
+			})
 
 			env := DetectEnvironment()
 			// In test context, DetectEnvironment returns EnvTest due to test flags
@@ -216,7 +231,11 @@ func TestDetectEnvironment(t *testing.T) {
 	// Verify that test context detection works
 	t.Run("Test context detection", func(t *testing.T) {
 		_ = os.Setenv("ENV", "production")
-		defer os.Unsetenv("ENV")
+		t.Cleanup(func() {
+			if err := os.Unsetenv("ENV"); err != nil {
+				t.Logf("Failed to unset ENV: %v", err)
+			}
+		})
 
 		env := DetectEnvironment()
 		if env != EnvTest {
@@ -287,7 +306,11 @@ func TestValidateAllEnvVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_ = os.Unsetenv("PORT")
 			tt.setupEnv()
-			defer os.Unsetenv("PORT")
+			t.Cleanup(func() {
+				if err := os.Unsetenv("PORT"); err != nil {
+					t.Logf("Failed to unset PORT: %v", err)
+				}
+			})
 
 			err := ValidateAllEnvVars()
 			if tt.expectError && err == nil {

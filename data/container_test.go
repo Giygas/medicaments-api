@@ -207,11 +207,11 @@ func TestConcurrentAccess(t *testing.T) {
 	numWriters := 3
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				// Test all getter methods
 				meds := dc.GetMedicaments()
 				gens := dc.GetGeneriques()
@@ -243,11 +243,11 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+			for range 10 {
 				if dc.BeginUpdate() {
 					// Simulate some work
 					time.Sleep(time.Microsecond * 100)
@@ -356,7 +356,7 @@ func TestAtomicSwapZeroDowntime(t *testing.T) {
 	time.Sleep(time.Microsecond * 100)
 
 	// Update data multiple times rapidly
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		newMedicaments := []entities.Medicament{
 			{Cis: i + 2, Denomination: "Update"},
 		}
@@ -500,11 +500,11 @@ func TestServerStartTimeConcurrentAccess(t *testing.T) {
 	numReaders := 20
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				// Set a unique time for this goroutine
 				testTime := time.Date(2024, 1, 1, id, j, 0, 0, time.UTC)
 				dc.SetServerStartTime(testTime)
@@ -513,11 +513,29 @@ func TestServerStartTimeConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
+				startTime := dc.GetServerStartTime()
+				// Basic sanity check - should be able to get time without panicking
+				if !startTime.IsZero() {
+					// Time should be reasonable (not in far future or distant past)
+					if startTime.Year() < 2020 || startTime.Year() > 2030 {
+						t.Errorf("Reader %d: Got unexpected time: %v", id, startTime)
+					}
+				}
+			}
+		}(i)
+	}
+
+	// Start concurrent readers
+	for i := range numReaders {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for range 100 {
 				startTime := dc.GetServerStartTime()
 				// Basic sanity check - should be able to get time without panicking
 				if !startTime.IsZero() {
@@ -546,7 +564,7 @@ func BenchmarkGetMedicaments(b *testing.B) {
 
 	// Set up test data
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData(medicaments, []entities.GeneriqueList{},
@@ -566,7 +584,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 
 	// Set up test data
 	medicamentsMap := make(map[int]entities.Medicament)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 	dc.UpdateData([]entities.Medicament{}, []entities.GeneriqueList{},
@@ -574,7 +592,7 @@ func BenchmarkGetMedicamentsMap(b *testing.B) {
 		map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dc.GetMedicamentsMap()
 	}
 }
@@ -585,27 +603,27 @@ func BenchmarkUpdateData(b *testing.B) {
 	dc := NewDataContainer()
 
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
 	generiques := make([]entities.GeneriqueList, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		generiques[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 
 	medicamentsMap := make(map[int]entities.Medicament)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicamentsMap[i] = entities.Medicament{Cis: i, Denomination: "Test"}
 	}
 
 	generiquesMap := make(map[int]entities.GeneriqueList)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		generiquesMap[i] = entities.GeneriqueList{GroupID: i, Libelle: "Test"}
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dc.UpdateData(medicaments, generiques, medicamentsMap, generiquesMap,
 			map[int]entities.Presentation{}, map[int]entities.Presentation{}, nil)
 	}
@@ -708,11 +726,11 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	errors := make(chan error, numReaders+numWriters)
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 50; j++ {
+			for range 50 {
 				cip7 := dc.GetPresentationsCIP7Map()
 				cip13 := dc.GetPresentationsCIP13Map()
 
@@ -730,11 +748,11 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+			for j := range 10 {
 				newCIP7 := map[int]entities.Presentation{
 					1000 + id*10 + j: {Cis: id, Cip7: 1000 + id*10 + j, Cip13: int(3400900000000 + int64(id)*100000000)},
 				}
@@ -754,7 +772,7 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 	// Check for any errors
 	errorCount := 0
 	for err := range errors {
-		t.Error(err)
+		t.Fatal(err)
 		errorCount++
 	}
 
@@ -771,7 +789,7 @@ func TestGetDataQualityReport(t *testing.T) {
 	// Initial state should have empty report
 	report := dc.GetDataQualityReport()
 	if report == nil {
-		t.Error("GetDataQualityReport should never return nil")
+		t.Fatal("GetDataQualityReport should never return nil")
 	}
 
 	// Verify initial report is empty
@@ -882,11 +900,11 @@ func TestGetDataQualityReportConcurrentAccess(t *testing.T) {
 	numWriters := 5
 
 	// Start concurrent readers
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				report := dc.GetDataQualityReport()
 				// Basic sanity checks - should never panic and should return non-nil
 				if report == nil {
@@ -897,11 +915,11 @@ func TestGetDataQualityReportConcurrentAccess(t *testing.T) {
 	}
 
 	// Start concurrent writers
-	for i := 0; i < numWriters; i++ {
+	for i := range numWriters {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+			for j := range 10 {
 				newReport := &interfaces.DataQualityReport{
 					MedicamentsWithoutConditions: id + j,
 					MedicamentsWithoutGeneriques: id * j,

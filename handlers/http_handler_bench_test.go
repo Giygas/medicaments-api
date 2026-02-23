@@ -20,7 +20,7 @@ import (
 func BenchmarkMedicamentsExport(b *testing.B) {
 	factory := NewTestDataFactory()
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
@@ -40,7 +40,7 @@ func BenchmarkMedicamentsExport(b *testing.B) {
 func BenchmarkMedicamentsPagination(b *testing.B) {
 	factory := NewTestDataFactory()
 	medicaments := make([]entities.Medicament, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		medicaments[i] = factory.CreateMedicament(i, fmt.Sprintf("Test Med %d", i))
 	}
 
@@ -89,7 +89,7 @@ func BenchmarkMedicamentByCIS(b *testing.B) {
 func BenchmarkMedicamentByCIP(b *testing.B) {
 	factory := NewTestDataFactory()
 	medicaments := make([]entities.Medicament, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		medicaments[i] = factory.CreateMedicament(i, "PARACETAMOL 500 mg")
 	}
 

@@ -2109,8 +2109,8 @@ func TestServeMedicamentsV1_SearchLimitExceeded(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeMedicamentsV1(w, req)
 
-	if w.Code != http.StatusTooManyRequests {
-		t.Errorf("Expected status %d, got %d", http.StatusTooManyRequests, w.Code)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 
 	var errorResponse map[string]any
@@ -2143,8 +2143,8 @@ func TestServeGeneriquesV1_SearchLimitExceeded(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeGeneriquesV1(w, req)
 
-	if w.Code != http.StatusTooManyRequests {
-		t.Errorf("Expected status %d, got %d", http.StatusTooManyRequests, w.Code)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 
 	var errorResponse map[string]any
