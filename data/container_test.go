@@ -762,3 +762,169 @@ func TestPresentationMapsConcurrentAccess(t *testing.T) {
 		t.Errorf("Concurrent access test failed with %d errors", errorCount)
 	}
 }
+
+func TestGetDataQualityReport(t *testing.T) {
+	logging.InitLogger("")
+
+	dc := NewDataContainer()
+
+	// Initial state should have empty report
+	report := dc.GetDataQualityReport()
+	if report == nil {
+		t.Error("GetDataQualityReport should never return nil")
+	}
+
+	// Verify initial report is empty
+	if report.MedicamentsWithoutConditions != 0 {
+		t.Errorf("Expected 0 MedicamentsWithoutConditions in initial report, got %d", report.MedicamentsWithoutConditions)
+	}
+
+	if report.MedicamentsWithoutGeneriques != 0 {
+		t.Errorf("Expected 0 MedicamentsWithoutGeneriques in initial report, got %d", report.MedicamentsWithoutGeneriques)
+	}
+
+	if report.GeneriqueOnlyCIS != 0 {
+		t.Errorf("Expected 0 GeneriqueOnlyCIS in initial report, got %d", report.GeneriqueOnlyCIS)
+	}
+
+	// Create a test report
+	testReport := &interfaces.DataQualityReport{
+		DuplicateCIS:                       []int{1001, 1002},
+		DuplicateGroupIDs:                  []int{2001, 2002, 2003},
+		MedicamentsWithoutConditions:       150,
+		MedicamentsWithoutGeneriques:       75,
+		MedicamentsWithoutPresentations:    20,
+		MedicamentsWithoutCompositions:     5,
+		GeneriqueOnlyCIS:                   30,
+		MedicamentsWithoutConditionsCIS:    []int{3001, 3002, 3003},
+		MedicamentsWithoutGeneriquesCIS:    []int{4001, 4002},
+		MedicamentsWithoutPresentationsCIS: []int{5001},
+		MedicamentsWithoutCompositionsCIS:  []int{6001},
+		GeneriqueOnlyCISList:               []int{7001, 7002, 7003, 7004},
+	}
+
+	// Update data with the test report
+	dc.UpdateData(
+		[]entities.Medicament{},
+		[]entities.GeneriqueList{},
+		map[int]entities.Medicament{},
+		map[int]entities.GeneriqueList{},
+		map[int]entities.Presentation{},
+		map[int]entities.Presentation{},
+		testReport,
+	)
+
+	// Retrieve and verify the report
+	retrievedReport := dc.GetDataQualityReport()
+	if retrievedReport == nil {
+		t.Fatal("GetDataQualityReport returned nil after UpdateData")
+	}
+
+	if retrievedReport.MedicamentsWithoutConditions != 150 {
+		t.Errorf("Expected MedicamentsWithoutConditions=150, got %d", retrievedReport.MedicamentsWithoutConditions)
+	}
+
+	if retrievedReport.MedicamentsWithoutGeneriques != 75 {
+		t.Errorf("Expected MedicamentsWithoutGeneriques=75, got %d", retrievedReport.MedicamentsWithoutGeneriques)
+	}
+
+	if retrievedReport.MedicamentsWithoutPresentations != 20 {
+		t.Errorf("Expected MedicamentsWithoutPresentations=20, got %d", retrievedReport.MedicamentsWithoutPresentations)
+	}
+
+	if retrievedReport.MedicamentsWithoutCompositions != 5 {
+		t.Errorf("Expected MedicamentsWithoutCompositions=5, got %d", retrievedReport.MedicamentsWithoutCompositions)
+	}
+
+	if retrievedReport.GeneriqueOnlyCIS != 30 {
+		t.Errorf("Expected GeneriqueOnlyCIS=30, got %d", retrievedReport.GeneriqueOnlyCIS)
+	}
+
+	if len(retrievedReport.DuplicateCIS) != 2 {
+		t.Errorf("Expected 2 DuplicateCIS entries, got %d", len(retrievedReport.DuplicateCIS))
+	}
+
+	if len(retrievedReport.DuplicateGroupIDs) != 3 {
+		t.Errorf("Expected 3 DuplicateGroupIDs entries, got %d", len(retrievedReport.DuplicateGroupIDs))
+	}
+
+	if len(retrievedReport.MedicamentsWithoutConditionsCIS) != 3 {
+		t.Errorf("Expected 3 MedicamentsWithoutConditionsCIS entries, got %d", len(retrievedReport.MedicamentsWithoutConditionsCIS))
+	}
+
+	if len(retrievedReport.GeneriqueOnlyCISList) != 4 {
+		t.Errorf("Expected 4 GeneriqueOnlyCISList entries, got %d", len(retrievedReport.GeneriqueOnlyCISList))
+	}
+}
+
+func TestGetDataQualityReportConcurrentAccess(t *testing.T) {
+	logging.InitLogger("")
+
+	dc := NewDataContainer()
+
+	// Set initial report
+	initialReport := &interfaces.DataQualityReport{
+		MedicamentsWithoutConditions: 100,
+		MedicamentsWithoutGeneriques: 50,
+	}
+	dc.UpdateData(
+		[]entities.Medicament{},
+		[]entities.GeneriqueList{},
+		map[int]entities.Medicament{},
+		map[int]entities.GeneriqueList{},
+		map[int]entities.Presentation{},
+		map[int]entities.Presentation{},
+		initialReport,
+	)
+
+	var wg sync.WaitGroup
+	numReaders := 20
+	numWriters := 5
+
+	// Start concurrent readers
+	for i := 0; i < numReaders; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				report := dc.GetDataQualityReport()
+				// Basic sanity checks - should never panic and should return non-nil
+				if report == nil {
+					t.Errorf("Reader %d: GetDataQualityReport returned nil", id)
+				}
+			}
+		}(i)
+	}
+
+	// Start concurrent writers
+	for i := 0; i < numWriters; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				newReport := &interfaces.DataQualityReport{
+					MedicamentsWithoutConditions: id + j,
+					MedicamentsWithoutGeneriques: id * j,
+					DuplicateCIS:                 []int{id},
+				}
+				dc.UpdateData(
+					[]entities.Medicament{},
+					[]entities.GeneriqueList{},
+					map[int]entities.Medicament{},
+					map[int]entities.GeneriqueList{},
+					map[int]entities.Presentation{},
+					map[int]entities.Presentation{},
+					newReport,
+				)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Final verification - container should still have a report
+	finalReport := dc.GetDataQualityReport()
+	if finalReport == nil {
+		t.Error("Final report should not be nil")
+	}
+}
