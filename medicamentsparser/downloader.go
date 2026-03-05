@@ -3,40 +3,85 @@ package medicamentsparser
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
+	"unicode/utf8"
 
 	"github.com/giygas/medicaments-api/logging"
 	"golang.org/x/text/encoding/charmap"
 )
 
-func downloadAndParseFile(filepath string, url string) error {
+func downloadAndParseFile(path string, url string) error {
 
-	filepath = "files/" + filepath + ".txt"
-	response, err := http.Get(url)
+	path = "files/" + path + ".txt"
+	cleanPath := filepath.Clean(path)
+	if !strings.HasPrefix(cleanPath, "files/") {
+		return fmt.Errorf("invalid filepath: %s", path)
+	}
+
+	client := &http.Client{
+		Timeout: 5 * time.Minute,
+	}
+	response, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download %s: %w", url, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err = response.Body.Close(); err != nil {
+			logging.Warn("Failed to close response body", "error", err)
+		}
+	}()
 
-	outFile, err := os.Create(filepath)
+	// As there are some files in iso-8859-1 and some in utf8, read the content first
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", filepath, err)
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	defer outFile.Close()
-	reader := charmap.Windows1252.NewDecoder().Reader(response.Body)
+	// Check if it's valid UTF-8
+	var reader io.Reader
+	if utf8.Valid(bodyBytes) {
+		// Already UTF-8, use as-is
+		reader = bytes.NewReader(bodyBytes)
+	} else {
+		// Not UTF-8, decode from ISO-8859-1
+		reader = charmap.ISO8859_1.NewDecoder().Reader(bytes.NewReader(bodyBytes))
+	}
+
+	outFile, err := os.Create(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", cleanPath, err)
+	}
+	defer func() {
+		if err = outFile.Close(); err != nil {
+			logging.Warn("Failed to close output file", "error", err)
+		}
+	}()
+
 	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	for scanner.Scan() {
-		_, err = fmt.Fprintln(outFile, scanner.Text())
+		// #nosec G705 -- writing to file, not HTML output
+		_, err = io.WriteString(outFile, scanner.Text()+"\n")
 		if err != nil {
-			return fmt.Errorf("failed to write to file %s: %w", filepath, err)
+			return fmt.Errorf("failed to write to file %s: %w", cleanPath, err)
 		}
 	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("scanner error in %s: %w", path, err)
+	}
+
+	logging.Debug(fmt.Sprintf("%s downloaded and parsed without errors", path))
 	return nil
 }
 
@@ -53,8 +98,8 @@ func downloadAndParseAll() error {
 	}
 
 	//Create the files directory if it doesn't exists
-	filePath := filepath.Join(".", "files")
-	err := os.MkdirAll(filePath, os.ModePerm)
+	path := filepath.Join(".", "files")
+	err := os.MkdirAll(path, 0750)
 	if err != nil {
 		return fmt.Errorf("failed to create files directory: %w", err)
 	}
@@ -82,8 +127,6 @@ func downloadAndParseAll() error {
 		logging.Error("Download errors occurred", "errors", errors)
 		return fmt.Errorf("download errors: %v", errors)
 	}
-
-	logging.Info("Files downloaded and parsed successfully")
 
 	return nil
 }

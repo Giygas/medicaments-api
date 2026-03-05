@@ -1,17 +1,28 @@
 CODE_REVIEW.md
 AGENTS.md
+TODO.md
+releases/
+vendor/
 .opencode
 logs/
 extras/
 main
 *.log
+logs*/
 **/files/*.txt
 */files/*.txt
 files/
 src/
 **src/*.json
 src/*
+
+secrets/
+
+# Environment variables
 .env
+.env.*
+!.env.example
+
 .DS_Store
 /medicaments-api
 medicamentsparser/files
@@ -21,4 +32,4 @@ coverage.out
 *.coverage
 *.cover
 *.out
-
+/workspaces

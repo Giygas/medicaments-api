@@ -1,0 +1,9 @@
+name: "SSH Cleanup"
+description: "Remove SSH keys and cleanup"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cleanup SSH keys
+      shell: bash
+      run: rm -rf ~/.ssh

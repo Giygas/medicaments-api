@@ -10,13 +10,15 @@ import (
 
 // MockDataStore for testing scheduler
 type mockSchedulerDataStore struct {
-	medicaments    []entities.Medicament
-	generiques     []entities.GeneriqueList
-	medicamentsMap map[int]entities.Medicament
-	generiquesMap  map[int]entities.Generique
-	lastUpdated    time.Time
-	updating       bool
-	updateCount    int
+	medicaments           []entities.Medicament
+	generiques            []entities.GeneriqueList
+	medicamentsMap        map[int]entities.Medicament
+	generiquesMap         map[int]entities.GeneriqueList
+	presentationsCIP7Map  map[int]entities.Presentation
+	presentationsCIP13Map map[int]entities.Presentation
+	lastUpdated           time.Time
+	updating              bool
+	updateCount           int
 }
 
 func (m *mockSchedulerDataStore) GetMedicaments() []entities.Medicament {
@@ -31,8 +33,16 @@ func (m *mockSchedulerDataStore) GetMedicamentsMap() map[int]entities.Medicament
 	return m.medicamentsMap
 }
 
-func (m *mockSchedulerDataStore) GetGeneriquesMap() map[int]entities.Generique {
+func (m *mockSchedulerDataStore) GetGeneriquesMap() map[int]entities.GeneriqueList {
 	return m.generiquesMap
+}
+
+func (m *mockSchedulerDataStore) GetPresentationsCIP7Map() map[int]entities.Presentation {
+	return m.presentationsCIP7Map
+}
+
+func (m *mockSchedulerDataStore) GetPresentationsCIP13Map() map[int]entities.Presentation {
+	return m.presentationsCIP13Map
 }
 
 func (m *mockSchedulerDataStore) GetLastUpdated() time.Time {
@@ -43,11 +53,13 @@ func (m *mockSchedulerDataStore) IsUpdating() bool {
 	return m.updating
 }
 
-func (m *mockSchedulerDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.Generique) {
+func (m *mockSchedulerDataStore) UpdateData(medicaments []entities.Medicament, generiques []entities.GeneriqueList, medicamentsMap map[int]entities.Medicament, generiquesMap map[int]entities.GeneriqueList, presentationsCIP7Map map[int]entities.Presentation, presentationsCIP13Map map[int]entities.Presentation, report *interfaces.DataQualityReport) {
 	m.medicaments = medicaments
 	m.generiques = generiques
 	m.medicamentsMap = medicamentsMap
 	m.generiquesMap = generiquesMap
+	m.presentationsCIP7Map = presentationsCIP7Map
+	m.presentationsCIP13Map = presentationsCIP13Map
 	m.lastUpdated = time.Now()
 	m.updateCount++
 }
@@ -68,25 +80,63 @@ func (m *mockSchedulerDataStore) GetServerStartTime() time.Time {
 	return time.Time{} // Return zero time for mock
 }
 
+func (m *mockSchedulerDataStore) GetDataQualityReport() *interfaces.DataQualityReport {
+	return &interfaces.DataQualityReport{
+		DuplicateCIS:                        []int{},
+		DuplicateGroupIDs:                   []int{},
+		MedicamentsWithoutConditions:        0,
+		MedicamentsWithoutGeneriques:        0,
+		MedicamentsWithoutPresentations:     0,
+		MedicamentsWithoutCompositions:      0,
+		GeneriqueOnlyCIS:                    0,
+		PresentationsWithOrphanedCIS:        0,
+		MedicamentsWithoutConditionsCIS:     []int{},
+		MedicamentsWithoutGeneriquesCIS:     []int{},
+		MedicamentsWithoutPresentationsCIS:  []int{},
+		MedicamentsWithoutCompositionsCIS:   []int{},
+		GeneriqueOnlyCISList:                []int{},
+		PresentationsWithOrphanedCISCIPList: []int{},
+	}
+}
+
 // MockParser for testing scheduler
 type mockSchedulerParser struct {
 	parseCount int
 	shouldFail bool
+	// Configurable presentation maps for testing
+	cip7Map  map[int]entities.Presentation
+	cip13Map map[int]entities.Presentation
 }
 
-func (m *mockSchedulerParser) ParseAllMedicaments() ([]entities.Medicament, error) {
+func (m *mockSchedulerParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 	m.parseCount++
 	if m.shouldFail {
-		return nil, &mockSchedulerError{"parse failed"}
+		return nil, nil, nil, &mockSchedulerError{"parse failed"}
+	}
+
+	// Use configured presentation maps if available, otherwise use default
+	cip7Map := m.cip7Map
+	cip13Map := m.cip13Map
+
+	if cip7Map == nil {
+		cip7Map = map[int]entities.Presentation{
+			1234567: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+		}
+	}
+
+	if cip13Map == nil {
+		cip13Map = map[int]entities.Presentation{
+			3400912345678: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+		}
 	}
 
 	return []entities.Medicament{
 		{Cis: 1, Denomination: "Test Medicament"},
 		{Cis: 2, Denomination: "Another Test"},
-	}, nil
+	}, cip7Map, cip13Map, nil
 }
 
-func (m *mockSchedulerParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.Generique, error) {
+func (m *mockSchedulerParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
 	if m.shouldFail {
 		return nil, nil, &mockSchedulerError{"generiques parse failed"}
 	}
@@ -94,8 +144,8 @@ func (m *mockSchedulerParser) GeneriquesParser(medicaments *[]entities.Medicamen
 	generiques := []entities.GeneriqueList{
 		{GroupID: 1, Libelle: "Test Generique"},
 	}
-	generiquesMap := map[int]entities.Generique{
-		1: {Group: 1, Libelle: "Test Generique"},
+	generiquesMap := map[int]entities.GeneriqueList{
+		1: {GroupID: 1, Libelle: "Test Generique"},
 	}
 
 	return generiques, generiquesMap, nil
@@ -214,4 +264,180 @@ func TestScheduler_DependencyInjectionBenefits(t *testing.T) {
 
 	// This test runs in milliseconds instead of seconds/minutes
 	// because we're using mocks instead of real implementations
+}
+
+func TestScheduler_MultiplePresentations(t *testing.T) {
+	// Test that multiple presentations are all stored correctly
+	mockDataStore := &mockSchedulerDataStore{}
+	mockParser := &mockSchedulerParser{
+		shouldFail: false,
+		// Override to return multiple presentations
+		cip7Map: map[int]entities.Presentation{
+			1234567: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+			2345678: {Cis: 2, Cip7: 2345678, Cip13: 34009234567890},
+			3456789: {Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
+		},
+		cip13Map: map[int]entities.Presentation{
+			3400912345678:  {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+			34009234567890: {Cis: 2, Cip7: 2345678, Cip13: 34009234567890},
+			3400934567890:  {Cis: 3, Cip7: 3456789, Cip13: 3400934567890},
+		},
+	}
+
+	// Create scheduler with dependency injection
+	scheduler := NewScheduler(mockDataStore, mockParser)
+
+	// Test initial data load
+	err := scheduler.Start()
+	if err != nil {
+		t.Fatalf("Unexpected error during start: %v", err)
+	}
+
+	// Verify all presentations are stored
+	cip7Map := mockDataStore.GetPresentationsCIP7Map()
+	cip13Map := mockDataStore.GetPresentationsCIP13Map()
+
+	if len(cip7Map) != 3 {
+		t.Errorf("Expected 3 CIP7 entries, got %d", len(cip7Map))
+	}
+	if len(cip13Map) != 3 {
+		t.Errorf("Expected 3 CIP13 entries, got %d", len(cip13Map))
+	}
+
+	// Verify specific entries exist
+	expectedCIP7s := []int{1234567, 2345678, 3456789}
+	for _, cip7 := range expectedCIP7s {
+		if _, exists := cip7Map[cip7]; !exists {
+			t.Errorf("CIP7 %d not found in map", cip7)
+		}
+	}
+
+	// Verify all presentations have correct CIS values
+	cip7Pres123 := cip7Map[1234567]
+	if cip7Pres123.Cis != 1 {
+		t.Errorf("Presentation for CIP7 1234567 should have CIS=1, got %d", cip7Pres123.Cis)
+	}
+
+	cip7Pres234 := cip7Map[2345678]
+	if cip7Pres234.Cis != 2 {
+		t.Errorf("Presentation for CIP7 2345678 should have CIS=2, got %d", cip7Pres234.Cis)
+	}
+
+	cip7Pres345 := cip7Map[3456789]
+	if cip7Pres345.Cis != 3 {
+		t.Errorf("Presentation for CIP7 3456789 should have CIS=3, got %d", cip7Pres345.Cis)
+	}
+
+	// Clean up
+	scheduler.Stop()
+}
+
+func TestScheduler_UpdateOverridesMaps(t *testing.T) {
+	// Test that subsequent updates properly replace old maps
+	mockDataStore := &mockSchedulerDataStore{}
+	mockParser := &mockSchedulerParser{
+		shouldFail: false,
+		// First update will have these presentations
+		cip7Map: map[int]entities.Presentation{
+			1111111: {Cis: 1, Cip7: 1111111, Cip13: 3400900000001},
+		},
+		cip13Map: map[int]entities.Presentation{
+			3400900000001: {Cis: 1, Cip7: 1111111, Cip13: 3400900000001},
+		},
+	}
+
+	// Create scheduler with dependency injection
+	scheduler := NewScheduler(mockDataStore, mockParser)
+
+	// First update
+	err := scheduler.Start()
+	if err != nil {
+		t.Fatalf("First start failed: %v", err)
+	}
+
+	// Verify first maps are stored
+	cip7Map1 := mockDataStore.GetPresentationsCIP7Map()
+	if _, exists := cip7Map1[1111111]; !exists {
+		t.Error("First CIP7 map should contain 1111111")
+	}
+
+	// Second update with different data
+	mockParser.cip7Map = map[int]entities.Presentation{
+		2222222: {Cis: 2, Cip7: 2222222, Cip13: 3400900000002},
+	}
+	mockParser.cip13Map = map[int]entities.Presentation{
+		3400900000002: {Cis: 2, Cip7: 2222222, Cip13: 3400900000002},
+	}
+
+	// Trigger second update
+	_ = scheduler.updateData()
+
+	// Verify maps were replaced (not merged)
+	cip7Map2 := mockDataStore.GetPresentationsCIP7Map()
+	if _, exists := cip7Map2[1111111]; exists {
+		t.Error("Old CIP7 entry should be replaced")
+	}
+	if _, exists := cip7Map2[2222222]; !exists {
+		t.Error("New CIP7 entry should exist")
+	}
+
+	// Clean up
+	scheduler.Stop()
+}
+
+func TestScheduler_PresentationMapsStored(t *testing.T) {
+	// Test that CIP7 and CIP13 maps are properly stored
+	mockDataStore := &mockSchedulerDataStore{}
+	mockParser := &mockSchedulerParser{
+		shouldFail: false,
+	}
+
+	// Create scheduler with dependency injection
+	scheduler := NewScheduler(mockDataStore, mockParser)
+
+	// Test initial data load
+	err := scheduler.Start()
+	if err != nil {
+		t.Fatalf("Unexpected error during start: %v", err)
+	}
+
+	// Verify that maps were stored
+	cip7Map := mockDataStore.GetPresentationsCIP7Map()
+	cip13Map := mockDataStore.GetPresentationsCIP13Map()
+
+	if len(cip7Map) != 1 {
+		t.Errorf("Expected 1 CIP7 map entry, got %d", len(cip7Map))
+	}
+
+	if len(cip13Map) != 1 {
+		t.Errorf("Expected 1 CIP13 map entry, got %d", len(cip13Map))
+	}
+
+	// Verify the actual presentation data exists
+	expectedCIP7 := 1234567
+	expectedCIP13 := 3400912345678
+
+	if _, exists := cip7Map[expectedCIP7]; !exists {
+		t.Errorf("CIP7 %d not found in map", expectedCIP7)
+	}
+
+	if _, exists := cip13Map[expectedCIP13]; !exists {
+		t.Errorf("CIP13 %d not found in map", expectedCIP13)
+	}
+
+	// Verify presentation data has correct values
+	cip7Presentation := cip7Map[expectedCIP7]
+	if cip7Presentation.Cip7 != expectedCIP7 {
+		t.Errorf("CIP7 presentation has wrong Cip7: got %d, want %d",
+			cip7Presentation.Cip7, expectedCIP7)
+	}
+
+	cip13Presentation := cip13Map[expectedCIP13]
+	if cip13Presentation.Cip13 != expectedCIP13 {
+		t.Errorf("CIP13 presentation has wrong Cip13: got %d, want %d",
+			cip13Presentation.Cip13, expectedCIP13)
+	}
+
+	// Clean up
+	scheduler.Stop()
 }

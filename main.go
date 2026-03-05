@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,6 +20,20 @@ import (
 )
 
 func main() {
+	// Check if running in healthcheck mode (for Docker HEALTHCHECK)
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get("http://localhost:8000/health")
+		if err != nil || resp.StatusCode != 200 {
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			os.Exit(1)
+		}
+		_ = resp.Body.Close()
+		os.Exit(0)
+	}
+
 	// Load environment variables first
 	if err := loadEnvironment(); err != nil {
 		fmt.Printf("Failed to load environment: %v\n", err)
@@ -33,14 +48,15 @@ func main() {
 	}
 
 	// Initialize structured logging with rotating logs using config values
-	logging.InitLoggerWithRetentionAndSize("logs", cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
+	logging.InitLoggerWithEnvironment("logs", cfg.Env, cfg.LogLevel, cfg.LogRetentionWeeks, cfg.MaxLogFileSize)
 
 	// Log configuration on startup
 	logging.Info("Configuration loaded successfully",
 		"port", cfg.Port,
 		"address", cfg.Address,
-		"env", cfg.Env,
+		"env", cfg.Env.String(),
 		"log_level", cfg.LogLevel,
+		"allow_direct_access", cfg.AllowDirectAccess,
 		"max_request_body", cfg.MaxRequestBody,
 		"max_header_size", cfg.MaxHeaderSize)
 
@@ -65,7 +81,7 @@ func main() {
 
 	// Start the server in a goroutine
 	go func() {
-		if err := srv.Start(); err != nil {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 			logging.Error("Server failed to start", "error", err)
 			os.Exit(1)
 		}
@@ -73,11 +89,14 @@ func main() {
 
 	// Block until a signal is received
 	<-quit
-	logging.Info("Shutting down server...")
 
 	// Create a context with timeout for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Stop rate limiter cleanup goroutine
+	logging.Info("Stopping rate limiter cleanup goroutine...")
+	server.StopRateLimiter()
 
 	// Attempt graceful shutdown
 	if err := srv.Shutdown(ctx); err != nil {
@@ -86,6 +105,9 @@ func main() {
 	}
 
 	logging.Info("Server shutdown complete")
+
+	// Ensure all logs are flushed before exit
+	logging.Close()
 }
 
 // loadEnvironment loads environment variables from .env file
@@ -105,7 +127,11 @@ func loadEnvironment() error {
 
 		// Try again after changing directory
 		if err := godotenv.Load(); err != nil {
-			logging.Warn("Could not load .env file", "error", err)
+			// Check if environment variables are already set (e.g., by Docker)
+			if os.Getenv("PORT") == "" && os.Getenv("ENV") == "" {
+				// Only warn if env vars aren't already configured
+				logging.Warn("Could not load .env file", "error", err)
+			}
 		}
 	}
 

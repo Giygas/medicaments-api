@@ -18,6 +18,7 @@
         --color-primary: #000091;
         --color-secondary: #6a6af4;
         --color-accent: #e1000f;
+        --color-highlight: #60a5fa;
         --color-bg: #0a0a0f;
         --color-surface: #161620;
         --color-text: #e4e4e7;
@@ -29,6 +30,7 @@
         --color-primary: #000091;
         --color-secondary: #6a6af4;
         --color-accent: #e1000f;
+        --color-highlight: #2563eb;
         --color-bg: #ffffff;
         --color-surface: #f8fafc;
         --color-text: #1e293b;
@@ -167,6 +169,7 @@
         gap: 3rem;
         margin-top: 3rem;
         flex-wrap: wrap;
+        justify-content: space-evenly;
       }
 
       .stat {
@@ -176,7 +179,7 @@
       .stat-number {
         font-size: 2.5rem;
         font-weight: 700;
-        color: var(--color-primary);
+        color: var(--color-highlight);
         display: block;
       }
 
@@ -202,7 +205,6 @@
         font-size: 1.125rem;
         line-height: 1.8;
         color: var(--color-text-muted);
-        max-width: 800px;
       }
 
       .functions-grid {
@@ -440,7 +442,7 @@
         color: var(--color-text);
       }
 
-      @media (max-width: 768px) {
+      @media (max-width: 530px) {
         h1 {
           font-size: 2.5rem;
         }
@@ -456,6 +458,10 @@
         .hero-stats {
           flex-direction: column;
           gap: 2rem;
+        }
+
+        .stat {
+          width: 100%;
         }
 
         nav {
@@ -482,6 +488,22 @@
           justify-content: center;
         }
       }
+
+      @media (min-width: 531px) and (max-width: 768px) {
+        .hero-stats {
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 2rem;
+        }
+
+        .stat {
+          flex-basis: calc(50% - 1rem);
+        }
+
+        nav {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -498,12 +520,14 @@
           >
             <nav>
               <a href="#introduction">Introduction</a>
+              <a href="#historique">Améliorations</a>
               <a href="#fonctions">Fonctions</a>
               <a href="#endpoints">API</a>
               <a href="#examples">Exemples</a>
               <a href="#technologies">Technologies</a>
               <a href="#documentation">Documentation</a>
               <a href="#legal">Mentions légales</a>
+              <a href="#confidentialite">Confidentialité</a>
             </nav>
             <div class="theme-switcher" onclick="toggleTheme()">
               <div
@@ -523,21 +547,46 @@
     </header>
 
     <main class="container">
+      <!-- Deprecation Notice Banner -->
+      <div
+        style="
+          background: var(--color-accent);
+          color: white;
+          padding: 1rem 1.5rem;
+          border-radius: 8px;
+          margin-bottom: 2rem;
+          text-align: center;
+        "
+      >
+        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
+          Nouvelle API v1 disponible !
+        </div>
+        <div style="font-size: 0.95rem">
+          Les endpoints anciens sont dépréciés et seront supprimés le
+          <strong>31 juillet 2026</strong>.
+          <br />
+          <a href="#endpoints" style="color: white; text-decoration: underline"
+            >Voir les nouveaux endpoints v1 →</a
+          >
+        </div>
+      </div>
+
       <section class="hero">
-        <h1>API des Médicaments Français</h1>
+        <h1>API pour les Médicaments Français</h1>
         <p class="hero-subtitle">
-          API haute performance avec parsing concurrent en ~0.5s, 470K alg/380K real req/sec,
-          et 30-50MB RAM stable. Accès aux 15K+ médicaments français
-          avec mises à jour atomiques zero-downtime et cache intelligent.
+          Une API rapide et fiable pour accéder aux 15,000+ médicaments
+          français. Mises à jour automatiques deux fois par jour, cache
+          intelligent, et protection contre les abus pour garantir une
+          expérience stable.
         </p>
         <div class="hero-stats">
           <div class="stat">
-            <span class="stat-number">15.8K</span>
+            <span class="stat-number">15,000+</span>
             <span class="stat-label">Médicaments</span>
           </div>
           <div class="stat">
-            <span class="stat-number">391K</span>
-            <span class="stat-label">Reqs/sec</span>
+            <span class="stat-number">80K req/s</span>
+            <span class="stat-label">Débit HTTP</span>
           </div>
           <div class="stat">
             <span class="stat-number">~0.5s</span>
@@ -548,7 +597,7 @@
             <span class="stat-label">RAM stable</span>
           </div>
           <div class="stat">
-            <span class="stat-number">75.5%</span>
+            <span class="stat-number">78.5%</span>
             <span class="stat-label">Test coverage</span>
           </div>
           <div class="stat">
@@ -588,28 +637,28 @@
             "
           >
             <h4 style="color: var(--color-text); margin-bottom: 1rem">
-              🚀 Démarrage Rapide
+              Démarrage Rapide (API v1)
             </h4>
 
             <div style="margin-bottom: 1.5rem">
               <strong style="color: var(--color-text)"
                 >Base URL & Authentication</strong
               >
-              <pre
-                style="
-                  background: var(--color-bg);
-                  padding: 1rem;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin-top: 0.5rem;
-                  font-size: 0.9rem;
-                "
-              ><code># Base URL
+               <pre
+                 style="
+                   background: var(--color-bg);
+                   padding: 1rem;
+                   border-radius: 4px;
+                   overflow-x: auto;
+                   margin-top: 0.5rem;
+                   font-size: 0.9rem;
+                 "
+               ><code># Production (HTTPS)
 BASE_URL="https://medicaments-api.giygas.dev"
 
-# Authentication: None required
-# Rate limits: 1000 tokens/IP, 3 tokens/sec recharge
-# Costs: /health (5), /medicament/* (100), /database (200), others (20)</code></pre>
+# Authentification : Aucune requise
+# Limites de taux : 1000 tokens/IP, recharge 3 tokens/seconde
+</code></pre>
             </div>
 
             <div style="margin-bottom: 1.5rem">
@@ -627,7 +676,8 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   "
                   onclick="copyToClipboard(this.textContent.trim())"
                 >
-                  curl https://medicaments-api.giygas.dev/medicament/paracetamol
+                  curl
+                  https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol
                 </code>
                 <button
                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
@@ -659,7 +709,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   "
                   onclick="copyToClipboard(this.textContent.trim())"
                 >
-                  curl https://medicaments-api.giygas.dev/database/1
+                  curl https://medicaments-api.giygas.dev/v1/medicaments?page=1
                 </code>
                 <button
                   onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
@@ -712,7 +762,141 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   📋
                 </button>
               </div>
+               <div style="position: relative; margin: 0.5rem 0">
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.5rem;
+                      border-radius: 4px;
+                      display: block;
+                      padding-right: 3rem;
+                    "
+                    onclick="copyToClipboard(this.textContent.trim())"
+                  >
+                    curl
+                    https://medicaments-api.giygas.dev/v1/medicaments?search=d'heptaminol
+                  </code>
+                  <button
+                    onclick="copyToClipboard(this.previousElementSibling.textContent.trim())"
+                    style="
+                      position: absolute;
+                      right: 0.5rem;
+                      top: 50%;
+                      transform: translateY(-50%);
+                      background: var(--color-primary);
+                      color: white;
+                      border: none;
+                      border-radius: 4px;
+                      padding: 0.25rem 0.5rem;
+                      font-size: 0.75rem;
+                      cursor: pointer;
+                    "
+                   >
+                    📋
+                   </button>
+                </div>
             </div>
+            <p
+              style="
+                color: var(--color-text-muted);
+                font-size: 0.9rem;
+                margin-top: 1rem;
+              "
+            >
+              Also available in Docker: <a
+                href="/DOCKER.md"
+                target="_blank"
+                style="color: var(--color-secondary)"
+                >DOCKER.md</a
+              >
+            </p>
+          </div>
+
+          <!-- Health Response Example -->
+          <div
+            style="
+              background: var(--color-surface);
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              padding: 1.5rem;
+              margin-top: 1.5rem;
+            "
+          >
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Réponse Health Endpoint
+            </h4>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 0.85rem;
+              "
+            ><code>{
+  "status": "healthy",
+  "data": {
+    "last_update": "2026-01-15T06:00:00Z",
+    "data_age_hours": 2.5,
+    "medicaments": 15420,
+    "generiques": 5200,
+    "is_updating": false
+  }
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="historique" class="section">
+        <h2>Historique</h2>
+        <div class="intro-text">
+          <p>
+            L'API évolue continuellement pour améliorer la qualité des données
+            et l'expérience des utilisateurs.
+          </p>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            Décembre 2025 - Amélioration de l'encodage des caractères
+          </h4>
+          <div style="color: var(--color-text-muted); line-height: 1.8">
+            <ul style="list-style: none; padding-left: 0">
+              <li
+                style="
+                  padding: 0.5rem 0;
+                  padding-left: 1.5rem;
+                  position: relative;
+                "
+              >
+                <span
+                  style="
+                    position: absolute;
+                    left: 0;
+                    color: var(--color-primary);
+                  "
+                  >•</span
+                >
+                <strong>Fix encodage des caractères</strong>:
+                <p>
+                  &emsp;Changement de charset de <code>Windows1252</code> vers
+                  détection automatique <code>UTF-8 ou ISO8859-1</code> dans le
+                  downloader
+                </p>
+                <p>
+                  &emsp;Corrige les problèmes d'encodage pour les médicaments
+                  avec caractères spéciaux
+                </p>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -749,22 +933,12 @@ BASE_URL="https://medicaments-api.giygas.dev"
             <div class="function-icon">🔍</div>
             <h3>Recherche ultra-rapide</h3>
             <p>
-              Recherche par nom (regex supporté) ou CIS avec O(1) lookup.
-              Validation stricte (3-50 chars alphanumériques) et échappement
-              automatique. Temps de réponse : &lt;100ms (nom) et &lt;50ms (CIS).
+              Recherche multi-mots (max 6 mots) ou CIS avec O(1) lookup.
+              Validation stricte (3-50 chars, 1-6 mots alphanumériques).
+              Échappement automatique. <strong>80K+ req/s</strong> (CIS/CIP),
+              <strong>36K req/s</strong> (génériques), latence moyenne <5ms sur
+              les lookups O(1).
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                GET /medicament/paracetamol
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
@@ -776,73 +950,39 @@ BASE_URL="https://medicaments-api.giygas.dev"
               avec ETag/Last-Modified et compression gzip pour un transfert
               efficace.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                GET /database/{pageNumber}
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
             <div class="function-icon">🔄</div>
             <h3>Mises à jour atomiques ultra-rapides</h3>
             <p>
-              Parsing concurrent de 5 fichiers TSV BDPM en **~0.5 secondes** avec atomic.Value pour
-              zero-downtime updates. Mises à jour automatiques 2x/jour (6h/18h)
-              sans interruption de service. Architecture basée sur 6 interfaces avec dependency
-              injection et 70%+ de couverture de tests.
+              Parsing concurrent de 5 fichiers TSV BDPM en <b>~0.5 secondes</b>
+              avec atomic.Value pour zero-downtime updates. Mises à jour
+              automatiques 2x/jour (6h/18h) sans interruption de service.
+              Architecture basée sur 6 interfaces avec dependency injection et
+              70%+ de couverture de tests.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                Zero-downtime ~0.5s ⚡
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
             <div class="function-icon">📊</div>
             <h3>Données BDPM complètes</h3>
             <p>
-              15K+ médicaments, 1.6K groupes génériques. Toutes les entités BDPM
-              : compositions, présentations, génériques, conditions, voies
-              d'administration. Mémoire optimisée : 30-50MB stable (150MB peak
+              15,000+ médicaments, 1.6K groupes génériques. Toutes les entités
+              BDPM : compositions, présentations, génériques, conditions, voies
+              d'administration. Mémoire optimisée : 60-90MB stable (150MB peak
               au démarrage).
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                23MB dataset, 30-50MB RAM
-              </code>
-            </div>
           </div>
 
           <div class="function-card">
             <div class="function-icon">🚀</div>
             <h3>Performance exceptionnelle</h3>
             <p>
-              Architecture optimisée pour **391K requêtes/seconde** sur les endpoints critiques.
-              Lookup O(1) en ~2.6µs via maps mémoire, compression gzip 80%, et
-              cache HTTP intelligent avec 90%+ hit ratio. Tests complets avec 70%+ couverture.
+              Architecture optimisée pour <b>92K requêtes/seconde</b> sur les
+              endpoints critiques. Lookup O(1) en ~2.6µs via maps mémoire,
+              compression gzip 80%, et cache HTTP intelligent avec 90%+ hit
+              ratio. Tests complets avec 70%+ couverture.
             </p>
             <div style="margin-top: 1rem">
               <code
@@ -853,7 +993,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   font-size: 0.85rem;
                 "
               >
-                380K req/sec ⚡
+                92K req/sec ⚡
               </code>
             </div>
           </div>
@@ -866,18 +1006,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
               Compression gzip (80% réduction bande passante). Cache hit ratio
               90%+. Invalidation automatique durant les mises à jour.
             </p>
-            <div style="margin-top: 1rem">
-              <code
-                style="
-                  background: var(--color-bg);
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 4px;
-                  font-size: 0.85rem;
-                "
-              >
-                90%+ cache hit ratio
-              </code>
-            </div>
           </div>
         </div>
       </section>
@@ -893,8 +1021,482 @@ BASE_URL="https://medicaments-api.giygas.dev"
             margin-top: 2rem;
           "
         >
-          <div style="overflow-x: auto">
+          <!-- v1 Endpoints -->
+          <h3
+            style="
+              color: var(--color-highlight);
+              margin-bottom: 1rem;
+              font-size: 1.4rem;
+            "
+          >
+            Endpoints v1 (Nouveaux)
+          </h3>
+          <div style="overflow-x: auto; margin-bottom: 2rem">
             <table style="width: 100%; border-collapse: collapse">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <th
+                    style="
+                      text-align: left;
+                      padding: 0.75rem;
+                      color: var(--color-text);
+                    "
+                  >
+                    Endpoint
+                  </th>
+                  <th
+                    style="
+                      text-align: left;
+                      padding: 0.75rem;
+                      color: var(--color-text);
+                    "
+                  >
+                    Description
+                  </th>
+                  <th
+                    style="
+                      text-align: center;
+                      padding: 0.75rem;
+                      color: var(--color-text);
+                    "
+                  >
+                    Cache
+                  </th>
+                  <th
+                    style="
+                      text-align: center;
+                      padding: 0.75rem;
+                      color: var(--color-text);
+                    "
+                  >
+                    Coût
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/medicaments/export</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Export complet de la base
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    6h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-accent);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >200</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/medicaments?page={n}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Pagination (10/page)
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    6h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >20</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/medicaments?search={query}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Recherche par nom (max 250 résultats)
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    1h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >50</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/medicaments/{cis}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Recherche par CIS
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    12h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >10</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/medicaments?cip={code}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Recherche par CIP
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    12h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >10</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/generiques?libelle={nom}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Génériques par libellé (max 100 résultats)
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    1h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >30</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/generiques/{groupID}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Groupe générique par ID
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    12h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >5</span
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /v1/presentations/{cip}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Présentations par CIP
+                  </td>
+                  <td
+                    style="
+                      padding: 0.75rem;
+                      text-align: center;
+                      color: var(--color-text-muted);
+                    "
+                  >
+                    12h
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-primary);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >5</span
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Search Limits Warning -->
+          <div
+            style="
+              background: var(--color-accent);
+              color: white;
+              padding: 1rem 1.5rem;
+              border-radius: 8px;
+              margin-top: 2rem;
+              text-align: center;
+            "
+          >
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
+              Limites de résultats de recherche
+            </div>
+            <div style="font-size: 0.95rem">
+              Les endpoints de recherche renvoient un maximum de
+              <strong>250 résultats</strong> pour les médicaments et
+              <strong>100 résultats</strong> pour les génériques.
+              <br />
+              Pour obtenir la base complète, utilisez
+              <code style="background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 4px"
+                >GET /v1/medicaments/export</code
+              >
+            </div>
+          </div>
+
+          <!-- Diagnostics Endpoint -->
+          <h3
+            style="
+              color: var(--color-text-muted);
+              margin-bottom: 1rem;
+              margin-top: 3rem;
+              font-size: 1.2rem;
+              font-weight: 500;
+            "
+          >
+            Endpoint de Diagnostics (Nouveau)
+          </h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            L'endpoint <code>/v1/diagnostics</code> fournit des métriques
+            détaillées sur le système et l'intégrité des données.
+          </p>
+          <div
+            style="
+              background: var(--color-surface);
+              border: 1px solid var(--color-border);
+              border-radius: 8px;
+              padding: 1.5rem;
+              margin-top: 1rem;
+            "
+          >
+            <h4 style="color: var(--color-text); margin-bottom: 1rem">
+              Réponse Diagnostics
+            </h4>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 0.85rem;
+              "
+            ><code>{
+  "timestamp": "2026-01-15T14:30:45Z",
+  "uptime_seconds": 86400,
+  "next_update": "2026-01-15T18:00:00Z",
+  "data_age_hours": 2.5,
+  "system": {
+    "goroutines": 45,
+    "memory": {
+      "alloc_mb": 130,
+      "sys_mb": 150,
+      "num_gc": 25
+    }
+  },
+  "data_integrity": {
+    "medicaments_without_conditions": {
+      "count": 1250,
+      "sample_cis": [60012345, 60023456]
+    },
+    "medicaments_without_generiques": {
+      "count": 8450,
+      "sample_cis": [61504672, 61001234]
+    },
+    "medicaments_without_presentations": {
+      "count": 3200,
+      "sample_cis": [62003456, 62004567]
+    },
+    "medicaments_without_compositions": {
+      "count": 890,
+      "sample_cis": [63005678, 63006789]
+    },
+    "generique_only_cis": {
+      "count": 45,
+      "sample_cis": [64007890, 64008901]
+    },
+    "presentations_with_orphaned_cis": {
+      "count": 6,
+      "sample_cip": [3400935910882, 3400930279069]
+    }
+  }
+}</code></pre>
+          </div>
+
+          <!-- Legacy Endpoints -->
+          <h3
+            style="
+              color: var(--color-text-muted);
+              margin-bottom: 1rem;
+              margin-top: 3rem;
+              font-size: 1.2rem;
+              font-weight: 500;
+            "
+          >
+            Endpoints Legacy (Dépréciés - Suppression juillet 2026)
+          </h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            Ces endpoints sont toujours disponibles mais seront supprimés le
+            <strong>31 juillet 2026</strong>. Veuillez migrer vers les endpoints
+            v1 ci-dessus.
+          </p>
+          <div style="overflow-x: auto">
+            <table style="width: 100%; border-collapse: collapse; opacity: 0.7">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-border)">
                   <th
@@ -1043,7 +1645,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >100</span
+                      >80</span
                     >
                   </td>
                 </tr>
@@ -1074,13 +1676,13 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-accent);
+                        background: var(--color-primary);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >100</span
+                      >10</span
                     >
                   </td>
                 </tr>
@@ -1171,7 +1773,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                     >
                   </td>
                   <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    État de santé avancé (data+system)
+                    Santé système simplifiée (statut + données)
                   </td>
                   <td
                     style="
@@ -1220,7 +1822,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            📡 Recherche de médicaments
+            📡 Recherche de médicaments (API v1)
           </h4>
           <div style="display: grid; gap: 1rem">
             <div>
@@ -1233,7 +1835,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   overflow-x: auto;
                   margin-top: 0.5rem;
                 "
-              ><code>curl "https://medicaments-api.giygas.dev/medicament/paracetamol"</code></pre>
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol"</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)">JavaScript</strong>
@@ -1245,7 +1847,7 @@ BASE_URL="https://medicaments-api.giygas.dev"
                   overflow-x: auto;
                   margin-top: 0.5rem;
                 "
-              ><code>const response = await fetch('https://medicaments-api.giygas.dev/medicament/paracetamol');
+              ><code>const response = await fetch('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol');
 const data = await response.json();
 console.log(`Found ${data.length} medicaments`);</code></pre>
             </div>
@@ -1260,11 +1862,228 @@ console.log(`Found ${data.length} medicaments`);</code></pre>
                   margin-top: 0.5rem;
                 "
               ><code>import requests
-response = requests.get('https://medicaments-api.giygas.dev/medicament/paracetamol')
+response = requests.get('https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol')
 data = response.json()
 print(f"Found {len(data)} results")</code></pre>
             </div>
           </div>
+        </div>
+
+        <!-- Multi-word Search Examples -->
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            🔍 Recherche multi-mots
+          </h4>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.5rem">
+            Utilisez plusieurs mots pour une recherche plus précise. Séparez les
+            mots avec <code style="color: var(--color-highlight)">+</code> ou un
+            espace. Tous les mots doivent être présents (logique ET). Maximum 6
+            mots.
+          </p>
+          <div style="display: grid; gap: 1rem">
+            <div>
+              <strong style="color: var(--color-text)"
+                >2 mots - Recherche précise</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol+500"</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >3 mots - Recherche très précise</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=ibuprofene+arrow+400"</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--color-text)"
+                >Génériques multi-mots</strong
+              >
+              <pre
+                style="
+                  background: var(--color-bg);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin-top: 0.5rem;
+                "
+              ><code>curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol+500"</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Migration Guide -->
+        <div
+          style="
+            background: var(--color-surface);
+            border: 2px solid var(--color-accent);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            Guide de Migration v1
+          </h4>
+          <p style="color: var(--color-text-muted); margin-bottom: 1rem">
+            Les endpoints v1 utilisent des paramètres de requête au lieu de
+            paramètres de chemin :
+          </p>
+          <div style="display: grid; gap: 1rem; margin-top: 1rem">
+            <div>
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                  color: var(--color-accent);
+                "
+                >ANCIEN : GET /medicament/paracetamol</code
+              >
+              <div style="margin-top: 0.5rem">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: var(--color-highlight);
+                  "
+                  >NOUVEAU : GET /v1/medicaments?search=paracetamol</code
+                >
+              </div>
+            </div>
+            <div>
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                  color: var(--color-accent);
+                "
+                >ANCIEN : GET /medicament/id/61504672</code
+              >
+              <div style="margin-top: 0.5rem">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: var(--color-highlight);
+                  "
+                  >NOUVEAU : GET /v1/medicaments/61504672</code
+                >
+              </div>
+            </div>
+            <div>
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                  color: var(--color-accent);
+                "
+                >ANCIEN : GET /generiques/paracetamol</code
+              >
+              <div style="margin-top: 0.5rem">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: var(--color-highlight);
+                  "
+                  >NOUVEAU : GET /v1/generiques?libelle=paracetamol</code
+                >
+              </div>
+            </div>
+            <div>
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                  color: var(--color-accent);
+                "
+                >ANCIEN : GET /database/1</code
+              >
+              <div style="margin-top: 0.5rem">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: var(--color-highlight);
+                  "
+                  >NOUVEAU : GET /v1/medicaments?page=1</code
+                >
+              </div>
+            </div>
+            <div>
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                  color: var(--color-accent);
+                "
+                >ANCIEN : GET /database</code
+              >
+              <div style="margin-top: 0.5rem">
+                <code
+                  style="
+                    background: var(--color-bg);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: var(--color-highlight);
+                  "
+                  >NOUVEAU : GET /v1/medicaments/export</code
+                >
+              </div>
+            </div>
+          </div>
+          <p
+            style="
+              color: var(--color-text-muted);
+              margin-top: 1rem;
+              font-size: 0.9rem;
+            "
+          >
+            <strong>Note :</strong> Les endpoints legacy renvoient des headers
+            de dépréciation (Deprecation, Sunset, Link) pour vous aider à
+            migrer.
+          </p>
         </div>
 
         <div
@@ -1381,140 +2200,62 @@ Content-Type: application/json
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            ✅ Règles de Validation
+            Règles de Validation
           </h4>
           <div style="margin-bottom: 1.5rem">
-            <strong style="color: var(--color-text)"
-              >Exigences de saisie :</strong
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Format :</strong> 3-50 caractères, 1-6 mots
+              alphanumériques séparés par
+              <code style="color: var(--color-highlight)">+</code> ou espace
+            </p>
+            <p style="color: var(--color-text-muted); margin-bottom: 0.75rem">
+              <strong>Caractères autorisés :</strong> Lettres, chiffres,
+              espaces, tirets (-), points (.), et signe plus (+)
+            </p>
+            <p
+              style="
+                color: var(--color-accent);
+                font-size: 0.9rem;
+                margin-top: 0.5rem;
+              "
             >
-            <ul
-              style="margin-top: 0.5rem; padding-left: 1.5rem; color: var(--color-text-muted"
-            >
-              <li><strong>Longueur :</strong> 3-50 caractères</li>
-              <li>
-                <strong>Caractères autorisés :</strong> Lettres, chiffres,
-                espaces, tirets (-), apostrophes ('), points (.)
-              </li>
-              <li>
-                <strong>Interdits :</strong> Chaînes vides, caractères spéciaux
-                (@, #, $, %, etc.)
-              </li>
-              <li>
-                <strong>Sensibilité à la casse :</strong> Recherche insensible à
-                la casse
-              </li>
-            </ul>
+              <strong>Note :</strong> Les données source BDPM sont en majuscules
+              sans accents. Utilisez des caractères sans accents (ex:
+              "ibuprofene" au lieu de "ibuprofène").
+            </p>
+            <p style="color: var(--color-text-muted)">
+              <strong>Insensible à la casse :</strong> La recherche ne tient pas
+              compte des majuscules/minuscules
+            </p>
           </div>
-          <div style="margin-bottom: 1.5rem">
-            <strong style="color: var(--color-text)">Exemples :</strong>
-            <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem">
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "paracetamol"</code
-                >
-                - Valide
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "Doliprane 500mg"</code
-                >
-                - Valide
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >✅ "abc"</code
-                >
-                - Valide (minimum 3 caractères)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "paracetamol@xyz"</code
-                >
-                - Invalide (contient @)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ ""</code
-                >
-                - Invalide (vide)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "ab"</code
-                >
-                - Invalide (trop court)
-              </div>
-              <div>
-                <code
-                  style="
-                    background: var(--color-bg);
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.85rem;
-                  "
-                  >❌ "a"*51</code
-                >
-                - Invalide (trop long)
-              </div>
-            </div>
-          </div>
-          <div>
-            <strong style="color: var(--color-text)"
-              >Réponse d'erreur de validation :</strong
-            >
-            <pre
+          <div style="display: grid; gap: 0.5rem; margin-top: 1rem">
+            <code
               style="
                 background: var(--color-bg);
-                padding: 1rem;
+                padding: 0.5rem 0.75rem;
                 border-radius: 4px;
-                overflow-x: auto;
-                margin-top: 0.5rem;
-                font-size: 0.8rem;
               "
-            ><code>HTTP/1.1 400 Bad Request
-Content-Type: application/json
-
-{
-  "code": 400,
-  "error": "Bad Request",
-  "message": "input contains invalid characters"
-}</code></pre>
+            >
+              paracetamol</code
+            >
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.5rem 0.75rem;
+                border-radius: 4px;
+              "
+            >
+              paracetamol-400</code
+            >
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.5rem 0.75rem;
+                border-radius: 4px;
+              "
+            >
+              Doliprane 500 mg</code
+            >
           </div>
         </div>
 
@@ -1528,7 +2269,7 @@ Content-Type: application/json
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            📋 Formats de Réponse
+            Formats de Réponse (API v1)
           </h4>
           <div style="display: grid; gap: 1rem">
             <div>
@@ -1544,15 +2285,18 @@ Content-Type: application/json
                   margin-top: 0.5rem;
                   font-size: 0.8rem;
                 "
-              ><code>GET /medicament/{name}
+              ><code>GET /v1/medicaments?search={query}
 Response: [...]  // Direct array of medicament objects
 
-GET /medicament/id/{cis}  
+GET /v1/medicaments/{cis}
+Response: {...}  // Single medicament object or error
+
+GET /v1/medicaments?cip={code}
 Response: {...}  // Single medicament object or error</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)"
-                >Generiques Search - Direct array</strong
+                >Generiques Search - Direct array or object</strong
               >
               <pre
                 style="
@@ -1563,11 +2307,11 @@ Response: {...}  // Single medicament object or error</code></pre>
                   margin-top: 0.5rem;
                   font-size: 0.8rem;
                 "
-              ><code>GET /generiques/{libelle}
-Response: [{"groupID": ..., "libelle": ..., "medicaments": [...]}]
-
-GET /generiques/group/{id}
-Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}</code></pre>
+              ><code>GET /v1/generiques?libelle={nom}
+Response: [{"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}, ...]  // Array de groupes
+ 
+GET /v1/generiques/{groupID}
+Response: {"groupID": ..., "libelle": ..., "medicaments": [...], "orphanCIS": [...]}  // Objet unique</code></pre>
             </div>
             <div>
               <strong style="color: var(--color-text)"
@@ -1582,14 +2326,17 @@ Response: {"groupID": ..., "libelle": ..., "medicaments": [...]}</code></pre>
                   margin-top: 0.5rem;
                   font-size: 0.8rem;
                 "
-              ><code>GET /database/{page}
+              ><code>GET /v1/medicaments?page={n}
 Response: {
   "data": [...],
   "page": 1,
   "pageSize": 10,
-  "totalItems": 15803,
-  "maxPage": 1581
-}</code></pre>
+  "totalItems": 15000,
+  "maxPage": 1500
+}
+
+GET /v1/medicaments/export
+Response: [...]  // Direct array of all medicaments</code></pre>
             </div>
           </div>
         </div>
@@ -1604,7 +2351,7 @@ Response: {
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            💊 Exemple de réponse - Recherche par nom
+            Exemple de réponse - Recherche par nom (API v1)
           </h4>
           <div style="margin-bottom: 1rem">
             <strong style="color: var(--color-text)">Commande cURL :</strong>
@@ -1616,7 +2363,7 @@ Response: {
                 overflow-x: auto;
                 margin-top: 0.5rem;
               "
-            ><code>curl "https://medicaments-api.giygas.dev/medicament/codoliprane"</code></pre>
+            ><code>curl "https://medicaments-api.giygas.dev/v1/medicaments?search=codoliprane"</code></pre>
           </div>
           <strong style="color: var(--color-text)">Réponse JSON :</strong>
           <pre
@@ -1639,122 +2386,46 @@ Response: {
     "etatComercialisation": "Commercialisée",
     "dateAMM": "10/05/2013",
     "titulaire": "OPELLA HEALTHCARE FRANCE",
-    "surveillanceRenforce": "Non",
+    "surveillanceRenforcee": "Non",
     "composition": [
       {
-        "cis": 60904643,
-        "elementPharmaceutique": "comprimé",
-        "codeSubstance": 2202,
-        "denominationSubstance": "PARACÉTAMOL",
-        "dosage": "500 mg",
-        "referenceDosage": "un comprimé",
-        "natureComposant": "SA"
+      "cis": 60904643,
+      "elementPharmaceutique": "comprimé",
+      "codeSubstance": 2202,
+      "denominationSubstance": "PARACÉTAMOL",
+      "dosage": "500 mg",
+      "referenceDosage": "un comprimé",
+      "natureComposant": "SA"
       },
       {
         "cis": 60904643,
         "elementPharmaceutique": "comprimé",
-        "codeSubstance": 1240,
-        "denominationSubstance": "CAFÉINE",
+        "codeSubstance": 74765,
+        "denominationSubstance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ",
         "dosage": "30 mg",
         "referenceDosage": "un comprimé",
         "natureComposant": "SA"
       }
     ],
-    "generiques": [],
+    "generiques": null,
     "presentation": [
       {
         "cis": 60904643,
-        "cip7": 3400936403114,
-        "cip13": 3400936403114,
-        "libelle": "CODOLIPRANE 500 mg/30 mg, comprimé (16)",
+        "cip7": 2756239,
+        "libelle": "plaquette(s) thermoformée(s) PVC PVDC aluminium de 16 comprimé(s)",
         "statusAdministratif": "Présentation active",
-        "etatComercialisation": "Commercialisée",
-        "dateDeclaration": "19/01/1965",
-        "agreement": "non",
+        "etatComercialisation": "Déclaration de commercialisation",
+        "dateDeclaration": "14/01/2014",
+        "cip13": 3400927562396,
+        "agreement": "oui",
         "tauxRemboursement": "65%",
-        "prix": 3.85
+        "prix": 1.72
       }
     ],
-    "conditions": []
-  }
-]</code></pre>
-        </div>
-
-        <div
-          style="
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 2rem;
-            margin-top: 2rem;
-          "
-        >
-          <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🔄 Exemple de réponse - Génériques
-          </h4>
-          <div style="margin-bottom: 1rem">
-            <strong style="color: var(--color-text)">Commande cURL :</strong>
-            <pre
-              style="
-                background: var(--color-bg);
-                padding: 1rem;
-                border-radius: 4px;
-                overflow-x: auto;
-                margin-top: 0.5rem;
-              "
-            ><code>curl "https://medicaments-api.giygas.dev/generiques/paracetamol"</code></pre>
-          </div>
-          <strong style="color: var(--color-text)">Réponse JSON :</strong>
-          <pre
-            style="
-              background: var(--color-bg);
-              padding: 1rem;
-              border-radius: 4px;
-              overflow-x: auto;
-              font-size: 0.8rem;
-              margin-top: 0.5rem;
-            "
-          ><code>[
-  {
-    "groupID": 1643,
-    "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
-    "medicaments": [
-      {
-        "cis": 66003374,
-        "elementPharmaceutique": "DAFALGAN CODEINE, comprimé pelliculé",
-        "formePharmaceutique": "comprimé pelliculé",
-        "type": "Princeps",
-        "composition": [
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
-          },
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
-          }
-        ]
-      },
-      {
-        "cis": 69458587,
-        "elementPharmaceutique": "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé",
-        "formePharmaceutique": "comprimé",
-        "type": "Générique",
-        "composition": [
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "PARACÉTAMOL",
-            "dosage": "500 mg"
-          },
-          {
-            "elementPharmaceutique": "comprimé",
-            "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ",
-            "dosage": "30 mg"
-          }
-        ]
-      }
+    "conditions": [
+      "prescription limitée à 12 semaines",
+      "liste I",
+      "prescription en toutes lettres sur ordonnance sécurisée"
     ]
   }
 ]</code></pre>
@@ -1770,7 +2441,194 @@ Response: {
           "
         >
           <h4 style="color: var(--color-text); margin-bottom: 1rem">
-            🏥 Exemple de réponse - Health Check
+            Exemple de réponse - Génériques
+          </h4>
+          <div style="margin-bottom: 1rem">
+            <strong style="color: var(--color-text)">Commande cURL :</strong>
+            <pre
+              style="
+                background: var(--color-bg);
+                padding: 1rem;
+                border-radius: 4px;
+                overflow-x: auto;
+                margin-top: 0.5rem;
+              "
+            ><code>curl "https://medicaments-api.giygas.dev/v1/generiques?libelle=paracetamol"</code></pre>
+          </div>
+          <strong style="color: var(--color-text)">Réponse JSON :</strong>
+          <pre
+            style="
+              background: var(--color-bg);
+              padding: 1rem;
+              border-radius: 4px;
+              overflow-x: auto;
+              font-size: 0.8rem;
+              margin-top: 0.5rem;
+            "
+          ><code>[
+  {
+    "groupID": 1368,
+    "libelle": "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé",
+    "medicaments": [
+      {
+        "cis": 61644230,
+        "elementPharmaceutique": "PRONTALGINE, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Princeps",
+        "composition": [
+          {"elementPharmaceutique": "comprimé", "substance": "CAFÉINE ANHYDRE", "dosage": "50,0 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "400,0 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "20,0 mg"}
+        ]
+      },
+      {
+        "cis": 63399979,
+        "elementPharmaceutique": "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {"elementPharmaceutique": "comprimé", "substance": "CAFÉINE ANHYDRE", "dosage": "50 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "400 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "20 mg"}
+        ]
+      }
+    ],
+    "orphanCIS": [61586325]
+  },
+  {
+    "groupID": 1643,
+    "libelle": "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé",
+    "medicaments": [
+      {
+        "cis": 66003374,
+        "elementPharmaceutique": "DAFALGAN CODEINE, comprimé pelliculé",
+        "formePharmaceutique": "comprimé pelliculé",
+        "type": "Princeps",
+        "composition": [
+          {"elementPharmaceutique": "comprimé pelliculé", "substance": "PARACÉTAMOL", "dosage": "500 mg"},
+          {"elementPharmaceutique": "comprimé pelliculé", "substance": "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ", "dosage": "30 mg"}
+        ]
+      },
+      {
+        "cis": 69458587,
+        "elementPharmaceutique": "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé",
+        "formePharmaceutique": "comprimé",
+        "type": "Générique",
+        "composition": [
+          {"elementPharmaceutique": "comprimé", "substance": "PARACÉTAMOL", "dosage": "500,00 mg"},
+          {"elementPharmaceutique": "comprimé", "substance": "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ", "dosage": "30,00 mg"}
+        ]
+      }
+    ],
+    "orphanCIS": null
+  }
+]</code></pre>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            ℹ️ À propos du champ orphanCIS
+          </h4>
+          <p
+            style="
+              color: var(--color-text-muted);
+              line-height: 1.6;
+              margin-bottom: 1rem;
+            "
+          >
+            Le champ
+            <code
+              style="
+                background: var(--color-bg);
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.85rem;
+              "
+              >orphanCIS</code
+            >
+            contient les codes CIS référencés dans un groupe générique mais pour
+            lesquels aucune entrée médicament correspondante n'existe dans la
+            base de données.
+          </p>
+          <ul style="color: var(--color-text-muted); padding-left: 1.5rem">
+            <li>
+              Les médicaments avec des données complètes apparaissent dans le
+              tableau
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                "
+                >medicaments</code
+              >
+            </li>
+            <li>
+              Les CIS orphelins apparaissent dans le tableau
+              <code
+                style="
+                  background: var(--color-bg);
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 4px;
+                  font-size: 0.85rem;
+                "
+                >orphanCIS</code
+              >
+              sans détails supplémentaires
+            </li>
+            <li>
+              Ce champ peut prendre deux valeurs :
+              <ul style="margin-top: 0.5rem; padding-left: 1.5rem">
+                <li>
+                  Un tableau d'entiers :
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.25rem 0.5rem;
+                      border-radius: 4px;
+                      font-size: 0.85rem;
+                    "
+                    >[61586325, 60473805]</code
+                  >
+                </li>
+                <li>
+                  Null :
+                  <code
+                    style="
+                      background: var(--color-bg);
+                      padding: 0.25rem 0.5rem;
+                      border-radius: 4px;
+                      font-size: 0.85rem;
+                    "
+                    >null</code
+                  >
+                  (si le groupe ne contient aucun CIS orphelin)
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          style="
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+          "
+        >
+          <h4 style="color: var(--color-text); margin-bottom: 1rem">
+            Exemple de réponse - Health Check
           </h4>
           <pre
             style="
@@ -1782,24 +2640,11 @@ Response: {
             "
           ><code>{
   "status": "healthy",
-  "last_update": "2025-10-05T22:04:32+02:00",
-  "data_age_hours": 1.4483066186805555,
-  "uptime_seconds": 86400.000000375,
   "data": {
-    "api_version": "1.0",
+    "last_update": "2025-10-05T22:04:32+02:00",
+    "medicaments": 15000,
     "generiques": 1618,
-    "is_updating": false,
-    "medicaments": 15803,
-    "next_update": "2025-10-06T06:00:00+02:00"
-  },
-  "system": {
-    "goroutines": 10,
-    "memory": {
-      "alloc_mb": 31,
-      "num_gc": 60,
-      "sys_mb": 187,
-      "total_alloc_mb": 264
-    }
+    "is_updating": false
   }
 }</code></pre>
         </div>
@@ -1808,7 +2653,7 @@ Response: {
       <section id="technologies" class="section">
         <h2>Technologies Utilisées</h2>
         <div class="tech-list">
-          <div class="tech-badge">Go 1.21+</div>
+          <div class="tech-badge">Go 1.26+</div>
           <div class="tech-badge">Chi Router v5</div>
           <div class="tech-badge">Interface-based Architecture</div>
           <div class="tech-badge">Dependency Injection</div>
@@ -1820,8 +2665,10 @@ Response: {
           <div class="tech-badge">OpenAPI 3.1</div>
           <div class="tech-badge">Concurrent TSV Parsing</div>
           <div class="tech-badge">gocron Scheduler</div>
-          <div class="tech-badge">75.5% Test Coverage</div>
+          <div class="tech-badge">Prometheus Metrics</div>
+          <div class="tech-badge">78.7% Test Coverage</div>
           <div class="tech-badge">Benchmarks & Performance Tests</div>
+          <div class="tech-badge">Docker Multi-stage Builds</div>
         </div>
       </section>
 
@@ -1936,14 +2783,44 @@ Response: {
           </ul>
         </div>
       </section>
+
+      <section id="confidentialite" class="section">
+        <h2>Protection des Données (RGPD)</h2>
+        <div class="legal-grid">
+          <div class="legal-item">
+            <div class="legal-label">Collecte des données</div>
+            <div class="legal-value">
+              Cette API collecte les adresses IP à des fins de sécurité
+              (détection d'abus, prévention de fraudes) sur la base de l'intérêt
+              légitime (Art. 6(1)(f) RGPD).
+            </div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Durée de conservation</div>
+            <div class="legal-value">
+              90 jours (IP complète), puis anonymisation (dernier octet masqué),
+              suppression définitive après 1 an.
+            </div>
+          </div>
+          <div class="legal-item">
+            <div class="legal-label">Vos droits</div>
+            <div class="legal-value">
+              Accès, rectification, effacement. Contact :
+              <a href="mailto:gustavorossich@outlook.com"
+                >gustavorossich@outlook.com</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>
       <div class="container">
         <div class="footer-content">
           <div>
-            Développé avec ❤️ pour la communauté médicale et les développeurs
-            français
+            Développé avec passion pour la communauté médicale et les
+            développeurs français
           </div>
           <div class="footer-links">
             <a href="https://github.com/giygas/medicaments-api" target="_blank"
@@ -1951,6 +2828,7 @@ Response: {
             >
             <a href="/docs">Documentation</a>
             <a href="#legal">Mentions légales</a>
+            <a href="#confidentialite">Confidentialité RGPD</a>
           </div>
         </div>
       </div>

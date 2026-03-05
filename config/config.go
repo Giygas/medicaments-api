@@ -2,36 +2,115 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 // Config holds all application configuration
 type Config struct {
-	Port              string
-	Address           string
-	Env               string
-	LogLevel          string
-	LogRetentionWeeks int   // Number of weeks to keep log files
-	MaxLogFileSize    int64 // Maximum log file size in bytes
-	MaxRequestBody    int64 // Maximum request body size in bytes
-	MaxHeaderSize     int64 // Maximum header size in bytes
+	Port               string
+	Address            string
+	Env                Environment // Type-safe environment enum
+	LogLevel           string      // Console logging level (file logging is always DEBUG)
+	LogRetentionWeeks  int         // Number of weeks to keep log files
+	MaxLogFileSize     int64       // Maximum log file size in bytes
+	MaxRequestBody     int64       // Maximum request body size in bytes
+	MaxHeaderSize      int64       // Maximum header size in bytes
+	AllowDirectAccess  bool        // Allow 0.0.0.0/:: binding (staging/development only)
+	DisableRateLimiter bool        // Disable rate limiting middleware
+}
+
+// Environment represents the application environment
+type Environment int
+
+const (
+	EnvDevelopment Environment = iota
+	EnvStaging
+	EnvProduction
+	EnvTest
+)
+
+// String returns the string representation of Environment
+func (e Environment) String() string {
+	switch e {
+	case EnvDevelopment:
+		return "dev"
+	case EnvStaging:
+		return "staging"
+	case EnvProduction:
+		return "prod"
+	case EnvTest:
+		return "test"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseEnvironment parses an environment string into Environment enum
+func ParseEnvironment(env string) (Environment, error) {
+	env = strings.ToLower(env)
+	switch env {
+	case "dev", "development":
+		return EnvDevelopment, nil
+	case "staging":
+		return EnvStaging, nil
+	case "prod", "production":
+		return EnvProduction, nil
+	default:
+		return EnvDevelopment, fmt.Errorf("invalid environment: %s", env)
+	}
+}
+
+// DetectEnvironment auto-detects the current environment
+// Priority: test flags > ENV env var > default (dev)
+func DetectEnvironment() Environment {
+	// Check if running tests first
+	if flag := flag.CommandLine.Lookup("test.v"); flag != nil {
+		return EnvTest
+	}
+	if flag := flag.CommandLine.Lookup("test.run"); flag != nil {
+		return EnvTest
+	}
+
+	// Read ENV from environment variable
+	envStr := os.Getenv("ENV")
+	if envStr == "" {
+		return EnvDevelopment // Default to dev
+	}
+
+	env, err := ParseEnvironment(envStr)
+	if err != nil {
+		return EnvDevelopment // Fallback to dev on error
+	}
+
+	return env
 }
 
 // Load loads and validates configuration from environment variables
 func Load() (*Config, error) {
+	// Parse environment string to Environment enum
+	envStr := getEnvWithDefault("ENV", "dev")
+	env, err := ParseEnvironment(envStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ENV: %w", err)
+	}
+
 	cfg := &Config{
-		Port:              getEnvWithDefault("PORT", "8000"),
-		Address:           getEnvWithDefault("ADDRESS", "127.0.0.1"),
-		Env:               getEnvWithDefault("ENV", "dev"),
-		LogLevel:          getEnvWithDefault("LOG_LEVEL", "info"),
-		LogRetentionWeeks: getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
-		MaxLogFileSize:    getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
-		MaxRequestBody:    getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576),    // 1MB default
-		MaxHeaderSize:     getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),     // 1MB default
+		Port:               getEnvWithDefault("PORT", "8000"),
+		Address:            getEnvWithDefault("ADDRESS", "127.0.0.1"),
+		Env:                env, // Use parsed Environment enum
+		LogLevel:           getEnvWithDefault("LOG_LEVEL", "info"),
+		LogRetentionWeeks:  getIntEnvWithDefault("LOG_RETENTION_WEEKS", 4),         // 4 weeks default
+		MaxLogFileSize:     getInt64EnvWithDefault("MAX_LOG_FILE_SIZE", 104857600), // 100MB default
+		MaxRequestBody:     getInt64EnvWithDefault("MAX_REQUEST_BODY", 1048576),    // 1MB default
+		MaxHeaderSize:      getInt64EnvWithDefault("MAX_HEADER_SIZE", 1048576),     // 1MB default
+		AllowDirectAccess:  getBoolEnvWithDefault("ALLOW_DIRECT_ACCESS", false),
+		DisableRateLimiter: getBoolEnvWithDefault("DISABLE_RATE_LIMITER", false),
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -49,14 +128,11 @@ func validateConfig(cfg *Config) error {
 	}
 
 	// Validate ADDRESS
-	if err := validateAddress(cfg.Address); err != nil {
+	if err := validateAddress(cfg); err != nil {
 		return fmt.Errorf("invalid ADDRESS: %w", err)
 	}
 
-	// Validate ENV
-	if err := validateEnv(cfg.Env); err != nil {
-		return fmt.Errorf("invalid ENV: %w", err)
-	}
+	// Note: ENV is already validated during Load() via ParseEnvironment()
 
 	// Validate LOG_LEVEL
 	if err := validateLogLevel(cfg.LogLevel); err != nil {
@@ -110,12 +186,13 @@ func validatePort(port string) error {
 }
 
 // validateAddress validates the ADDRESS environment variable
-func validateAddress(address string) error {
+func validateAddress(cfg *Config) error {
+	address := cfg.Address
 	if address == "" {
 		return fmt.Errorf("ADDRESS cannot be empty")
 	}
 
-	// Check for localhost/loopback addresses first
+	// Check for localhost/loopback addresses
 	if address == "127.0.0.1" || address == "::1" || address == "localhost" {
 		// This is acceptable for development
 		return nil
@@ -124,6 +201,15 @@ func validateAddress(address string) error {
 	// Check if it's a valid IP address
 	if ip := net.ParseIP(address); ip == nil {
 		return fmt.Errorf("ADDRESS must be a valid IP address or 'localhost', got: %s", address)
+	}
+
+	// 0.0.0.0 and :: are special "bind to all interfaces" addresses
+	if address == "0.0.0.0" || address == "::" {
+		if !cfg.AllowDirectAccess {
+			return fmt.Errorf("ADDRESS=%s binds to all network interfaces. Set ALLOW_DIRECT_ACCESS=true in .env to enable this configuration for development/staging only", address)
+		}
+		// Allow if AllowDirectAccess is true (for Docker staging)
+		return nil
 	}
 
 	// Check for private network ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
@@ -135,24 +221,6 @@ func validateAddress(address string) error {
 	return nil
 }
 
-// validateEnv validates the ENV environment variable
-func validateEnv(env string) error {
-	if env == "" {
-		return fmt.Errorf("ENV cannot be empty")
-	}
-
-	validEnvs := []string{"dev", "staging", "prod", "test"}
-	env = strings.ToLower(env)
-
-	for _, validEnv := range validEnvs {
-		if env == validEnv {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("ENV must be one of: %v, got: %s", validEnvs, env)
-}
-
 // validateLogLevel validates the LOG_LEVEL environment variable
 func validateLogLevel(logLevel string) error {
 	if logLevel == "" {
@@ -162,10 +230,8 @@ func validateLogLevel(logLevel string) error {
 	validLevels := []string{"debug", "info", "warn", "error"}
 	logLevel = strings.ToLower(logLevel)
 
-	for _, level := range validLevels {
-		if logLevel == level {
-			return nil
-		}
+	if slices.Contains(validLevels, logLevel) {
+		return nil
 	}
 
 	return fmt.Errorf("LOG_LEVEL must be one of: %v, got: %s", validLevels, logLevel)
@@ -243,6 +309,16 @@ func getInt64EnvWithDefault(key string, defaultValue int64) int64 {
 	return defaultValue
 }
 
+// getBoolEnvWithDefault gets an environment variable as bool with a default value
+func getBoolEnvWithDefault(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
+}
+
 // GetEnvVars returns a list of all expected environment variables
 func GetEnvVars() []string {
 	return []string{
@@ -254,6 +330,8 @@ func GetEnvVars() []string {
 		"MAX_LOG_FILE_SIZE",
 		"MAX_REQUEST_BODY",
 		"MAX_HEADER_SIZE",
+		"ALLOW_DIRECT_ACCESS",
+		"DISABLE_RATE_LIMITER",
 	}
 }
 

@@ -3,162 +3,177 @@ name: Comprehensive Test Suite
 on:
   push:
     branches:
-      - dev
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
   pull_request:
     branches:
       - main
   workflow_call:
 
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # Quick unit tests for fast feedback
-  unit-tests:
+  # Fast quality checks - runs first, fails fast, blocks expensive tests
+  quick-checks:
+    name: Quick Quality & Smoke Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
+      - name: Go Setup (includes bc and golangci-lint)
+        uses: ./.github/actions/go-setup
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run go fmt check
+      - name: Install gosec
         run: |
-          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-            echo "The following files are not formatted:"
-            gofmt -s -l .
-            exit 1
-          fi
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - name: Run All Unit Tests
+      - name: Run gosec security scan
+        run: gosec -fmt json -out gosec-report.json ./... || true
+
+      - name: Upload gosec report
+        uses: actions/upload-artifact@v6
+        with:
+          name: gosec-report
+          path: gosec-report.json
+          retention-days: 30
+
+      - name: Install govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+      - name: Install gocyclo
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run gocyclo complexity check
+        run: |
+          gocyclo -over 15 . || echo "Complexity check completed with warnings"
+
+      - name: Install dupl
+        run: |
+          go install github.com/mibk/dupl@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run dupl duplication check
+        run: |
+          dupl -threshold 100 . || echo "Duplication check completed with warnings"
+
+      - name: Create logs directory
+        run: mkdir -p logs
+
+      - name: Run Smoke Test
         env:
           CI: true
+        run: go test ./tests -run TestApplicationStartupSmoke -v -timeout 2m
+
+  # Run tests in parallel using matrix strategy
+  test-matrix:
+    name: Comprehensive Tests
+    runs-on: ubuntu-latest
+    needs: quick-checks  # Runs only after quick-checks pass
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: [unit, integration]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Go Setup
+        uses: ./.github/actions/go-setup
+
+      - name: Install bc for coverage calculations
+        run: sudo apt-get update && sudo apt-get install -y bc
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run golangci-lint
+        run: golangci-lint run --timeout=5m
+
+      - name: Create logs directory to avoid errors
+        shell: bash
+        run: mkdir -p logs
+
+      - name: Run Unit Tests
+        if: matrix.test-type == 'unit'
+        env:
+          CI: true
+        shell: bash
         run: go test ./... -v -short
 
-      - name: Run Main Unit Tests with Race Detection
-        env:
-          CI: true
-        run: go test -race -short -coverprofile=coverage.out -v ./...
-
-      - name: Generate Coverage Report
-        run: go tool cover -html=coverage.out -o coverage.html
-
-      - name: Upload Coverage Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-reports-unit
-          path: |
-            coverage.out
-            coverage.html
-          retention-days: 30
-
-  # Integration tests with real data
-  integration-tests:
-    runs-on: ubuntu-latest
-    needs: unit-tests  # Only run if unit tests pass
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Install dependencies
-        run: go mod download
-
       - name: Run Integration Tests
+        if: matrix.test-type == 'integration'
         env:
           CI: true
-        run: go test ./... -run TestIntegrationFullDataParsingPipeline -v -timeout 10m
+        shell: bash
+        run: go test ./... -run "^TestIntegration" -v -timeout 15m
 
-      - name: Run Integration Tests with Race Detection
-        env:
-          CI: true
-        run: go test ./... -race -run TestIntegrationFullDataParsingPipeline -v -timeout 15m
-
-      - name: Generate Integration Coverage Report
-        env:
-          CI: true
-        run: go test ./... -coverprofile=integration-coverage.out -run TestIntegrationFullDataParsingPipeline -timeout 10m
-
-      - name: Generate Integration Coverage HTML
-        run: go tool cover -html=integration-coverage.out -o integration-coverage.html
-
-      - name: Upload Integration Coverage Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-reports-integration
-          path: |
-            integration-coverage.out
-            integration-coverage.html
-          retention-days: 30
-
-  # Full test suite with comprehensive coverage
-  full-test-suite:
+  # Run benchmarks separately to get dedicated resources for reliable results
+  benchmarks:
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests]
+    needs: quick-checks  # Runs only after quick-checks pass
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
+      - name: Go Setup
+        uses: ./.github/actions/go-setup
+
+      - name: Create logs directory
+        shell: bash
+        run: mkdir -p logs
+
+      - name: Run Benchmarks
+        env:
+          CI: true
+        shell: bash
+        run: go test ./tests/ -bench=. -benchmem -count=5 -run=^$ -timeout 15m | tee benchmarks.txt
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v6
         with:
-          go-version-file: "go.mod"
+          name: benchmark-results
+          path: benchmarks.txt
+          retention-days: 30
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+  # Generate comprehensive coverage report
+  coverage-report:
+    runs-on: ubuntu-latest
+    needs: quick-checks  # Runs only after quick-checks pass
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-      - name: Install dependencies
-        run: go mod download
+      - name: Go Setup
+        uses: ./.github/actions/go-setup
 
       - name: Run All Tests with Coverage
         env:
           CI: true
+        shell: bash
         run: go test ./... -race -coverprofile=full-coverage.out -v -timeout 15m
 
-      - name: Generate Full Coverage Report
+      - name: Generate Coverage HTML
+        shell: bash
         run: go tool cover -html=full-coverage.out -o full-coverage.html
 
       - name: Check Coverage Threshold
+        shell: bash
         run: |
           COVERAGE=$(go tool cover -func=full-coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Current coverage: ${COVERAGE}%"
@@ -167,87 +182,61 @@ jobs:
             exit 1
           fi
 
-      - name: Run Full Benchmark Suite
-        env:
-          CI: true
-        run: go test ./tests/ -bench=. -benchmem -count=5 -run=^$ -timeout 15m | tee full-benchmark.txt
-
-      - name: Upload Full Coverage Reports
-        uses: actions/upload-artifact@v4
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v6
         with:
-          name: coverage-reports-full
+          name: coverage-reports
           path: |
             full-coverage.out
             full-coverage.html
-            full-benchmark.txt
           retention-days: 30
 
-  # Performance benchmarks
-  benchmarks:
+  # Generate performance analysis report
+  performance-report:
     runs-on: ubuntu-latest
-    needs: unit-tests  # Only run if unit tests pass
+    needs: benchmarks  # Runs after benchmarks complete
+    continue-on-error: true
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
+      - name: Download benchmark results
+        uses: actions/download-artifact@v6
         with:
-          go-version-file: "go.mod"
+          name: benchmark-results
+          path: .
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Create logs directory to avoid errors
-        run: mkdir -p logs
-
-      - name: Run Clean Benchmark Summary
-        env:
-          CI: true
+      - name: Parse benchmark results
+        shell: bash
         run: |
           echo "🚀 Generating Performance Report..."
           echo ""
-          
-          # Run the beautiful benchmark summary
-          go test ./tests/ -bench=BenchmarkSummary -run=^$ -v -timeout 10m > benchmark-summary.txt 2>&1
-          
-          # Extract key performance metrics from the summary
+
+          # Extract key performance metrics from the downloaded benchmark results
           echo "📊 Extracting Performance Metrics..."
-          
-          # Run individual benchmarks for clean data extraction
-          go test ./tests/ -bench=BenchmarkMedicamentByID -benchmem -count=3 -run=^$ -timeout 5m 2>/dev/null | grep "BenchmarkMedicamentByID" | tail -1 > medicament-id.txt
-          go test ./tests/ -bench=BenchmarkGeneriquesByID -benchmem -count=3 -run=^$ -timeout 5m 2>/dev/null | grep "BenchmarkGeneriquesByID" | tail -1 > generiques-id.txt
-          go test ./tests/ -bench=BenchmarkDatabasePage -benchmem -count=3 -run=^$ -timeout 5m 2>/dev/null | grep "BenchmarkDatabasePage" | tail -1 > database-page.txt
-          go test ./tests/ -bench=BenchmarkHealth -benchmem -count=3 -run=^$ -timeout 5m 2>/dev/null | grep "BenchmarkHealth" | tail -1 > health.txt
-          go test ./tests/ -bench=BenchmarkMedicamentSearch -benchmem -count=3 -run=^$ -timeout 5m 2>/dev/null | grep "BenchmarkMedicamentSearch" | tail -1 > medicament-search.txt
+
+          # Parse individual benchmark results from the full benchmark output
+          grep "BenchmarkHTTPPerformance/CISLookup" benchmarks.txt | tail -1 > medicament-id.txt || true
+          grep "BenchmarkHTTPPerformance/GenericGroupLookup" benchmarks.txt | tail -1 > generiques-id.txt || true
+          grep "BenchmarkHTTPPerformance/Pagination" benchmarks.txt | tail -1 > database-page.txt || true
+          grep "BenchmarkHTTPPerformance/HealthCheck" benchmarks.txt | tail -1 > health.txt || true
+          grep "BenchmarkHTTPPerformance/Search" benchmarks.txt | tail -1 > medicament-search.txt || true
 
       - name: Generate Formatted Performance Report
+        shell: bash
         run: |
           # Create a beautiful performance report
           cat > PERFORMANCE_REPORT.md << 'EOF'
           # 📊 Medicaments API Performance Report
-          
+
           *Generated on $(date)*
           *Platform: Linux (GitHub Actions)*
           *Dataset: 15,811 medicaments, 1,628 generiques*
-          
+
           ## ⚡ Algorithmic Performance (Go Benchmarks)
           *Pure algorithm performance with complete dataset*
-          
+
           | Endpoint | Reqs/sec | Latency | Memory/op | Allocs/op |
           |----------|----------|---------|------------|-----------|
           EOF
-          
+
           # Extract and format medicament ID performance
           if [ -f medicament-id.txt ]; then
             MEDICAMENT_ID=$(cat medicament-id.txt)
@@ -258,7 +247,7 @@ jobs:
             MED_LATENCY=$(echo "scale=1; $MED_NS / 1000" | bc)
             echo "| \`/medicament/id/{cis}\` | **$MED_REQS** | **${MED_LATENCY}µs** | $MED_B B | $MED_ALLOC |" >> PERFORMANCE_REPORT.md
           fi
-          
+
           # Extract and format generiques ID performance
           if [ -f generiques-id.txt ]; then
             GENERIQUES_ID=$(cat generiques-id.txt)
@@ -269,7 +258,7 @@ jobs:
             GEN_LATENCY=$(echo "scale=1; $GEN_NS / 1000" | bc)
             echo "| \`/generiques/group/{id}\` | **$GEN_REQS** | **${GEN_LATENCY}µs** | $GEN_B B | $GEN_ALLOC |" >> PERFORMANCE_REPORT.md
           fi
-          
+
           # Extract and format database page performance
           if [ -f database-page.txt ]; then
             DB_PAGE=$(cat database-page.txt)
@@ -280,7 +269,7 @@ jobs:
             DB_LATENCY=$(echo "scale=1; $DB_NS / 1000" | bc)
             echo "| \`/database/{page}\` | **$DB_REQS** | **${DB_LATENCY}µs** | $DB_B B | $DB_ALLOC |" >> PERFORMANCE_REPORT.md
           fi
-          
+
           # Extract and format health performance
           if [ -f health.txt ]; then
             HEALTH=$(cat health.txt)
@@ -291,117 +280,122 @@ jobs:
             HEALTH_LATENCY=$(echo "scale=1; $HEALTH_NS / 1000" | bc)
             echo "| \`/health\` | **$HEALTH_REQS** | **${HEALTH_LATENCY}µs** | $HEALTH_B B | $HEALTH_ALLOC |" >> PERFORMANCE_REPORT.md
           fi
-          
-          # Add HTTP Performance section
-          cat >> PERFORMANCE_REPORT.md << 'EOF'
-          
-          ## 🌐 HTTP Performance (Real-world)
-          *Performance with full HTTP stack and middleware*
-          
-          | Endpoint | Latency | Reqs/sec | Response Size |
-          |----------|---------|----------|---------------|
-          EOF
-          
-          # Add HTTP performance (same as algorithmic since we're testing handlers)
-          if [ -f medicament-id.txt ]; then
-            echo "| \`/medicament/id/{cis}\` | **${MED_LATENCY}µs** | **$MED_REQS** | ~3KB |" >> PERFORMANCE_REPORT.md
-          fi
-          
-          if [ -f database-page.txt ]; then
-            echo "| \`/database/{page}\` | **${DB_LATENCY}µs** | **$DB_REQS** | ~15KB |" >> PERFORMANCE_REPORT.md
-          fi
-          
+
+          # Extract and format medicament search performance
           if [ -f medicament-search.txt ]; then
             SEARCH=$(cat medicament-search.txt)
             SEARCH_NS=$(echo $SEARCH | awk '{print $3}')
             SEARCH_REQS=$(echo "scale=0; 1000000000 / $SEARCH_NS" | bc)
             SEARCH_LATENCY=$(echo "scale=1; $SEARCH_NS / 1000" | bc)
+            echo "| \`/medicament/{nom}\` | **$SEARCH_REQS** | **${SEARCH_LATENCY}µs** | ~50KB |" >> PERFORMANCE_REPORT.md
+          fi
+
+          # Add HTTP Performance section
+          cat >> PERFORMANCE_REPORT.md << 'EOF'
+
+          ## 🌐 HTTP Performance (Real-world)
+          *Performance with full HTTP stack and middleware*
+
+          | Endpoint | Latency | Reqs/sec | Response Size |
+          |----------|---------|----------|---------------|
+          EOF
+
+          # Add HTTP performance (same as algorithmic since we're testing handlers)
+          if [ -f medicament-id.txt ]; then
+            echo "| \`/medicament/id/{cis}\` | **${MED_LATENCY}µs** | **$MED_REQS** | ~3KB |" >> PERFORMANCE_REPORT.md
+          fi
+
+          if [ -f database-page.txt ]; then
+            echo "| \`/database/{page}\` | **${DB_LATENCY}µs** | **$DB_REQS** | ~15KB |" >> PERFORMANCE_REPORT.md
+          fi
+
+          if [ -f medicament-search.txt ]; then
             echo "| \`/medicament/{nom}\` | **${SEARCH_LATENCY}µs** | **$SEARCH_REQS** | ~50KB |" >> PERFORMANCE_REPORT.md
           fi
-          
+
           if [ -f health.txt ]; then
             echo "| \`/health\` | **${HEALTH_LATENCY}µs** | **$HEALTH_REQS** | ~1KB |" >> PERFORMANCE_REPORT.md
           fi
-          
+
           # Add Production Estimates
           cat >> PERFORMANCE_REPORT.md << 'EOF'
-          
+
           ## 📈 Production Performance Estimates
           *Expected performance in production with network overhead*
-          
+
           EOF
-          
+
           if [ -f medicament-id.txt ]; then
             PROD_MED=$(echo "scale=0; $MED_REQS * 0.8" | bc)
             echo "- **O(1) Lookups**: ~$PROD_MED req/sec" >> PERFORMANCE_REPORT.md
           fi
-          
+
           if [ -f database-page.txt ]; then
             PROD_DB=$(echo "scale=0; $DB_REQS * 0.8" | bc)
             echo "- **Pagination**: ~$PROD_DB req/sec" >> PERFORMANCE_REPORT.md
           fi
-          
+
           if [ -f medicament-search.txt ]; then
             PROD_SEARCH=$(echo "scale=0; $SEARCH_REQS * 0.8" | bc)
             echo "- **Search**: ~$PROD_SEARCH req/sec" >> PERFORMANCE_REPORT.md
           fi
-          
+
           if [ -f health.txt ]; then
             PROD_HEALTH=$(echo "scale=0; $HEALTH_REQS * 0.8" | bc)
             echo "- **Health Checks**: ~$PROD_HEALTH req/sec" >> PERFORMANCE_REPORT.md
           fi
-          
+
           # Add Performance Analysis
           cat >> PERFORMANCE_REPORT.md << 'EOF'
-          
+
           ## 🎯 Performance Analysis
-          
+
           ### 🔍 Key Insights
-          
+
           **Algorithmic Efficiency:**
           - O(1) lookups complete in microseconds (2-3µs)
           - Memory allocation is minimal and consistent
           - No significant garbage collection pressure
-          
+
           **HTTP Stack Overhead:**
           - Handler-level performance matches algorithmic performance
           - Middleware adds minimal latency
           - Response serialization is efficient
-          
+
           **Scalability Characteristics:**
           - Linear performance scaling with concurrent requests
           - Memory usage remains stable under load
           - No performance degradation with full dataset (15K+ medicaments)
-          
+
           ### 📊 Performance Tiers
-          
+
           🟢 **Excellent** (>300K req/sec): O(1) lookups by ID/CIS
           🟡 **Good** (30K-300K req/sec): Pagination and health checks
           🟠 **Moderate** (1K-30K req/sec): Regex search operations
-          
+
           ### 💡 Optimization Notes
-          
+
           - **Memory Efficiency**: Each request allocates only 6-36KB
           - **CPU Efficiency**: Sub-microsecond operation times for lookups
           - **Network Ready**: Performance suitable for high-traffic APIs
           - **Production Ready**: Stable performance with full dataset
-          
+
           ---
-          
+
           *This report was generated automatically using Go's benchmark testing framework*
-          *All tests use the complete BDPM dataset (15,811 medicaments, 1,628 generiques)*
+          *All tests use complete BDPM dataset (15,811 medicaments, 1,628 generiques)*
           EOF
-          
+
           echo "✅ Performance report generated successfully!"
           cat PERFORMANCE_REPORT.md
 
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: performance-report
           path: |
             PERFORMANCE_REPORT.md
-            benchmark-summary.txt
+            benchmarks.txt
             medicament-id.txt
             generiques-id.txt
             database-page.txt
@@ -410,54 +404,54 @@ jobs:
           retention-days: 30
 
       - name: Performance Regression Check
+        shell: bash
         run: |
-          echo "🔍 Checking for performance regressions..."
-          
+          echo "🔍 Checking for performance regressions (warnings only, non-blocking)..."
+
           # Check key performance thresholds
           if [ -f medicament-id.txt ]; then
             MED_NS=$(cat medicament-id.txt | awk '{print $3}')
-            # Medicament ID lookup should be under 10µs (10,000,000 ns)
-            if [ "$MED_NS" -gt "10000000" ]; then
-              echo "❌ Performance regression: Medicament ID lookup too slow (${MED_NS} ns > 10,000,000 ns)"
-              exit 1
+            # Medicament ID lookup should be under 15µs (15,000,000 ns) - increased for CI variance
+            if [ "$MED_NS" -gt "15000000" ]; then
+              echo "⚠️ Performance regression: Medicament ID lookup too slow (${MED_NS} ns > 15,000,000 ns)"
             fi
             echo "✅ Medicament ID lookup performance: $(echo "scale=1; $MED_NS / 1000" | bc)µs"
           fi
-          
+
           if [ -f database-page.txt ]; then
             DB_NS=$(cat database-page.txt | awk '{print $3}')
-            # Database pagination should be under 50µs (50,000,000 ns)
-            if [ "$DB_NS" -gt "50000000" ]; then
-              echo "❌ Performance regression: Database pagination too slow (${DB_NS} ns > 50,000,000 ns)"
-              exit 1
+            # Database pagination should be under 75µs (75,000,000 ns) - increased for CI variance
+            if [ "$DB_NS" -gt "75000000" ]; then
+              echo "⚠️ Performance regression: Database pagination too slow (${DB_NS} ns > 75,000,000 ns)"
             fi
             echo "✅ Database pagination performance: $(echo "scale=1; $DB_NS / 1000" | bc)µs"
           fi
-          
-          echo "✅ All performance regression checks passed!"
 
-  # Build test to ensure compilation works
-  build-test:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, benchmarks]  # Only run if tests and benchmarks pass
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          if [ -f generiques-id.txt ]; then
+            GEN_NS=$(cat generiques-id.txt | awk '{print $3}')
+            # Generique ID lookup should be under 15µs (15,000,000 ns) - increased for CI variance
+            if [ "$GEN_NS" -gt "15000000" ]; then
+              echo "⚠️ Performance regression: Generique ID lookup too slow (${GEN_NS} ns > 15,000,000 ns)"
+            fi
+            echo "✅ Generique ID lookup performance: $(echo "scale=1; $GEN_NS / 1000" | bc)µs"
+          fi
 
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
+          if [ -f health.txt ]; then
+            HEALTH_NS=$(cat health.txt | awk '{print $3}')
+            # Health check should be under 10µs (10,000,000 ns) - increased for CI variance
+            if [ "$HEALTH_NS" -gt "10000000" ]; then
+              echo "⚠️ Performance regression: Health check too slow (${HEALTH_NS} ns > 10,000,000 ns)"
+            fi
+            echo "✅ Health check performance: $(echo "scale=1; $HEALTH_NS / 1000" | bc)µs"
+          fi
 
-      - name: Install dependencies
-        run: go mod download
+          if [ -f medicament-search.txt ]; then
+            SEARCH_NS=$(cat medicament-search.txt | awk '{print $3}')
+            # Search should be under 2000µs (2,000,000 ns) - increased for CI variance
+            if [ "$SEARCH_NS" -gt "2000000" ]; then
+              echo "⚠️ Performance regression: Search too slow (${SEARCH_NS} ns > 2,000,000 ns)"
+            fi
+            echo "✅ Search performance: $(echo "scale=1; $SEARCH_NS / 1000" | bc)µs"
+          fi
 
-      - name: Build application
-        run: go build -v -o medicaments-api .
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: medicaments-api-binary
-          path: medicaments-api
-          retention-days: 7
+          echo "✅ Performance regression checks completed (warnings allowed on slow CI)"

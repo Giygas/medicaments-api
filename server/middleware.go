@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,7 +14,22 @@ import (
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/logging"
+	"github.com/giygas/medicaments-api/metrics"
 	"github.com/juju/ratelimit"
+)
+
+var (
+	medicamentsParams = []string{"search", "page", "cip"}
+	generiquesParams  = []string{"libelle"}
+)
+
+const (
+	cleanupInterval          = 5 * time.Minute
+	metricsCollectionInteval = 30 * time.Second
+
+	// Rate limiter token bucket configuration
+	rateLimitRate  = 3    // tokens per second
+	rateLimitBurst = 1000 // maximum bucket capacity
 )
 
 // RealIPMiddleware extracts the real IP from X-Forwarded-For header
@@ -23,36 +40,56 @@ func RealIPMiddleware(next http.Handler) http.Handler {
 			if idx := strings.Index(xff, ","); idx != -1 {
 				xff = xff[:idx]
 			}
-			r.RemoteAddr = strings.TrimSpace(xff)
+
+			xff = strings.TrimSpace(xff)
+			// Only use this if is a valid ip
+			if net.ParseIP(xff) != nil {
+				r.RemoteAddr = xff
+
+			}
 		}
+
+		// Strip port from RemoteAddr (whether from XFF or original)
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			r.RemoteAddr = host
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
 
-// BlockDirectAccessMiddleware blocks direct access to the server
-func BlockDirectAccessMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if request is coming from nginx (trusted proxy)
-		if r.Header.Get("X-Real-IP") == "" && r.Header.Get("X-Forwarded-For") == "" {
-			// No proxy headers, likely direct access - check if it's localhost for development
-			host, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				// If we can't parse the host:port, try to use the whole RemoteAddr as host
-				host = r.RemoteAddr
-			}
-
-			// Allow localhost access for development
-			if host == "127.0.0.1" || host == "::1" || host == "localhost" {
+// BlockDirectAccessMiddleware blocks direct access to server unless allowed
+func BlockDirectAccessMiddleware(allowDirectAccess bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip direct access check if ALLOW_DIRECT_ACCESS is enabled
+			if allowDirectAccess {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"))
-			http.Error(w, "Direct access not allowed", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+			// Check if request is coming from nginx (trusted proxy)
+			if r.Header.Get("X-Real-IP") == "" && r.Header.Get("X-Forwarded-For") == "" {
+				// No proxy headers, likely direct access - check if it's localhost for development
+				host, _, err := net.SplitHostPort(r.RemoteAddr)
+				if err != nil {
+					// If we can't parse the host:port, try to use the whole RemoteAddr as host
+					host = r.RemoteAddr
+				}
+
+				// Allow localhost access for development
+				if host == "127.0.0.1" || host == "::1" || host == "localhost" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				logging.Warn("Direct access blocked", "remote_addr", r.RemoteAddr, "user_agent", r.Header.Get("User-Agent"), "x_real_ip", r.Header.Get("X-Real-IP"), "x_forwarded_for", r.Header.Get("X-Forwarded-For"), "host_header", r.Host, "allow_direct_access", allowDirectAccess)
+				http.Error(w, "Direct access not allowed", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RequestSizeMiddleware limits the size of request headers and body
@@ -69,7 +106,7 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 							"remote_addr", r.RemoteAddr,
 							"user_agent", r.UserAgent())
 
-						w.Header().Set("Content-Type", "application/json")
+						w.Header().Set("Content-Type", "application/json; charset=utf-8")
 						w.WriteHeader(http.StatusRequestEntityTooLarge)
 
 						errorResponse := map[string]string{
@@ -98,7 +135,7 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 					"remote_addr", r.RemoteAddr,
 					"user_agent", r.UserAgent())
 
-				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
 
 				errorResponse := map[string]string{
@@ -119,12 +156,18 @@ func RequestSizeMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 type RateLimiter struct {
 	clients map[string]*ratelimit.Bucket
 	mu      sync.RWMutex
+	wg      sync.WaitGroup
+
+	stopChan chan struct{}
+	stopped  bool
 }
 
 // NewRateLimiter creates a new rate limiter
 func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
-		clients: make(map[string]*ratelimit.Bucket),
+		clients:  make(map[string]*ratelimit.Bucket),
+		stopChan: make(chan struct{}),
+		stopped:  false,
 	}
 }
 
@@ -136,8 +179,8 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 	if !exists {
 		rl.mu.Lock()
 		if bucket, exists = rl.clients[clientIP]; !exists {
-			// Create bucket: 3 tokens per second, max 1000 tokens
-			bucket = ratelimit.NewBucketWithRate(3, 1000)
+			// Create bucket with configured rate and burst
+			bucket = ratelimit.NewBucketWithRate(rateLimitRate, rateLimitBurst)
 			rl.clients[clientIP] = bucket
 		}
 		rl.mu.Unlock()
@@ -146,61 +189,190 @@ func (rl *RateLimiter) getBucket(clientIP string) *ratelimit.Bucket {
 	return bucket
 }
 
-// cleanup removes old clients periodically
+// cleanup starts a background goroutine that manages rate limiter memory.
+// Executes every 5 minutes to remove inactive clients (those with full buckets).
+// Updates the rate limiter buckets total metric every 30 seconds.
+// Continues until shutdown signal is received via stopChan.
+// Called once at application startup via init().
 func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(30 * time.Minute)
+	cleanupTicker := time.NewTicker(cleanupInterval)
+	metricsTicker := time.NewTicker(metricsCollectionInteval)
+	rl.wg.Add(1)
 	go func() {
-		for range ticker.C {
-			rl.mu.Lock()
-			// Remove clients with full buckets
-			for ip, bucket := range rl.clients {
-				if bucket.Available() == bucket.Capacity() {
-					delete(rl.clients, ip)
+		defer rl.wg.Done()
+		defer cleanupTicker.Stop()
+		defer metricsTicker.Stop()
+		for {
+			select {
+			case <-cleanupTicker.C:
+				rl.mu.Lock()
+				// Remove clients with full buckets
+				for ip, bucket := range rl.clients {
+					if bucket.Available() == bucket.Capacity() {
+						delete(rl.clients, ip)
+					}
 				}
+				rl.mu.Unlock()
+			case <-metricsTicker.C:
+				rl.mu.RLock()
+				// Update the metrics
+				metrics.RateLimiterBucketsTotal.Set(float64(len(rl.clients)))
+				rl.mu.RUnlock()
+			case <-rl.stopChan:
+				return
 			}
-			rl.mu.Unlock()
 		}
 	}()
 }
 
 var globalRateLimiter = NewRateLimiter()
 
+// StopRateLimiter stops the rate limiter cleanup goroutine.
+// Must be called during application shutdown to prevent goroutine leaks.
+// Stops the 5-minute cleanup ticker and ensures all goroutines exit cleanly.
+// Safe to call multiple times - first call stops the goroutine, subsequent calls are no-ops.
+func StopRateLimiter() {
+	rl := globalRateLimiter
+	rl.mu.Lock()
+	if rl.stopped {
+		rl.mu.Unlock()
+		return
+	}
+	rl.stopped = true
+	close(rl.stopChan)
+	rl.mu.Unlock()
+
+	rl.wg.Wait()
+}
+
 func init() {
 	globalRateLimiter.cleanup()
 }
 
+// getTokenCost returns the rate limit token cost for an HTTP request.
+// Cost reflects the computational expense of the operation:
+// - Exports and full DB operations: 50-200 tokens
+// - Search operations: 20-80 tokens
+// - ID lookups and simple queries: 5-10 tokens
+// - Unknown/invalid requests: 5 tokens (default)
+//
+// V1 routes are checked first for performance.
+// Legacy routes (deprecated, will be removed) are handled last.
 func getTokenCost(r *http.Request) int64 {
-	path := r.URL.Path
+	requestPath := r.URL.Path
 
-	// Check for exact matches first
-	switch path {
-	case "/":
-		return 0 // Free access to index page
-	case "/docs":
-		return 0 // Free access to docs page
-	case "/docs/openapi.yaml":
-		return 0 // Free access to OpenAPI spec
-	case "/favicon.ico":
-		return 0 // Free access to favicon
-	case "/database":
-		return 200 // Higher cost for full database
-	case "/health":
-		return 5 // Low cost for health check
-	}
+	q := r.URL.Query()
 
-	// Check for path patterns
-	if len(path) > 0 {
-		switch {
-		case path == "/database" || (len(path) > 10 && path[:10] == "/database/"):
-			return 20 // Paged database access
-		case path == "/medicament" || (len(path) > 12 && path[:12] == "/medicament/"):
-			return 100 // Medicament search or lookup
-		case path == "/generiques" || (len(path) > 11 && path[:11] == "/generiques/"):
-			return 20 // Generique search or lookup
+	// V1 routes - check first for performance
+	if strings.HasPrefix(requestPath, "/v1/") {
+		const (
+			v1MedicamentsPrefix   = "/v1/medicaments/"
+			v1PresentationsPrefix = "/v1/presentations/"
+			v1GeneriquesPrefix    = "/v1/generiques/"
+		)
+
+		// Match /v1/presentations/{id}
+		if len(requestPath) > len(v1PresentationsPrefix) &&
+			requestPath[:len(v1PresentationsPrefix)] == v1PresentationsPrefix {
+			return 5
+		}
+
+		// Match /v1/medicaments/{cis} (excludes /v1/medicaments and /v1/medicaments/export/*)
+		if len(requestPath) > len(v1MedicamentsPrefix) &&
+			requestPath[:len(v1MedicamentsPrefix)] == v1MedicamentsPrefix &&
+			!strings.HasPrefix(requestPath[len(v1MedicamentsPrefix):], "export") {
+			return 10
+		}
+
+		// Matches /v1/generiques/{groupID}
+		if len(requestPath) > len(v1GeneriquesPrefix) &&
+			requestPath[:len(v1GeneriquesPrefix)] == v1GeneriquesPrefix {
+			return 5
+		}
+
+		switch requestPath {
+		case "/v1/medicaments/export":
+			// Full medicament export - expensive operation
+			return 200
+
+		case "/v1/medicaments":
+			// Ensure only one parameter is present
+			if !HasSingleParam(q, medicamentsParams) {
+				return 5 // Default for invalid multi-param requests
+			}
+
+			if q.Get("search") != "" {
+				return 50
+			}
+			if q.Get("page") != "" {
+				return 20
+			}
+			if q.Get("cip") != "" {
+				return 10
+			}
+
+			return 5 // Default for /v1/medicaments without recognized params
+
+		case "/v1/generiques":
+			// Ensure only one parameter is present
+			if !HasSingleParam(q, generiquesParams) {
+				return 5 // Default for invalid multi-param requests
+			}
+
+			if q.Get("libelle") != "" {
+				return 30
+			}
+
+			return 5 // Default for /v1/generiques without recognized params
+		case "/v1/health", "/health":
+			// Health endpoint has no parameters
+			return 5
+		case "/v1/diagnostics":
+			// Diagnostics endpoint - moderate cost (caching prevents recomputation)
+			return 30
 		}
 	}
 
-	return 20 // Default cost for other endpoints
+	// Legacy routes - existing logic preserved
+	endpoint, element := path.Split(r.URL.Path)
+
+	switch endpoint {
+	case "/":
+		switch element {
+		case "medicament": // This case is when the user forgot to add something to search
+			return 20
+		case "database":
+			return 200
+		case "openapi.yaml":
+			return 0
+		default:
+			return 5
+		}
+	case "/medicament/id/":
+		return 10
+	case "/medicament/cip/":
+		return 10
+	case "/medicament/":
+		return 80
+	case "/generiques/":
+		return 20
+	case "/database/":
+		return 20
+	}
+
+	return 5 // Default cost for other endpoints
+}
+
+// HasSingleParam ensures exactly one of the specified parameters is present in the query.
+// Returns false if zero or multiple parameters are present.
+func HasSingleParam(q url.Values, allowedParams []string) bool {
+	count := 0
+	for _, param := range allowedParams {
+		if q.Get(param) != "" {
+			count++
+		}
+	}
+	return count == 1
 }
 
 // RateLimitHandler implements rate limiting using token bucket
@@ -219,8 +391,8 @@ func RateLimitHandler(next http.Handler) http.Handler {
 		tokenCost := getTokenCost(r)
 
 		// Add rate limit headers before consuming tokens
-		w.Header().Set("X-RateLimit-Limit", "1000")
-		w.Header().Set("X-RateLimit-Rate", "3")
+		w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(rateLimitBurst, 10))
+		w.Header().Set("X-RateLimit-Rate", strconv.FormatInt(rateLimitRate, 10))
 
 		// Check if the client has enough tokens
 		if bucket.TakeAvailable(tokenCost) < tokenCost {
@@ -238,13 +410,24 @@ func RateLimitHandler(next http.Handler) http.Handler {
 }
 
 // respondWithJSON writes a JSON response
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
+func respondWithJSON(w http.ResponseWriter, code int, payload any) {
 
-	if payload != nil {
-		if err := json.NewEncoder(w).Encode(payload); err != nil {
-			logging.Error("Failed to encode JSON response", "error", err)
-		}
+	if payload == nil {
+		payload = map[string]any{}
+	}
+
+	// Marshal first (before headers)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		logging.Error("Failed to encode JSON response", "error", err)
+		return
+	}
+
+	// Only send headers after successful encoding
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if _, err := w.Write(data); err != nil {
+		logging.Warn("Failed to write response", "error", err)
 	}
 }

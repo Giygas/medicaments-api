@@ -5,8 +5,19 @@ import (
 	"os"
 	"testing"
 
+	"github.com/giygas/medicaments-api/config"
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
+
+// init initializes the logger for all tests in this package
+// Uses InitLoggerWithEnvironment to initialize with test environment settings
+// This ensures console logs are ERROR-only and no log files are created
+func init() {
+	// Initialize with test environment - console will only show ERROR level
+	// Empty logDir prevents creating log files during unit tests
+	logging.InitLoggerWithEnvironment("", config.EnvTest, "", 4, 100*1024*1024)
+}
 
 // TestParseAllMedicaments tests the main parsing function with mock data
 func TestParseAllMedicaments(t *testing.T) {
@@ -22,7 +33,7 @@ func TestParseAllMedicaments(t *testing.T) {
 	// Since downloadAndParseAll is private, we test with existing files
 	// In a real scenario, ensure test files are present
 	fmt.Println("Calling ParseAllMedicaments...")
-	medicaments, err := ParseAllMedicaments()
+	medicaments, _, _, err := ParseAllMedicaments()
 	if err != nil {
 		t.Fatalf("Error parsing Medicaments: %v", err)
 	}
@@ -113,21 +124,22 @@ func TestFileReadingErrors(t *testing.T) {
 
 // Helper functions for testing
 func createTestFiles(t *testing.T) {
+	t.Helper()
 	// Create minimal test JSON files
 	testData := `[{"cis":1,"denomination":"Test","formePharmaceutique":"Tablet","voiesAdministration":["Oral"],"statusAutorisation":"Autorisé","typeProcedure":"Nationale","etatComercialisation":"Commercialisé","dateAMM":"2020-01-01","titulaire":"Test Lab","surveillanceRenforcee":"Non","composition":[],"generiques":[],"presentation":[],"conditions":[]}]`
 
-	os.MkdirAll("src", os.ModePerm)
-	os.WriteFile("src/Specialites.json", []byte(testData), 0644)
-	os.WriteFile("src/Compositions.json", []byte("[]"), 0644)
-	os.WriteFile("src/Conditions.json", []byte("[]"), 0644)
-	os.WriteFile("src/Presentations.json", []byte("[]"), 0644)
-	os.WriteFile("src/Generiques.json", []byte(`{"100":[1]}`), 0644)
+	_ = os.MkdirAll("src", os.ModePerm)
+	_ = os.WriteFile("src/Specialites.json", []byte(testData), 0644)
+	_ = os.WriteFile("src/Compositions.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Conditions.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Presentations.json", []byte("[]"), 0644)
+	_ = os.WriteFile("src/Generiques.json", []byte(`{"100":[1]}`), 0644)
 }
 
 func createGeneriquesTestFiles(t *testing.T) {
 	// Create test files for generiques parsing
-	os.MkdirAll("files", os.ModePerm)
-	os.MkdirAll("src", os.ModePerm)
+	_ = os.MkdirAll("files", os.ModePerm)
+	_ = os.MkdirAll("src", os.ModePerm)
 
 	// Create Generiques.txt with correct format
 	// Format expected: data lines with 5 columns: group_id\tlibelle\tcis\ttype\tgroup_id
@@ -145,8 +157,9 @@ func createGeneriquesTestFiles(t *testing.T) {
 }
 
 func cleanupTestFiles(t *testing.T) {
-	os.RemoveAll("src")
-	os.RemoveAll("files")
+	t.Helper()
+	_ = os.RemoveAll("src")
+	_ = os.RemoveAll("files")
 }
 
 func TestDownloaderErrorCases(t *testing.T) {
@@ -158,16 +171,16 @@ func TestDownloaderErrorCases(t *testing.T) {
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
 	// Create temp directory for testing
 	tempDir, err := os.MkdirTemp("", "downloader-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
-	os.Chdir(tempDir)
+	_ = os.Chdir(tempDir)
 
 	// Try to download files that don't exist - this should handle errors gracefully
 	// The function should not panic but return error or handle gracefully
@@ -181,7 +194,7 @@ func TestDownloaderErrorCases(t *testing.T) {
 func TestParserValidation(t *testing.T) {
 	fmt.Println("Testing medicament validation...")
 
-	// Test validateMedicamenti function with various inputs
+	// Test validateMedicaments function with various inputs
 	testCases := []struct {
 		name        string
 		medicament  entities.Medicament
@@ -231,7 +244,7 @@ func TestParserValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateMedicamenti(&tc.medicament)
+			err := validateMedicamentsIntegrity(&tc.medicament)
 			hasError := err != nil
 			if hasError != tc.expectError {
 				t.Errorf("Expected error: %v, got error: %v", tc.expectError, err)
@@ -252,14 +265,14 @@ func TestTSVConverterErrorCases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
-	os.Chdir(tempDir)
-	os.MkdirAll("files", 0755)
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
 
 	// Create test Generiques.txt file
 	testData := `100	Group1	1	0	100
@@ -293,17 +306,17 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 
 	// Save original working directory
 	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
 	// Create temporary directory for test files
 	tempDir, err := os.MkdirTemp("", "generiques-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
-	os.Chdir(tempDir)
-	os.MkdirAll("files", 0755)
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
 
 	// Create test TSV file
 	testData := `group_id	libelle	cis	type	group_id
@@ -354,10 +367,18 @@ func TestGeneriquesParserFunctions(t *testing.T) {
 		2: {Cis: 2, Denomination: "Med2"},
 		3: {Cis: 3, Denomination: "Med3"},
 	}
+	medsType := map[int]string{
+		1: "Princeps",
+		2: "Generique",
+		3: "Princeps",
+	}
 
-	medicamentsResult := getMedicamentsInArray([]int{1, 3}, &medicamentsMap)
+	medicamentsResult, orphanCIS := getMedicamentsInArray([]int{1, 3}, &medicamentsMap, medsType)
 	if len(medicamentsResult) != 2 {
 		t.Errorf("Expected 2 medicaments, got %d", len(medicamentsResult))
+	}
+	if len(orphanCIS) != 0 {
+		t.Errorf("Expected 0 orphan CIS, got %d", len(orphanCIS))
 	}
 }
 
@@ -387,7 +408,7 @@ func TestParserInterface(t *testing.T) {
 
 	// Test ParseAllMedicaments method
 	// This should work the same as the package-level function
-	parsedMedicaments, err := parser.ParseAllMedicaments()
+	parsedMedicaments, _, _, err := parser.ParseAllMedicaments()
 	if err != nil {
 		t.Logf("ParseAllMedicaments failed (expected in test environment): %v", err)
 		// This is expected to fail in test environment without real data
@@ -426,7 +447,7 @@ func TestConcurrentParsing(t *testing.T) {
 	const numGoroutines = 5
 	done := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -436,7 +457,7 @@ func TestConcurrentParsing(t *testing.T) {
 			}()
 
 			// Try to parse - this may fail due to missing files, but shouldn't panic
-			_, err := ParseAllMedicaments()
+			_, _, _, err := ParseAllMedicaments()
 			if err != nil {
 				t.Logf("Goroutine %d: ParseAllMedicaments failed (expected): %v", id, err)
 			}
@@ -444,9 +465,528 @@ func TestConcurrentParsing(t *testing.T) {
 	}
 
 	// Wait for all goroutines to complete
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-done
 	}
 
 	fmt.Println("Concurrent parsing test completed")
+}
+
+// ============================================================
+// TSV Edge Case Tests
+// ============================================================
+
+// TestTSVPresentationsEdgeCases tests edge cases for Presentations.txt parsing
+func TestTSVPresentationsEdgeCases(t *testing.T) {
+	fmt.Println("Starting TestTSVPresentationsEdgeCases")
+
+	// Save original working directory
+	originalWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWd) }()
+
+	// Create temp directory for test files
+	tempDir, err := os.MkdirTemp("", "presentations-edge-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectRecords int
+		expectSkips   bool
+		description   string
+	}{
+		{
+			name:          "Valid data",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Normal valid presentation record",
+		},
+		{
+			name:          "Empty line in middle",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\t12,81\t2\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Empty line between valid records should be skipped",
+		},
+		{
+			name:          "Missing columns (9 instead of 10)",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Line with only 9 columns should be skipped",
+		},
+		{
+			name:          "Extra tabs (consecutive tabs)",
+			content:       "60002283\t4949729\t\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Consecutive tabs causing empty fields should be treated as missing columns",
+		},
+		{
+			name:          "Invalid CIS (non-numeric)",
+			content:       "abc123\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIS should cause format error skip",
+		},
+		{
+			name:          "Invalid CIP7 (non-numeric)",
+			content:       "60002283\tabc123\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIP7 should cause format error skip",
+		},
+		{
+			name:          "Extra columns (11 instead of 10)",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\textra\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Extra columns should be silently ignored",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write test content to file
+			err := os.WriteFile("files/Presentations.txt", []byte(tc.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Parse the file
+			result, err := makePresentations(nil)
+			if err != nil {
+				t.Errorf("makePresentations failed: %v", err)
+				return
+			}
+
+			// Verify record count
+			if len(result) != tc.expectRecords {
+				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify that skipping occurred as expected
+			if tc.expectSkips && len(result) == 0 {
+				fmt.Printf("  ✓ Correctly skipped problematic data: %s\n", tc.description)
+			} else if !tc.expectSkips && len(result) > 0 {
+				fmt.Printf("  ✓ Correctly parsed valid data: %s\n", tc.description)
+			}
+
+			fmt.Printf("  Test case '%s' passed\n", tc.name)
+		})
+	}
+
+	fmt.Println("TestTSVPresentationsEdgeCases completed")
+}
+
+// TestTSVGeneriquesEdgeCases tests edge cases for Generiques.txt parsing
+func TestTSVGeneriquesEdgeCases(t *testing.T) {
+	fmt.Println("Starting TestTSVGeneriquesEdgeCases")
+
+	// Save original working directory
+	originalWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWd) }()
+
+	// Create temp directory for test files
+	tempDir, err := os.MkdirTemp("", "generiques-edge-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectRecords int
+		expectSkips   bool
+		description   string
+	}{
+		{
+			name:          "Valid data",
+			content:       "1\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\t65383183\t0\t1\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Normal valid generique record",
+		},
+		{
+			name:          "Empty line in middle",
+			content:       "1\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\t65383183\t0\t1\n\n2\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé effervescent\t65025026\t0\t2\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Empty line between valid records should be skipped",
+		},
+		{
+			name:          "Missing columns (3 instead of 4 required)",
+			content:       "1\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\t65383183\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Line with only 3 columns should be skipped (need at least 4 for fields[0-3])",
+		},
+		{
+			name:          "Invalid CIS (non-numeric)",
+			content:       "1\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\tabc123\t0\t1\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIS should cause format error skip",
+		},
+		{
+			name:          "Invalid group (non-numeric)",
+			content:       "abc\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\t65383183\t0\t1\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric group should cause format error skip",
+		},
+		{
+			name:          "Extra columns (6 instead of 5)",
+			content:       "1\tCIMETIDINE 200 mg - TAGAMET 200 mg, comprimé pelliculé\t65383183\t0\t1\textra\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Extra columns should be silently ignored",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write test content to file
+			err := os.WriteFile("files/Generiques.txt", []byte(tc.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Parse the file
+			result, err := makeGeneriques(nil)
+			if err != nil {
+				t.Errorf("makeGeneriques failed: %v", err)
+				return
+			}
+
+			// Verify record count
+			if len(result) != tc.expectRecords {
+				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify that skipping occurred as expected
+			if tc.expectSkips && len(result) == 0 {
+				fmt.Printf("  ✓ Correctly skipped problematic data: %s\n", tc.description)
+			} else if !tc.expectSkips && len(result) > 0 {
+				fmt.Printf("  ✓ Correctly parsed valid data: %s\n", tc.description)
+			}
+
+			fmt.Printf("  Test case '%s' passed\n", tc.name)
+		})
+	}
+
+	fmt.Println("TestTSVGeneriquesEdgeCases completed")
+}
+
+// TestTSVCompositionsEdgeCases tests edge cases for Compositions.txt parsing
+func TestTSVCompositionsEdgeCases(t *testing.T) {
+	fmt.Println("Starting TestTSVCompositionsEdgeCases")
+
+	// Save original working directory
+	originalWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWd) }()
+
+	// Create temp directory for test files
+	tempDir, err := os.MkdirTemp("", "compositions-edge-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectRecords int
+		expectSkips   bool
+		description   string
+	}{
+		{
+			name:          "Valid data",
+			content:       "60002283\tcomprimé\t42215\tANASTROZOLE\t1,00 mg\tun comprimé\tSA\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Normal valid composition record",
+		},
+		{
+			name:          "Empty line in middle",
+			content:       "60002283\tcomprimé\t42215\tANASTROZOLE\t1,00 mg\tun comprimé\tSA\n\n60002746\tgranules\t05319\tACTAEA RACEMOSA POUR PRÉPARATIONS HOMÉOPATHIQUES\t2CH à 30CH et 4DH à 60DH\tun comprimé\tSA\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Empty line between valid records should be skipped",
+		},
+		{
+			name:          "Missing columns (6 instead of 7)",
+			content:       "60002283\tcomprimé\t42215\tANASTROZOLE\t1,00 mg\tun comprimé\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Line with only 6 columns should be skipped",
+		},
+		{
+			name:          "Invalid CIS (non-numeric)",
+			content:       "abc123\tcomprimé\t42215\tANASTROZOLE\t1,00 mg\tun comprimé\tSA\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIS should cause format error skip",
+		},
+		{
+			name:          "Invalid codeSubstance (non-numeric)",
+			content:       "60002283\tcomprimé\tabc123\tANASTROZOLE\t1,00 mg\tun comprimé\tSA\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric codeSubstance should cause format error skip",
+		},
+		{
+			name:          "Extra columns (8 instead of 7)",
+			content:       "60002283\tcomprimé\t42215\tANASTROZOLE\t1,00 mg\tun comprimé\tSA\textra\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Extra columns should be silently ignored",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write test content to file
+			err := os.WriteFile("files/Compositions.txt", []byte(tc.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Parse the file
+			result, err := makeCompositions(nil)
+			if err != nil {
+				t.Errorf("makeCompositions failed: %v", err)
+				return
+			}
+
+			// Verify record count
+			if len(result) != tc.expectRecords {
+				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify that skipping occurred as expected
+			if tc.expectSkips && len(result) == 0 {
+				fmt.Printf("  ✓ Correctly skipped problematic data: %s\n", tc.description)
+			} else if !tc.expectSkips && len(result) > 0 {
+				fmt.Printf("  ✓ Correctly parsed valid data: %s\n", tc.description)
+			}
+
+			fmt.Printf("  Test case '%s' passed\n", tc.name)
+		})
+	}
+
+	fmt.Println("TestTSVCompositionsEdgeCases completed")
+}
+
+// TestTSVSpecialitesEdgeCases tests edge cases for Specialites.txt parsing
+func TestTSVSpecialitesEdgeCases(t *testing.T) {
+	fmt.Println("Starting TestTSVSpecialitesEdgeCases")
+
+	// Save original working directory
+	originalWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWd) }()
+
+	// Create temp directory for test files
+	tempDir, err := os.MkdirTemp("", "specialites-edge-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectRecords int
+		expectSkips   bool
+		description   string
+	}{
+		{
+			name:          "Valid data",
+			content:       "61266250\tA 313 200 000 UI POUR CENT, pommade\tpommade\tcutanée\tAutorisation active\tProcédure nationale\tCommercialisée\t12/03/1998\t\t\tPHARMA DEVELOPPEMENT\tNon\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Normal valid specialite record",
+		},
+		{
+			name:          "Empty line in middle",
+			content:       "61266250\tA 313 200 000 UI POUR CENT, pommade\tpommade\tcutanée\tAutorisation active\tProcédure nationale\tCommercialisée\t12/03/1998\t\t\tPHARMA DEVELOPPEMENT\tNon\n\n62869109\tA 313 50 000 U.I., capsule molle\tcapsule molle\torale\tAutorisation active\tProcédure nationale\tCommercialisée\t07/07/1997\t\t\tPHARMA DEVELOPPEMENT\tNon\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Empty line between valid records should be skipped",
+		},
+		{
+			name:          "Missing columns (11 instead of 12)",
+			content:       "61266250\tA 313 200 000 UI POUR CENT, pommade\tpommade\tcutanée\tAutorisation active\tProcédure nationale\tCommercialisée\t12/03/1998\t\tPHARMA DEVELOPPEMENT\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Line with only 11 columns should be skipped",
+		},
+		{
+			name:          "Invalid CIS (non-numeric)",
+			content:       "abc123\tA 313 200 000 UI POUR CENT, pommade\tpommade\tcutanée\tAutorisation active\tProcédure nationale\tCommercialisée\t12/03/1998\t\tPHARMA DEVELOPPEMENT\tNon\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIS should cause format error skip",
+		},
+		{
+			name:          "Extra columns (13 instead of 12)",
+			content:       "61266250\tA 313 200 000 UI POUR CENT, pommade\tpommade\tcutanée\tAutorisation active\tProcédure nationale\tCommercialisée\t12/03/1998\t\tPHARMA DEVELOPPEMENT\tNon\textra\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Extra columns should be silently ignored",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write test content to file
+			err := os.WriteFile("files/Specialites.txt", []byte(tc.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Parse the file
+			result, err := makeSpecialites(nil)
+			if err != nil {
+				t.Errorf("makeSpecialites failed: %v", err)
+				return
+			}
+
+			// Verify record count
+			if len(result) != tc.expectRecords {
+				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify that skipping occurred as expected
+			if tc.expectSkips && len(result) == 0 {
+				fmt.Printf("  ✓ Correctly skipped problematic data: %s\n", tc.description)
+			} else if !tc.expectSkips && len(result) > 0 {
+				fmt.Printf("  ✓ Correctly parsed valid data: %s\n", tc.description)
+			}
+
+			fmt.Printf("  Test case '%s' passed\n", tc.name)
+		})
+	}
+
+	fmt.Println("TestTSVSpecialitesEdgeCases completed")
+}
+
+// TestTSVConditionsEdgeCases tests edge cases for Conditions.txt parsing
+func TestTSVConditionsEdgeCases(t *testing.T) {
+	fmt.Println("Starting TestTSVConditionsEdgeCases")
+
+	// Save original working directory
+	originalWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWd) }()
+
+	// Create temp directory for test files
+	tempDir, err := os.MkdirTemp("", "conditions-edge-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	_ = os.Chdir(tempDir)
+	_ = os.MkdirAll("files", 0755)
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectRecords int
+		expectSkips   bool
+		description   string
+	}{
+		{
+			name:          "Valid data",
+			content:       "63852237\tréservé à l'usage professionnel DENTAIRE\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Normal valid condition record",
+		},
+		{
+			name:          "Empty line in middle",
+			content:       "63852237\tréservé à l'usage professionnel DENTAIRE\n\n65319857\tréservé à l'usage professionnel DENTAIRE\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Empty line between valid records should be skipped (expected in Conditions.txt)",
+		},
+		{
+			name:          "Missing columns (1 instead of 2)",
+			content:       "63852237\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Line with only 1 column should be skipped",
+		},
+		{
+			name:          "Invalid CIS (non-numeric)",
+			content:       "abc123\tréservé à l'usage professionnel DENTAIRE\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Non-numeric CIS should cause format error skip",
+		},
+		{
+			name:          "Multiple consecutive empty lines",
+			content:       "63852237\tréservé à l'usage professionnel DENTAIRE\n\n\n\n65319857\tréservé à l'usage professionnel DENTAIRE\n",
+			expectRecords: 2,
+			expectSkips:   true,
+			description:   "Multiple consecutive empty lines should be skipped",
+		},
+		{
+			name:          "Extra columns (3 instead of 2)",
+			content:       "63852237\tréservé à l'usage professionnel DENTAIRE\textra\n",
+			expectRecords: 1,
+			expectSkips:   false,
+			description:   "Extra columns should be silently ignored",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write test content to file
+			err := os.WriteFile("files/Conditions.txt", []byte(tc.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Parse the file
+			result, err := makeConditions(nil)
+			if err != nil {
+				t.Errorf("makeConditions failed: %v", err)
+				return
+			}
+
+			// Verify record count
+			if len(result) != tc.expectRecords {
+				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify that skipping occurred as expected
+			if tc.expectSkips && len(result) == 0 {
+				fmt.Printf("  ✓ Correctly skipped problematic data: %s\n", tc.description)
+			} else if !tc.expectSkips && len(result) > 0 {
+				fmt.Printf("  ✓ Correctly parsed valid data: %s\n", tc.description)
+			}
+
+			fmt.Printf("  Test case '%s' passed\n", tc.name)
+		})
+	}
+
+	fmt.Println("TestTSVConditionsEdgeCases completed")
 }

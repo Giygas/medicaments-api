@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -21,29 +22,55 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Presentations.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close presentations TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Presentation
+	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
+
+		// Skip empty lines silently
+		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
 		fields := strings.Split(line, "\t")
+
+		// Check for missing columns
+		if len(fields) < 10 {
+			skippedMissingColumns++
+			continue
+		}
 
 		cis, err := strconv.Atoi(fields[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cis value '%s': %w", fields[0], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		cip7, err := strconv.Atoi(fields[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cip7 value '%s': %w", fields[1], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		cip13, err := strconv.Atoi(fields[6])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cip13 value '%s': %w", fields[6], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		// Because the downloaded database has commas as thousands and decimal separators,
@@ -62,7 +89,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 			}
 
 			// Replace the last comma with a period
-			p, err := strconv.ParseFloat(strings.Replace(fields[9], ",", ".", -1), 32)
+			p, err := strconv.ParseFloat(strings.ReplaceAll(fields[9], ",", "."), 32)
 
 			if err != nil {
 				return nil, fmt.Errorf("invalid price value '%s': %w", fields[9], err)
@@ -90,7 +117,22 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Presentations file conversion completed", "records_count", len(jsonRecords))
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Presentations.txt: %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped
+	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Presentations.txt skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(jsonRecords))
+	}
+
+	logging.Debug("Presentations file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -104,34 +146,55 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generiques file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generiques TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
-	// Create the variables to use in the loop
+	// Create variables to use in loop
 	var jsonRecords []entities.Generique
 
 	// Use a map for creating the generiques list
 	generiquesList := make(map[int][]int)
 
 	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
+
 	for scanner.Scan() {
 		lineCount++
 		line := scanner.Text()
+
+		// Skip empty lines silently
+		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
 		fields := strings.Split(line, "\t")
 
+		// Check for missing columns (need at least 4 columns for required fields)
+		// Note: TSV file has 5 columns total, but we only use 4 (fields[0-3])
 		if len(fields) < 4 {
+			skippedMissingColumns++
 			continue
 		}
 
 		cis, cisError := strconv.Atoi(fields[2])
 		if cisError != nil {
-			return nil, fmt.Errorf("invalid CIS value '%s' at line %d: %w", fields[2], lineCount, cisError)
+			skippedFormatErrors++
+			continue
 		}
 
 		group, groupErr := strconv.Atoi(fields[0])
 		if groupErr != nil {
-			return nil, fmt.Errorf("invalid group value '%s' at line %d: %w", fields[0], lineCount, groupErr)
+			skippedFormatErrors++
+			continue
 		}
 
 		var generiqueType string
@@ -162,7 +225,22 @@ func makeGeneriques(wg *sync.WaitGroup) ([]entities.Generique, error) {
 		}
 	}
 
-	fmt.Println("Generiques file conversion completed", "records_count", len(jsonRecords))
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt: %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped
+	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Generiques.txt skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(jsonRecords))
+	}
+
+	logging.Debug("Generiques file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -175,24 +253,49 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open compositions file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close compositions TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Composition
+	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
+
+		// Skip empty lines silently
+		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
 		fields := strings.Split(line, "\t")
+
+		// Check for missing columns (expected 7 columns)
+		if len(fields) < 7 {
+			skippedMissingColumns++
+			continue
+		}
 
 		cis, err := strconv.Atoi(fields[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cis value '%s': %w", fields[0], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		codeS, err := strconv.Atoi(fields[2])
 		if err != nil {
-			return nil, fmt.Errorf("invalid codeSubstance value '%s': %w", fields[2], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		record := entities.Composition{
@@ -208,7 +311,22 @@ func makeCompositions(wg *sync.WaitGroup) ([]entities.Composition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Compositions file conversion completed", "records_count", len(jsonRecords))
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Compositions.txt: %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped
+	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Compositions.txt skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(jsonRecords))
+	}
+
+	logging.Debug("Compositions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -221,19 +339,43 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Specialites.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close specialites TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Specialite
+	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
+
+		// Skip empty lines silently
+		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
 		fields := strings.Split(line, "\t")
+
+		// Check for missing columns (expected 12 columns)
+		if len(fields) < 12 {
+			skippedMissingColumns++
+			continue
+		}
 
 		cis, err := strconv.Atoi(fields[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cis value '%s': %w", fields[0], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		record := entities.Specialite{
@@ -252,7 +394,22 @@ func makeSpecialites(wg *sync.WaitGroup) ([]entities.Specialite, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Specialites file conversion completed", "records_count", len(jsonRecords))
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Specialites.txt: %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped
+	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Specialites.txt skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(jsonRecords))
+	}
+
+	logging.Debug("Specialites file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
@@ -265,24 +422,43 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Conditions.txt: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close conditions TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
 
 	var jsonRecords []entities.Condition
+	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
 		fields := strings.Split(line, "\t")
 
 		// For some weird reason, the csv file from the site has some empty lines between the data
+		// Empty lines are expected, so we don't log warnings for them
 		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
+		// Check for missing columns (expected 2 columns)
+		if len(fields) < 2 {
+			skippedMissingColumns++
 			continue
 		}
 
 		cis, err := strconv.Atoi(fields[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cis value '%s': %w", fields[0], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		record := entities.Condition{
@@ -293,11 +469,27 @@ func makeConditions(wg *sync.WaitGroup) ([]entities.Condition, error) {
 		jsonRecords = append(jsonRecords, record)
 	}
 
-	fmt.Println("Conditions file conversion completed", "records_count", len(jsonRecords))
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Conditions.txt: %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped (excluding expected empty lines)
+	if skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Conditions.txt skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(jsonRecords))
+	}
+
+	logging.Debug("Conditions file conversion completed", "records_count", len(jsonRecords))
 	return jsonRecords, nil
 }
 
 // Creates a mapping where the key is the medicament cis and the value is the type of generique of the medicament
+//
 // Returns a map where key:cis and value:typeOfGenerique
 func createMedicamentGeneriqueType() (map[int]string, error) {
 	medsType := make(map[int]string)
@@ -306,17 +498,42 @@ func createMedicamentGeneriqueType() (map[int]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open generique file: %w", err)
 	}
-	defer tsvFile.Close()
+	defer func() {
+		if err := tsvFile.Close(); err != nil {
+			logging.Warn("Failed to close generique TSV file", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(tsvFile)
+	scanner.Buffer(make([]byte, 0), 1*1024*1024)
+
+	lineCount := 0
+	skippedEmptyLines := 0
+	skippedMissingColumns := 0
+	skippedFormatErrors := 0
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
+
+		// Skip empty lines silently
+		if len(line) == 0 {
+			skippedEmptyLines++
+			continue
+		}
+
 		fields := strings.Split(line, "\t")
+
+		// Check for missing columns (expected 4 columns for type mapping)
+		if len(fields) < 4 {
+			skippedMissingColumns++
+			continue
+		}
 
 		cis, err := strconv.Atoi(fields[2])
 		if err != nil {
-			return nil, fmt.Errorf("invalid cis value in Generiques file '%s': %w", fields[2], err)
+			skippedFormatErrors++
+			continue
 		}
 
 		var generiqueType string
@@ -329,10 +546,25 @@ func createMedicamentGeneriqueType() (map[int]string, error) {
 		case "2":
 			generiqueType = "Génériques par complémentarité posologique"
 		case "3":
-			generiqueType = "Générique substitutable"
+			generiqueType = "Générique substituable"
 		}
 
 		medsType[cis] = generiqueType
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error in Generiques.txt (type mapping): %w", err)
+	}
+
+	// Log skip statistics if any lines were skipped
+	if skippedEmptyLines > 0 || skippedMissingColumns > 0 || skippedFormatErrors > 0 {
+		logging.Info("Generiques.txt type mapping skip statistics",
+			"empty_lines", skippedEmptyLines,
+			"missing_columns", skippedMissingColumns,
+			"format_errors", skippedFormatErrors,
+			"total_lines", lineCount,
+			"records_parsed", len(medsType))
 	}
 
 	return medsType, nil

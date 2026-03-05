@@ -10,5 +10,5 @@ type Specialite struct {
 	EtatComercialisation  string   `json:"etatComercialisation"`
 	DateAMM               string   `json:"dateAMM"`
 	Titulaire             string   `json:"titulaire"`
-	SurveillanceRenforcee string   `json:"surveillanceRenforce"`
+	SurveillanceRenforcee string   `json:"surveillanceRenforcee"`
 }

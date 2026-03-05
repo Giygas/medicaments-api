@@ -1,0 +1,283 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Version to rollback to (leave empty for latest)'
+        required: false
+        type: string
+
+concurrency:
+  group: rollback
+  cancel-in-progress: true
+
+jobs:
+  rollback:
+    name: Rollback to Previous Version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH Setup
+        uses: ./.github/actions/ssh-setup
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          echo "Validating secrets..."
+          if [ -z "${{ secrets.SSH_USER }}" ]; then
+            echo "ERROR: SSH_USER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "ERROR: SSH_HOST secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "ERROR: SSH_PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.REPO_DIR }}" ]; then
+            echo "ERROR: REPO_DIR secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ADDRESS }}" ]; then
+            echo "ERROR: ADDRESS secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PORT }}" ]; then
+            echo "ERROR: PORT secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are present"
+
+      - name: List available backups
+        shell: bash
+        run: |
+          echo "=== Available Backups ==="
+          echo ""
+
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            cd "${REPO_DIR}/backups"
+
+            # Print header
+            printf "%-40s %-15s %-15s %s\n" "Backup Directory" "Tag" "Short SHA" "Commit Message"
+            printf "%-40s %-15s %-15s %s\n" "----------------------------------------" "---------------" "---------------" "--------------------------------------------------"
+
+            # List all backups
+            for dir in $(ls -1t medicaments-api-* 2>/dev/null); do
+              if [ -d "$dir" ] && [ -f "$dir/metadata.txt" ]; then
+                # Read metadata
+                while IFS='=' read -r key value; do
+                  case "$key" in
+                    tag) TAG="$value" ;;
+                    short_sha) SHORT_SHA="$value" ;;
+                    message) MESSAGE="$value" ;;
+                    sha) SHA="$value" ;;
+                  esac
+                done < "$dir/metadata.txt"
+
+                # Fallback to SHA if short_sha not set
+                [ -z "$SHORT_SHA" ] && SHORT_SHA="${SHA:0:9}"
+
+                # Display tag or no-tag indicator
+                if [ -n "$TAG" ]; then
+                  TAG_DISPLAY="$TAG"
+                else
+                  TAG_DISPLAY="❌"
+                fi
+
+                # Truncate message
+                MSG_DISPLAY=$(echo "$MESSAGE" | cut -c1-45)
+                [ ${#MESSAGE} -gt 45 ] && MSG_DISPLAY="${MSG_DISPLAY}..."
+
+                printf "%-40s %-15s %-15s %s\n" "$dir" "$TAG_DISPLAY" "$SHORT_SHA" "$MSG_DISPLAY"
+              fi
+            done
+
+            echo ""
+            echo "To rollback, enter:"
+            echo "  - A tag name (e.g., v1.4.2) OR"
+            echo "  - A directory name (e.g., medicaments-api-20250212-143022) OR"
+            echo "  - Leave empty to rollback to the latest backup"
+          EOF
+        env:
+          REPO_DIR: ${{ secrets.REPO_DIR }}
+
+      - name: Select backup version
+        shell: bash
+        id: select-backup
+        run: |
+          INPUT="${{ github.event.inputs.target_version }}"
+
+          if [ -z "$INPUT" ]; then
+            # Default to latest backup
+            TARGET=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "cd '${REPO_DIR}/backups' && ls -1t medicaments-api-* 2>/dev/null | head -1")
+            echo "Auto-selected latest: $TARGET"
+          elif [[ "$INPUT" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # User provided a tag (e.g., v1.4.2)
+            echo "Searching for tag: $INPUT"
+
+            # Search all backups for matching tag
+            TARGET=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+              cd "${REPO_DIR}/backups"
+              for dir in medicaments-api-*; do
+                if [ -f "\$dir/metadata.txt" ]; then
+                  TAG=\$(grep "^tag=" "\$dir/metadata.txt" 2>/dev/null | cut -d= -f2)
+                  if [ "\$TAG" = "$INPUT" ]; then
+                    echo "\$dir"
+                    exit 0
+                  fi
+                fi
+              done
+              echo ""
+            EOF
+            )
+
+            if [ -z "$TARGET" ]; then
+              echo "❌ ERROR: No backup found with tag '$INPUT'"
+              echo ""
+              echo "Available tags:"
+              ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+                cd "${REPO_DIR}/backups"
+                for dir in medicaments-api-*; do
+                  if [ -f "$dir/metadata.txt" ]; then
+                    TAG=$(grep "^tag=" "$dir/metadata.txt" 2>/dev/null | cut -d= -f2)
+                    if [ -n "$TAG" ]; then
+                      echo "  - $TAG ($dir)"
+                    fi
+                  fi
+                done
+              EOF
+              exit 1
+            fi
+            echo "Found backup: $TARGET"
+          else
+            # User provided directory name directly
+            TARGET="$INPUT"
+            echo "Using directory name: $TARGET"
+          fi
+
+          # Validate backup exists
+          VALID=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "test -d '${REPO_DIR}/backups/$TARGET' && echo 'yes' || echo 'no'")
+
+          if [ "$VALID" != "yes" ]; then
+            echo "❌ ERROR: Backup directory not found: $TARGET"
+            exit 1
+          fi
+
+          echo "target_dir=$TARGET" >> $GITHUB_OUTPUT
+        env:
+          REPO_DIR: ${{ secrets.REPO_DIR }}
+
+      - name: Display rollback summary
+        shell: bash
+        run: |
+          TARGET="${{ steps.select-backup.outputs.target_dir }}"
+
+          echo "=== ROLLBACK SUMMARY ==="
+          echo ""
+
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            cd "${REPO_DIR}/backups/$TARGET"
+
+            # Read and display metadata
+            while IFS='=' read -r key value; do
+              case "\$key" in
+                tag)
+                  if [ -n "\$value" ]; then
+                    echo "Version: \$value"
+                  else
+                    echo "Version: No tag"
+                  fi
+                  ;;
+                short_sha)
+                  [ -n "\$value" ] && echo "Short SHA: \$value"
+                  ;;
+                message)
+                  echo "Commit: \$value"
+                  ;;
+                timestamp)
+                  echo "Deployed: \$value"
+                  ;;
+                branch)
+                  echo "Branch: \$value"
+                  ;;
+              esac
+            done < metadata.txt
+
+            echo "Backup Directory: $TARGET"
+          EOF
+
+          echo ""
+          echo "⚠️ This will replace current version. Continuing..."
+        env:
+          REPO_DIR: ${{ secrets.REPO_DIR }}
+
+      - name: Perform rollback
+        shell: bash
+        run: |
+          BACKUP_DIR="${{ steps.select-backup.outputs.target_dir }}"
+
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.REPO_DIR }} && bash -s" << 'EOF'
+            echo "=== Rolling back to ${BACKUP_DIR} ==="
+
+            # Stop service
+            echo "Stopping service..."
+            sudo systemctl stop medicaments-api
+
+            # Wait for graceful shutdown
+            for i in {1..20}; do
+              if ! sudo systemctl is-active --quiet medicaments-api; then
+                echo "Service stopped"
+                break
+              fi
+              sleep 1
+            done
+
+            # Restore binary
+            if [ -f "backups/${BACKUP_DIR}/medicaments-api" ]; then
+              cp "backups/${BACKUP_DIR}/medicaments-api" ./medicaments-api
+              chmod +x ./medicaments-api
+              echo "✓ Binary restored"
+            else
+              echo "✗ ERROR: Binary not found in backup"
+              exit 1
+            fi
+
+            # Restore html
+            if [ -d "backups/${BACKUP_DIR}/html" ]; then
+              rm -rf ./html
+              cp -r "backups/${BACKUP_DIR}/html" .
+              echo "✓ HTML files restored"
+            fi
+
+            # Restart service
+            echo "Restarting service..."
+            systemctl restart medicaments-api.service
+            sleep 3
+
+            # Verify rollback
+            if sudo systemctl is-active --quiet medicaments-api; then
+              echo "✓ Service is running"
+
+              # Check health endpoint
+              HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ADDRESS }}:${{ secrets.PORT }}/health" || echo "000")
+              if [ "$HEALTH" = "200" ]; then
+                echo "✓ Health check passed (200)"
+                echo "=== ROLLBACK SUCCESSFUL ==="
+              else
+                echo "⚠ Health check failed with code: $HEALTH"
+                echo "Service may be degraded"
+              fi
+            else
+              echo "✗ ERROR: Service failed to start"
+              sudo systemctl status medicaments-api
+            exit 1
+          fi
+          EOF
+
+      - name: SSH Cleanup
+        uses: ./.github/actions/ssh-cleanup

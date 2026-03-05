@@ -2,74 +2,73 @@
 package health
 
 import (
-	"runtime"
+	"math"
+	"net/http"
 	"time"
 
 	"github.com/giygas/medicaments-api/interfaces"
 )
 
-// HealthCheckerImpl implements the interfaces.HealthChecker interface
-type HealthCheckerImpl struct {
+// Checker implements the interfaces.HealthChecker interface
+type Checker struct {
 	dataStore interfaces.DataStore
 }
 
 // NewHealthChecker creates a new health checker with injected dependencies
 func NewHealthChecker(dataStore interfaces.DataStore) interfaces.HealthChecker {
-	return &HealthCheckerImpl{
+	return &Checker{
 		dataStore: dataStore,
 	}
 }
 
-// HealthCheck returns current system health status
-func (h *HealthCheckerImpl) HealthCheck() (status string, details map[string]interface{}, err error) {
-	// Get memory statistics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
+// HealthCheck returns HTTP-specific health data with stricter thresholds
+// Used by /health HTTP endpoint
+func (h *Checker) HealthCheck() (status string, data map[string]any, httpStatus int) {
 	// Get data statistics
 	medicaments := h.dataStore.GetMedicaments()
 	generiques := h.dataStore.GetGeneriques()
 	lastUpdate := h.dataStore.GetLastUpdated()
 	isUpdating := h.dataStore.IsUpdating()
+
 	dataAge := time.Since(lastUpdate)
 
-	// Determine health status based on data availability and age
+	// Determine health status and HTTP code using stricter thresholds
 	switch {
-	case len(medicaments) == 0:
+	case len(medicaments) == 0 || len(generiques) == 0:
 		status = "unhealthy"
+		httpStatus = http.StatusServiceUnavailable
+
+	case dataAge > 48*time.Hour:
+		status = "unhealthy"
+		httpStatus = http.StatusServiceUnavailable
+
 	case dataAge > 24*time.Hour:
 		status = "degraded"
+		httpStatus = http.StatusServiceUnavailable
+
+	case isUpdating && dataAge > 6*time.Hour:
+		status = "degraded"
+		httpStatus = http.StatusServiceUnavailable
+
 	default:
 		status = "healthy"
+		httpStatus = http.StatusOK
 	}
 
-	// Build details map
-	details = map[string]interface{}{
+	// Build response data (no system metrics, only data-related fields)
+	data = map[string]any{
 		"last_update":    lastUpdate.Format(time.RFC3339),
-		"data_age_hours": dataAge.Hours(),
-		"data": map[string]interface{}{
-			"api_version": "1.0",
-			"medicaments": len(medicaments),
-			"generiques":  len(generiques),
-			"is_updating": isUpdating,
-			"next_update": h.CalculateNextUpdate().Format(time.RFC3339),
-		},
-		"system": map[string]interface{}{
-			"goroutines": runtime.NumGoroutine(),
-			"memory": map[string]interface{}{
-				"alloc_mb":       int(m.Alloc / 1024 / 1024),
-				"total_alloc_mb": int(m.TotalAlloc / 1024 / 1024),
-				"sys_mb":         int(m.Sys / 1024 / 1024),
-				"num_gc":         m.NumGC,
-			},
-		},
+		"data_age_hours": math.Round(dataAge.Hours()*10) / 10,
+		"medicaments":    len(medicaments),
+		"generiques":     len(generiques),
+		"is_updating":    isUpdating,
 	}
 
-	return status, details, nil
+	return status, data, httpStatus
 }
 
 // CalculateNextUpdate returns the next scheduled update time
-func (h *HealthCheckerImpl) CalculateNextUpdate() time.Time {
+func (h *Checker) CalculateNextUpdate() time.Time {
 	now := time.Now()
 
 	// Get today's 6:00 AM and 6:00 PM times
@@ -87,6 +86,5 @@ func (h *HealthCheckerImpl) CalculateNextUpdate() time.Time {
 	}
 
 	// If current time is after 6:00 PM, next update is 6:00 AM tomorrow
-	tomorrow := now.AddDate(0, 0, 1)
-	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 6, 0, 0, 0, tomorrow.Location())
+	return sixAM.AddDate(0, 0, 1)
 }
