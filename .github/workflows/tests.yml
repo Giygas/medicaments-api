@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'CHANGELOG.md'
   pull_request:
     branches:
       - main
@@ -37,13 +33,20 @@ jobs:
           CHANGED=$(git diff --name-only HEAD^ HEAD)
           echo "Changed files: $CHANGED"
 
-          # Check if any code files changed
+          # Check if ONLY documentation files changed
+          # Documentation files: README.md, CHANGELOG.md, and anything in docs/
+          # Code files: .go, .yaml, Dockerfile, .github/
           if echo "$CHANGED" | grep -qE '\.(go|yaml)$' || echo "$CHANGED" | grep -qE '^(Dockerfile|\.github/)'; then
             echo "Code files changed, running tests"
             echo "should_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "Only docs changed, skipping tests"
+          elif echo "$CHANGED" | grep -qE '^(README\.md|CHANGELOG\.md|docs/)'; then
+            # Only documentation files changed, no code
+            echo "Only documentation changed (no code), skipping tests"
             echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            # Both code and documentation changed
+            echo "Code and documentation changed, running tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
           fi
 
   # Fast quality checks - runs first, fails fast, blocks expensive tests
@@ -308,7 +311,7 @@ jobs:
             HEALTH=$(cat health.txt)
             HEALTH_NS=$(echo $HEALTH | awk '{print $3}')
             HEALTH_B=$(echo $HEALTH | awk '{print $5}')
-            HEALTH_ALLOC=$(echo $HEALTH | awk '{print $7}')
+            HEALTH_ALLENCY=$(echo $HEALTH | awk '{print $7}')
             HEALTH_REQS=$(echo "scale=0; 1000000000 / $HEALTH_NS" | bc)
             HEALTH_LATENCY=$(echo "scale=1; $HEALTH_NS / 1000" | bc)
             echo "| \`/health\` | **$HEALTH_REQS** | **${HEALTH_LATENCY}µs** | $HEALTH_B B | $HEALTH_ALLOC |" >> PERFORMANCE_REPORT.md
