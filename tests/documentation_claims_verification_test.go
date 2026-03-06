@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
@@ -382,13 +384,39 @@ func testMemoryUsage(t *testing.T, _ *data.DataContainer) {
 		allocMB, sysMB, claimedMin, claimedMax)
 }
 
+// createTestHTTPClientForDocumentation creates an HTTP client with Certigna certificate for testing
+func createTestHTTPClientForDocumentation() *http.Client {
+	certignaCA, err := os.ReadFile("../certigna-services-ca.pem")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to read Certigna certificate: %v", err))
+	}
+
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if ok := pool.AppendCertsFromPEM(certignaCA); !ok {
+		panic("Failed to parse Certigna intermediate CA cert")
+	}
+
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
+}
+
 func testParsingPerformance(t *testing.T) {
 	fmt.Println("\n--- PARSING PERFORMANCE VERIFICATION ---")
 
 	start := time.Now()
 
 	// Parse full medicaments database
-	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments()
+	httpClient := createTestHTTPClientForDocumentation()
+	medicaments, _, _, err := medicamentsparser.ParseAllMedicaments(httpClient)
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -427,7 +455,8 @@ func createFullTestData() *data.DataContainer {
 		fmt.Println("Loading full medicaments database for verification...")
 
 		// Parse of full medicaments database
-		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
+		httpClient := createTestHTTPClientForDocumentation()
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments(httpClient)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}

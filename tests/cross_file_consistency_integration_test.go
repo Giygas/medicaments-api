@@ -1,14 +1,47 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net/http"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
+
+// createTestHTTPClientForCrossConsistency creates an HTTP client with Certigna certificate for testing
+// This matches production setup in main.go
+func createTestHTTPClientForCrossConsistency(t *testing.T) *http.Client {
+	// Read embedded Certigna certificate (tests run from tests/ directory)
+	certignaCA, err := os.ReadFile("../certigna-services-ca.pem")
+	if err != nil {
+		t.Fatalf("Failed to read Certigna certificate: %v", err)
+	}
+
+	// Create cert pool and append Certigna CA
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if ok := pool.AppendCertsFromPEM(certignaCA); !ok {
+		t.Fatalf("Failed to parse Certigna intermediate CA cert")
+	}
+
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
+}
 
 // TestIntegrationCrossFileConsistency verifies data integrity across all 5 TSV files
 // This is critical because:
@@ -28,7 +61,8 @@ func TestIntegrationCrossFileConsistency(t *testing.T) {
 	logging.ResetGlobalLogger(t, "logs", config.DetectEnvironment(), "", 4, 100*1024*1024)
 
 	// Parse all TSV files
-	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
+	httpClient := createTestHTTPClientForCrossConsistency(t)
+	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments(httpClient)
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}

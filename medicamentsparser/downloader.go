@@ -11,14 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 	"unicode/utf8"
 
 	"github.com/giygas/medicaments-api/logging"
 	"golang.org/x/text/encoding/charmap"
 )
 
-func downloadAndParseFile(path string, url string) error {
+func downloadAndParseFile(path string, url string, client *http.Client) error {
 
 	path = "files/" + path + ".txt"
 	cleanPath := filepath.Clean(path)
@@ -26,9 +25,6 @@ func downloadAndParseFile(path string, url string) error {
 		return fmt.Errorf("invalid filepath: %s", path)
 	}
 
-	client := &http.Client{
-		Timeout: 5 * time.Minute,
-	}
 	response, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download %s: %w", url, err)
@@ -86,15 +82,15 @@ func downloadAndParseFile(path string, url string) error {
 }
 
 // Download all files concurrently
-func downloadAndParseAll() error {
+func downloadAndParseAll(client *http.Client) error {
 
 	//Files to download
 	var files = map[string]string{
-		"Specialites":   "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_bdpm.txt",
-		"Presentations": "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_CIP_bdpm.txt",
-		"Compositions":  "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_COMPO_bdpm.txt",
-		"Generiques":    "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_GENER_bdpm.txt",
-		"Conditions":    "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_CPD_bdpm.txt",
+		"Specialites":   "https://base-donnees-publique.medicaments.gouv.fr/index.php/download/file/CIS_bdpm.txt",
+		"Presentations": "https://base-donnees-publique.medicaments.gouv.fr/index.php/download/file/CIS_CIP_bdpm.txt",
+		"Compositions":  "https://base-donnees-publique.medicaments.gouv.fr/index.php/download/file/CIS_COMPO_bdpm.txt",
+		"Generiques":    "https://base-donnees-publique.medicaments.gouv.fr/index.php/download/file/CIS_GENER_bdpm.txt",
+		"Conditions":    "https://base-donnees-publique.medicaments.gouv.fr/index.php/download/file/CIS_CPD_bdpm.txt",
 	}
 
 	//Create the files directory if it doesn't exists
@@ -113,7 +109,7 @@ func downloadAndParseAll() error {
 
 		go func(file string, url string) {
 			defer wg.Done()
-			if err := downloadAndParseFile(file, url); err != nil {
+			if err := downloadAndParseFile(file, url, client); err != nil {
 				mu.Lock()
 				errors = append(errors, err)
 				mu.Unlock()

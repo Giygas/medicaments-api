@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,8 +37,11 @@ func TestIntegrationFullDataParsingPipeline(t *testing.T) {
 	// Record start time
 	startTime := time.Now()
 
-	// Execute the full parsing pipeline
-	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
+	// Create HTTP client with Certigna certificate
+	httpClient := createTestHTTPClient(t)
+
+	// Execute full parsing pipeline
+	medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments(httpClient)
 	if err != nil {
 		t.Fatalf("Failed to parse medicaments: %v", err)
 	}
@@ -102,8 +107,11 @@ func TestIntegrationConcurrentUpdates(t *testing.T) {
 	setupTestEnvironment(t)
 	defer cleanupTestEnvironment(t)
 
+	// Create HTTP client with Certigna certificate
+	httpClient := createTestHTTPClient(t)
+
 	// First parse
-	medicaments1, _, _, err := medicamentsparser.ParseAllMedicaments()
+	medicaments1, _, _, err := medicamentsparser.ParseAllMedicaments(httpClient)
 	if err != nil {
 		t.Fatalf("First parse failed: %v", err)
 	}
@@ -112,7 +120,7 @@ func TestIntegrationConcurrentUpdates(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Second parse (simulating concurrent update)
-	medicaments2, _, _, err := medicamentsparser.ParseAllMedicaments()
+	medicaments2, _, _, err := medicamentsparser.ParseAllMedicaments(httpClient)
 	if err != nil {
 		t.Fatalf("Second parse failed: %v", err)
 	}
@@ -171,8 +179,11 @@ func TestIntegrationErrorHandling(t *testing.T) {
 		// Remove file
 		_ = os.Remove(file)
 
+		// Create HTTP client with Certigna certificate
+		httpClient := createTestHTTPClient(t)
+
 		// Try to parse - should succeed by auto-downloading
-		_, _, _, err := medicamentsparser.ParseAllMedicaments()
+		_, _, _, err := medicamentsparser.ParseAllMedicaments(httpClient)
 		if err != nil {
 			t.Errorf("Expected success when %s is missing (should auto-download), but got error: %v", file, err)
 		}
@@ -188,6 +199,34 @@ func TestIntegrationErrorHandling(t *testing.T) {
 
 // TestIntegrationMemoryUsage tests memory usage during parsing
 // Helper functions
+
+// createTestHTTPClient creates an HTTP client with Certigna certificate for testing
+// This matches production setup in main.go
+func createTestHTTPClient(t *testing.T) *http.Client {
+	// Read embedded Certigna certificate (tests run from tests/ directory)
+	certignaCA, err := os.ReadFile("../certigna-services-ca.pem")
+	if err != nil {
+		t.Fatalf("Failed to read Certigna certificate: %v", err)
+	}
+
+	// Create cert pool and append Certigna CA
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if ok := pool.AppendCertsFromPEM(certignaCA); !ok {
+		t.Fatalf("Failed to parse Certigna intermediate CA cert")
+	}
+
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
+}
 
 func setupTestEnvironment(t *testing.T) {
 	// Create necessary directories

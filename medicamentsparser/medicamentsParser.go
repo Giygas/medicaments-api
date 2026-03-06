@@ -3,6 +3,7 @@ package medicamentsparser
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -25,10 +26,10 @@ func validateMedicamentsIntegrity(m *entities.Medicament) error {
 	return nil
 }
 
-func ParseAllMedicaments() ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
+func ParseAllMedicaments(client *http.Client) ([]entities.Medicament, map[int]entities.Presentation, map[int]entities.Presentation, error) {
 
 	// Download the neccesary files from https://base-donnees-publique.medicaments.gouv.fr/telechargement
-	if err := downloadAndParseAll(); err != nil {
+	if err := downloadAndParseAll(client); err != nil {
 		logging.Error("Failed to download and parse files", "error", err)
 		return nil, nil, nil, fmt.Errorf("failed to download files: %w", err)
 	}

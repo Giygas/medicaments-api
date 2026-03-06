@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,6 +21,31 @@ import (
 	"github.com/giygas/medicaments-api/server"
 	"github.com/joho/godotenv"
 )
+
+//go:embed certigna-services-ca.pem
+var certignaCA []byte
+
+// newCertignaHTTPClient creates an HTTP client that trusts the Certigna Services CA
+// intermediate certificate, which is required to verify TLS connections to
+// base-donnees-publique.medicaments.gouv.fr. The server does not send the full
+// certificate chain, so the intermediate CA is bundled and added to the system cert pool.
+func newCertignaHTTPClient() (*http.Client, error) {
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if ok := pool.AppendCertsFromPEM(certignaCA); !ok {
+		return nil, fmt.Errorf("failed to parse Certigna intermediate CA cert")
+	}
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}, nil
+}
 
 func main() {
 	// Check if running in healthcheck mode (for Docker HEALTHCHECK)
@@ -62,7 +90,13 @@ func main() {
 
 	// Initialize data container and parser
 	dataContainer := data.NewDataContainer()
-	parser := medicamentsparser.NewMedicamentsParser()
+
+	httpClient, err := newCertignaHTTPClient()
+	if err != nil {
+		logging.Error("Failed to create HTTP client", "error", err)
+		os.Exit(1)
+	}
+	parser := medicamentsparser.NewMedicamentsParser(httpClient)
 
 	// Initialize and start scheduler with dependency injection
 	sched := scheduler.NewScheduler(dataContainer, parser)

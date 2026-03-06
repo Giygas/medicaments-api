@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -34,6 +37,31 @@ type BenchmarkResult struct {
 	MemoryAfter  runtime.MemStats
 	AllocsPerOp  uint64
 	BytesPerOp   uint64
+}
+
+// createTestHTTPClientForBenchmark creates an HTTP client with Certigna certificate for testing
+func createTestHTTPClientForBenchmark() *http.Client {
+	certignaCA, err := os.ReadFile("../certigna-services-ca.pem")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to read Certigna certificate: %v", err))
+	}
+
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if ok := pool.AppendCertsFromPEM(certignaCA); !ok {
+		panic("Failed to parse Certigna intermediate CA cert")
+	}
+
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
 }
 
 var (
@@ -66,7 +94,8 @@ func setupAlgorithmicContainer() *data.DataContainer {
 		fmt.Println("Loading algorithmic test data (smaller subset)...")
 
 		// Parse full dataset first
-		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
+		httpClient := createTestHTTPClientForBenchmark()
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments(httpClient)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}
@@ -121,7 +150,8 @@ func setupRealWorldData() *data.DataContainer {
 		fmt.Println("Loading real-world test data (full dataset)...")
 
 		// Parse full dataset
-		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments()
+		httpClient := createTestHTTPClientForBenchmark()
+		medicaments, presentationsCIP7Map, presentationsCIP13Map, err := medicamentsparser.ParseAllMedicaments(httpClient)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to parse medicaments: %v", err))
 		}

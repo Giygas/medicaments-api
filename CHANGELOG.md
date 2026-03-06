@@ -7,6 +7,31 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+## [1.2.1] - 2026-03-06
+
+### Ajouté
+
+- **Méta-données sociales** (Open Graph tags) pour améliorer le partage sur les réseaux sociaux
+  - Balises meta Open Graph pour le titre, la description et l'image
+  - Image de partage sociale servie sur `/share-image.png`
+  - Amélioration de l'aperçu lors du partage sur LinkedIn, Twitter, Facebook
+
+### Corrigé
+
+- **Chaîne de certificats TLS** : Intégration du certificat intermédiaire Certigna Services CA
+  - Le serveur base-donnees-publique.medicaments.gouv.fr n'envoie pas la chaîne complète
+  - Le certificat intermédiaire est maintenant embarqué dans le binaire (`//go:embed`)
+  - Évite les erreurs de validation TLS lors des téléchargements
+  - Mise à jour des signatures de fonction pour injecter le client HTTP configuré
+
+### Tests
+
+- **Mise à jour des tests** pour prendre en compte les nouvelles signatures de fonction
+  - Tests unitaires du parser mis à jour pour passer le client HTTP
+  - Tests d'intégration mis à jour avec création de client HTTP avec Certigna
+  - Ajout de `createTestHTTPClient()` helper pour les tests unitaires
+  - Ajout de `createTestHTTPClient(t *testing.T)` pour les tests d'intégration
+
 ## [1.2.0] - 2026-02-23
 
 ### Ajouté
@@ -294,7 +319,8 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 - **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
 - **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.2.0...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/giygas/medicaments-api/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/giygas/medicaments-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/giygas/medicaments-api/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/giygas/medicaments-api/releases/tag/v1.0.0
