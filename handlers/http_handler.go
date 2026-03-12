@@ -87,13 +87,14 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, message stri
 func GenerateETag(data []byte) string {
 	hash := sha256.Sum256(data)
 	// Use first 8 bytes of hash for shorter ETag
-	return fmt.Sprintf(`"%x"`, hash[:8])
+	return fmt.Sprintf(`W/"%x"`, hash[:8])
 }
 
 // CheckETag validates If-None-Match header against provided ETag
 func CheckETag(r *http.Request, etag string) bool {
-	clientETag := r.Header.Get("If-None-Match")
-	return clientETag == etag
+	clientETag := strings.TrimPrefix(r.Header.Get("If-None-Match"), "W/")
+	serverETag := strings.TrimPrefix(etag, "W/")
+	return clientETag != "" && clientETag == serverETag
 }
 
 // findMedicamentByCIP searches for a medicament by CIP7 or CIP13
