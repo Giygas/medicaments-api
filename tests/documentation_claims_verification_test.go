@@ -264,7 +264,7 @@ func testHTTPPerformance(t *testing.T, _ *data.DataContainer, _ interfaces.DataV
 		},
 		{
 			name:       "/v1/medicaments?search={query}",
-			endpoint:   "/v1/medicaments?search=Test",
+			endpoint:   "/v1/medicaments?search=Medicament",
 			claimedReq: 6100,
 			tolerance:  25.0,
 		},
@@ -511,12 +511,13 @@ func setupTestServer(t *testing.T) (*server.Server, string) {
 	}
 
 	cfg := &config.Config{
-		Port:           fmt.Sprintf("%d", port),
-		Address:        "127.0.0.1",
-		Env:            config.EnvTest,
-		LogLevel:       "error",
-		MaxRequestBody: 1048576,
-		MaxHeaderSize:  1048576,
+		Port:               fmt.Sprintf("%d", port),
+		Address:            "127.0.0.1",
+		Env:                config.EnvTest,
+		LogLevel:           "error",
+		MaxRequestBody:     1048576,
+		MaxHeaderSize:      1048576,
+		DisableRateLimiter: true,
 	}
 
 	srv := server.NewServer(cfg, container)
