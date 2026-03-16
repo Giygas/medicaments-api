@@ -1,0 +1,19 @@
+# Block all crawlers from internal/system endpoints
+User-agent: *
+Disallow: /health
+Disallow: /v1/diagnostics
+Disallow: /metrics
+
+# Expensive operations - discourage bulk crawling
+Crawl-delay: 5
+
+# Disallow specific high-cost endpoints if you want to prevent scraping
+# Disallow: /v1/medicaments/export
+# Disallow legacy endpoints (deprecated)
+Disallow: /database
+Disallow: /medicament/
+Disallow: /generiques/
+
+# Block LinkupBot completely
+User-agent: LinkupBot
+Disallow: /

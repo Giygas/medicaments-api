@@ -118,7 +118,7 @@ func (rl *RotatingLogger) doRotate(targetWeek string) error {
 
 	logPath := filepath.Join(rl.logDir, fileName)
 	// #nosec G304 -- logDir is controlled input from config, path constructed safely
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open log file %s: %w", logPath, err)
 	}
