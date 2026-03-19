@@ -59,6 +59,20 @@ paths:
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            ETag:
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: 'W/"abc123"'
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
           content:
             application/json:
               schema:
@@ -487,6 +501,20 @@ paths:
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            ETag:
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: 'W/"abc123"'
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
           content:
             application/json:
               schema:
