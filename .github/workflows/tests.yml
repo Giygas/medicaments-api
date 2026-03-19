@@ -24,34 +24,69 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 50
 
       - name: Check for changed files
         id: filter
         run: |
-          # Get list of changed files
-          CHANGED=$(git diff --name-only HEAD^ HEAD)
-          echo "Changed files: $CHANGED"
+          # Use GitHub's event context for reliable diff
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # PR: diff against merge base
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.sha }}"
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            # Push: diff against previous commit
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.event.after }}"
+          else
+            # Fallback: compare against HEAD^
+            BASE_SHA="HEAD^"
+            HEAD_SHA="HEAD"
+          fi
 
-          # Check if ONLY documentation files changed
-          # Documentation files: README.md, CHANGELOG.md, and anything in docs/
-          # Code files: .go, .yaml, Dockerfile, .github/
-          if echo "$CHANGED" | grep -qE '\.(go|yaml)$' || echo "$CHANGED" | grep -qE '^(Dockerfile|\.github/)'; then
-            echo "Code files changed, running tests"
+          # Debug output
+          echo "::group::Change Detection Debug"
+          echo "Event: ${{ github.event_name }}"
+          echo "Before: ${{ github.event.before }}"
+          echo "After: ${{ github.event.after }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Base SHA used: $BASE_SHA"
+          echo "Head SHA used: $HEAD_SHA"
+          echo "::endgroup::"
+
+          # Get changed files with error handling
+          if ! CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null); then
+            echo "Warning: git diff failed, checking all files"
+            # Fallback: list all Go/YAML files
+            CHANGED=$(find . -name '*.go' -o -name '*.yaml' -o -name 'Dockerfile' | grep -v '^\.' | head -20)
+          fi
+
+          echo "::group::Changed Files"
+          echo "Changed files count: $(echo "$CHANGED" | wc -l | tr -d ' ')"
+          echo "Changed files:"
+          echo "$CHANGED"
+          echo "::endgroup::"
+
+          # Check if any code files changed
+          if echo "$CHANGED" | grep -qE '\.(go|yaml)$'; then
+            echo "Code files detected (.go, .yaml), running tests"
             echo "should_run=true" >> $GITHUB_OUTPUT
-          elif echo "$CHANGED" | grep -qE '^(README\.md|CHANGELOG\.md|docs/)'; then
-            # Only documentation files changed, no code
-            echo "Only documentation changed (no code), skipping tests"
+          elif echo "$CHANGED" | grep -qE '^Dockerfile$|^\.github/'; then
+            echo "Code files detected (Dockerfile, .github/), running tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          elif [ -n "$CHANGED" ]; then
+            # Files changed, but only docs
+            echo "Only documentation files changed, skipping tests"
             echo "should_run=false" >> $GITHUB_OUTPUT
           else
-            # Both code and documentation changed
-            echo "Code and documentation changed, running tests"
+            # No files detected - safety: run tests
+            echo "No files detected (empty diff), running tests as safety"
             echo "should_run=true" >> $GITHUB_OUTPUT
           fi
 
   # Fast quality checks - runs first, fails fast, blocks expensive tests
   quick-checks:
-    if: needs.check-changes.outputs.should-run == 'true'
+    if: needs.check-changes.outputs.should_run == 'true'
     name: Quick Quality & Smoke Checks
     runs-on: ubuntu-latest
     steps:
