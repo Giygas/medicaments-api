@@ -235,7 +235,9 @@ func TestExportMedicaments(t *testing.T) {
 				t.Error("ETag header should be present")
 			}
 
-			if !strings.HasPrefix(etag, "\"") || !strings.HasSuffix(etag, "\"") {
+			// Check for weak ETag format: W/"hash"
+			actualETag := strings.TrimPrefix(etag, "W/")
+			if !strings.HasPrefix(actualETag, "\"") || !strings.HasSuffix(actualETag, "\"") {
 				t.Errorf("ETag should be quoted, got: %s", etag)
 			}
 
@@ -973,14 +975,17 @@ func TestGenerateETag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GenerateETag(tt.data)
-			if !strings.HasPrefix(result, `"`) {
+
+			// Check for weak ETag format: W/"hash"
+			actualETag := strings.TrimPrefix(result, "W/")
+			if !strings.HasPrefix(actualETag, `"`) {
 				t.Errorf("ETag should be quoted, got %s", result)
 			}
-			if !strings.HasSuffix(result, `"`) {
+			if !strings.HasSuffix(actualETag, `"`) {
 				t.Errorf("ETag should be quoted, got %s", result)
 			}
-			// ETag hash should be 16 hex characters (8 bytes) after trimming quotes
-			etagContent := string(result[1 : len(result)-1])
+			// ETag hash should be 16 hex characters (8 bytes) after trimming quotes and W/ prefix
+			etagContent := string(actualETag[1 : len(actualETag)-1])
 			if len(etagContent) != 16 {
 				t.Errorf("ETag hash should be 16 hex characters (8 bytes), got %d", len(etagContent))
 			}

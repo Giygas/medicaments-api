@@ -668,8 +668,13 @@ func TestServeMedicamentsV1_Success(t *testing.T) {
 				if response.Denomination != tt.expectedValue.(string) {
 					t.Errorf("Expected denomination '%s', got '%s'", tt.expectedValue, response.Denomination)
 				}
-				if rr.Header().Get("ETag") != "" {
-					t.Error("ETag header should not be present for CIP lookup")
+				// Verify ETag headers for CIP lookup
+				etag := rr.Header().Get("ETag")
+				if etag == "" {
+					t.Error("ETag header should be present for CIP lookup")
+				}
+				if !hasQuotedETag(etag) {
+					t.Errorf("ETag should be quoted, got: %s", etag)
 				}
 			}
 		})
@@ -1501,7 +1506,10 @@ func TestServeGeneriquesV1_MultiWordWordCountLimit(t *testing.T) {
 // ============================================================================
 
 // hasQuotedETag checks if an ETag is properly quoted
+// Supports weak ETags (W/"hash") and strong ETags ("hash")
 func hasQuotedETag(etag string) bool {
+	// Remove W/ prefix for weak ETags
+	etag = strings.TrimPrefix(etag, "W/")
 	return len(etag) >= 2 && etag[0] == '"' && etag[len(etag)-1] == '"'
 }
 
