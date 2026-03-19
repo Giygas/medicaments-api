@@ -118,7 +118,7 @@ func (s *Server) setupRoutes() {
 	s.router.Get("/v1/diagnostics", s.httpHandler.ServeDiagnosticsV1)
 
 	// Will get a 404 otherwise
-	s.router.Get("/v1/presentations/", s.httpHandler.ServePresentationsMissingCIP)
+	s.router.Get("/v1/presentations", s.httpHandler.ServePresentationsMissingCIP)
 
 }
 

@@ -397,7 +397,7 @@ func (h *Handler) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	h.RespondWithJSON(w, http.StatusOK, gen)
+	h.RespondWithJSONAndETag(w, r, http.StatusOK, gen)
 }
 
 // HealthCheck returns server health information
@@ -720,7 +720,7 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.RespondWithJSON(w, http.StatusOK, med)
+		h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
 		return
 	}
 
