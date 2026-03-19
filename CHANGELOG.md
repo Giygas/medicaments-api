@@ -7,6 +7,47 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+## [1.2.2] - 2026-03-19
+
+### Pour les utilisateurs de l'API
+
+#### Améliorations
+
+- **Cache ETag étendu** : Activation du cache ETag sur 2 endpoints additionnels
+  - `/v1/generiques/{groupID}` : Cache ETag pour les groupes génériques
+  - `/v1/medicaments?cip={cip}` : Cache ETag pour la recherche par CIP
+  - Réduit la charge serveur et améliore les performances pour les clients
+
+#### Corrigé
+
+- **Route des présentations** : Correction du trailing slash (/v1/presentations/ → /v1/presentations)
+  - Retourne désormais une erreur 400 cohérente si le paramètre CIP est manquant
+- **Cache ETag** : Émission de weak ETags (W/"...") pour préserver le caching derrière Cloudflare
+  - Améliore la compatibilité avec les proxys et CDNs
+
+#### Documentation
+
+- **Spécification OpenAPI** : Ajout des headers ETag et Last-Modified pour les endpoints concernés
+
+---
+
+### Pour les opérateurs (self-hosters)
+
+#### Infrastructure
+
+- **robots.txt** : Ajout de règles de contrôle des crawlers
+  - Bloque les endpoints système (/health, /v1/diagnostics, /metrics)
+  - Empêche l'indexation des endpoints legacy
+  - Améliore le SEO et réduit le trafic indésirable
+
+#### Observabilité
+
+- **Permissions des logs** : Modification des permissions de fichiers de log (0600 → 0644)
+  - Permet aux outils de monitoring de lire les fichiers de log
+  - Maintient l'accès en écriture uniquement pour les non-propriétaires
+- **Métriques** : Utilisation du label "404" pour les routes inconnues
+  - Améliore la visibilité des erreurs 404 dans le monitoring
+
 ## [1.2.1] - 2026-03-06
 
 ### Ajouté
