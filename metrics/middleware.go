@@ -31,6 +31,9 @@ func Metrics(next http.Handler) http.Handler {
 		duration := time.Since(start).Seconds()
 
 		path := chi.RouteContext(r.Context()).RoutePattern()
+		if path == "" {
+			path = "404"
+		}
 
 		HTTPRequestTotals.WithLabelValues(
 			r.Method,
