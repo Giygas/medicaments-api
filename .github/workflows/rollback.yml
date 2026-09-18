@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_version:
-        description: 'Version to rollback to (leave empty for latest)'
+        description: "Version to rollback to (leave empty for latest)"
         required: false
         type: string
 
@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
       - name: SSH Setup
         uses: ./.github/actions/ssh-setup
 
@@ -57,8 +60,9 @@ jobs:
           echo "=== Available Backups ==="
           echo ""
 
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            cd "${REPO_DIR}/backups"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "REPO_DIR='${{ secrets.REPO_DIR }}' bash -s" << 'EOF'
+            cd "$REPO_DIR/backups"
 
             # Print header
             printf "%-40s %-15s %-15s %s\n" "Backup Directory" "Tag" "Short SHA" "Commit Message"
@@ -101,8 +105,6 @@ jobs:
             echo "  - A directory name (e.g., medicaments-api-20250212-143022) OR"
             echo "  - Leave empty to rollback to the latest backup"
           EOF
-        env:
-          REPO_DIR: ${{ secrets.REPO_DIR }}
 
       - name: Select backup version
         shell: bash
@@ -120,13 +122,15 @@ jobs:
             echo "Searching for tag: $INPUT"
 
             # Search all backups for matching tag
-            TARGET=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            # INPUT is safe to embed: validated as ^v[0-9]+\.[0-9]+\.[0-9]+$ above
+            TARGET=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "REPO_DIR='${{ secrets.REPO_DIR }}' INPUT='$INPUT' bash -s" << 'EOF'
               cd "${REPO_DIR}/backups"
               for dir in medicaments-api-*; do
-                if [ -f "\$dir/metadata.txt" ]; then
-                  TAG=\$(grep "^tag=" "\$dir/metadata.txt" 2>/dev/null | cut -d= -f2)
-                  if [ "\$TAG" = "$INPUT" ]; then
-                    echo "\$dir"
+                if [ -f "$dir/metadata.txt" ]; then
+                  TAG=$(grep "^tag=" "$dir/metadata.txt" 2>/dev/null | cut -d= -f2)
+                  if [ "$TAG" = "$INPUT" ]; then
+                    echo "$dir"
                     exit 0
                   fi
                 fi
@@ -139,7 +143,8 @@ jobs:
               echo "❌ ERROR: No backup found with tag '$INPUT'"
               echo ""
               echo "Available tags:"
-              ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+              ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+                "REPO_DIR='${{ secrets.REPO_DIR }}' bash -s" << 'EOF'
                 cd "${REPO_DIR}/backups"
                 for dir in medicaments-api-*; do
                   if [ -f "$dir/metadata.txt" ]; then
@@ -221,7 +226,7 @@ jobs:
         run: |
           BACKUP_DIR="${{ steps.select-backup.outputs.target_dir }}"
 
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.REPO_DIR }} && bash -s" << 'EOF'
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.REPO_DIR }} && bash -s" << EOF
             echo "=== Rolling back to ${BACKUP_DIR} ==="
 
             # Stop service
@@ -264,19 +269,19 @@ jobs:
               echo "✓ Service is running"
 
               # Check health endpoint
-              HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ADDRESS }}:${{ secrets.PORT }}/health" || echo "000")
-              if [ "$HEALTH" = "200" ]; then
+              HEALTH=\$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ADDRESS }}:${{ secrets.PORT }}/health" || echo "000")
+              if [ "\$HEALTH" = "200" ]; then
                 echo "✓ Health check passed (200)"
                 echo "=== ROLLBACK SUCCESSFUL ==="
               else
-                echo "⚠ Health check failed with code: $HEALTH"
+                echo "⚠ Health check failed with code: \$HEALTH"
                 echo "Service may be degraded"
               fi
             else
               echo "✗ ERROR: Service failed to start"
               sudo systemctl status medicaments-api
-            exit 1
-          fi
+              exit 1
+            fi
           EOF
 
       - name: SSH Cleanup
