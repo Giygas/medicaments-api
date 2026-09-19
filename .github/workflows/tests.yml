@@ -86,6 +86,7 @@ jobs:
 
   # Fast quality checks - runs first, fails fast, blocks expensive tests
   quick-checks:
+    needs: check-changes
     if: needs.check-changes.outputs.should_run == 'true'
     name: Quick Quality & Smoke Checks
     runs-on: ubuntu-latest
