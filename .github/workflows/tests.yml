@@ -19,7 +19,7 @@ jobs:
     name: Check for Code Changes
     runs-on: ubuntu-latest
     outputs:
-      should-run: ${{ steps.filter.outputs.should_run }}
+      should_run: ${{ steps.filter.outputs.should_run }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
