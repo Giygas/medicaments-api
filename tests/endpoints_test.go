@@ -125,6 +125,15 @@ func TestEndpoints(t *testing.T) {
 		{"Test medicaments negative page", "/v1/medicaments?page=-1", http.StatusBadRequest},
 		{"Test medicaments invalid CIS", "/v1/medicaments/abc", http.StatusBadRequest},
 		{"Test health", "/health", http.StatusOK},
+
+		// Legacy endpoints (removed 2026-07-31, sunset passed - now 410 Gone)
+		{"Legacy database export", "/database", http.StatusGone},
+		{"Legacy database page", "/database/1", http.StatusGone},
+		{"Legacy medicament search", "/medicament/Test", http.StatusGone},
+		{"Legacy medicament by CIS", "/medicament/id/12345678", http.StatusGone},
+		{"Legacy medicament by CIP", "/medicament/cip/1234567", http.StatusGone},
+		{"Legacy generiques by libelle", "/generiques/Test", http.StatusGone},
+		{"Legacy generiques by group", "/generiques/group/100", http.StatusGone},
 	}
 
 	srv := setupEndpointsTestServer(testDataContainer)

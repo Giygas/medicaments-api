@@ -7,6 +7,27 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+## [2.0.0] - 2026-09-20
+
+### Pour les utilisateurs de l'API
+
+#### Supprimé
+
+- **BREAKING — Endpoints legacy supprimés** (sunset du 31 juillet 2026 appliqué) : les 7 endpoints legacy répondent désormais `410 Gone` et ne servent plus aucune donnée
+  - `GET /database` → `/v1/medicaments/export`
+  - `GET /database/{page}` → `/v1/medicaments?page={n}`
+  - `GET /medicament/{nom}` → `/v1/medicaments?search={nom}`
+  - `GET /medicament/id/{cis}` → `/v1/medicaments/{cis}`
+  - `GET /medicament/cip/{cip}` → `/v1/medicaments?cip={cip}`
+  - `GET /generiques/{libelle}` → `/v1/generiques?libelle={libelle}`
+  - `GET /generiques/group/{id}` → `/v1/generiques/{groupID}`
+  - Chaque réponse `410` inclut les headers `Deprecation`, `Sunset` et `Link; rel="successor-version"` pointant vers l'endpoint v1 de remplacement — voir le [Guide de Migration](docs/MIGRATION.md)
+
+#### Changé
+
+- **Coût en tokens des endpoints legacy** : uniformisé au minimum (5 tokens), les réponses `410` étant des stubs statiques
+- **Documentation** : spécification OpenAPI, page d'accueil et guide de migration mis à jour pour refléter la suppression
+
 ## [1.2.2] - 2026-03-19
 
 ### Pour les utilisateurs de l'API
@@ -360,7 +381,9 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 - **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
 - **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Non publié]: https://github.com/giygas/medicaments-api/compare/v1.2.1...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/giygas/medicaments-api/compare/v1.2.2...v2.0.0
+[1.2.2]: https://github.com/giygas/medicaments-api/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/giygas/medicaments-api/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/giygas/medicaments-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/giygas/medicaments-api/compare/v1.0.0...v1.1.0

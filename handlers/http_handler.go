@@ -153,147 +153,86 @@ func (h *Handler) RespondWithJSONAndETag(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-func (h *Handler) AddDeprecationHeaders(w http.ResponseWriter, r *http.Request, newPath string) {
+// legacySunsetDate is the sunset date (RFC 8594) after which the legacy
+// endpoints were permanently removed and started responding 410 Gone.
+const legacySunsetDate = "2026-07-31T23:59:59Z"
+
+// RespondWithGone writes a 410 Gone response for a removed legacy endpoint,
+// pointing clients to its v1 successor via standard deprecation headers.
+func (h *Handler) RespondWithGone(w http.ResponseWriter, r *http.Request, successorPath string) {
 	oldPath := r.URL.Path
-	// Primary deprecation header (HTTP/1.1 standard)
+
+	// Primary deprecation header (RFC 9745)
 	w.Header().Set("Deprecation", "true")
 
-	// Link header points to the replacement endpoint
-	// Follows RFC 5988 Web Linking standard
-	// Build full URL first
+	// Sunset header indicates when the endpoint was removed (RFC 8594)
+	w.Header().Set("Sunset", legacySunsetDate)
+
+	// Link header points to the replacement endpoint (RFC 5988 Web Linking)
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
 	}
-	fullURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, newPath)
+	fullURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, successorPath)
 	w.Header().Set("Link", fmt.Sprintf("<%s>; rel=\"successor-version\"", fullURL))
 
-	// Sunset header indicates when the endpoint will be removed
-	// Format: RFC 1123 date format
-	w.Header().Set("Sunset", "2026-07-31T23:59:59Z")
-
 	// Non standard but good practice
-	w.Header().Set("X-Deprecated", fmt.Sprintf("Use %s instead", newPath))
+	w.Header().Set("X-Deprecated", fmt.Sprintf("Use %s instead", successorPath))
 
 	// Warning header (HTTP/1.1 standard - RFC 7234)
 	// Format: 299 - "warning-text"
-	// This is the HTTP standard way to warn clients about deprecated behavior
-	warningMsg := fmt.Sprintf("299 - \"Deprecated endpoint %s. Use %s instead\"", oldPath, newPath)
+	warningMsg := fmt.Sprintf("299 - \"Removed endpoint %s. Use %s instead\"", oldPath, successorPath)
 	w.Header().Set("Warning", warningMsg)
 
+	h.RespondWithError(w, http.StatusGone, fmt.Sprintf("Endpoint %s was removed on %s. Use %s instead", oldPath, legacySunsetDate, successorPath))
 }
 
-// ExportMedicaments returns all medicaments
+// ExportMedicaments returns all medicaments.
+// The legacy /database route was removed (sunset 2026-07-31) and now returns 410 Gone.
 func (h *Handler) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	if path == "/database" {
-		h.AddDeprecationHeaders(w, r, "/v1/medicaments/export")
+	// Removed legacy route: respond 410 Gone before any processing
+	if r.URL.Path == "/database" {
+		h.RespondWithGone(w, r, "/v1/medicaments/export")
+		return
 	}
 
 	medicaments := h.dataStore.GetMedicaments()
 	h.RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)
 }
 
-// ServePagedMedicaments returns paginated medicaments
+// ServePagedMedicaments responds 410 Gone for the removed legacy endpoint
+// /database/{pageNumber}. Use /v1/medicaments?page={n}&pageSize={m} instead.
 func (h *Handler) ServePagedMedicaments(w http.ResponseWriter, r *http.Request) {
-	pageNumber := r.PathValue("pageNumber")
-	page, err := strconv.Atoi(pageNumber)
-	if err != nil || page < 1 {
-		logging.Warn("Unusual user input", "pageNumber", pageNumber)
-		h.RespondWithError(w, http.StatusBadRequest, "Invalid page number")
-		return
+	page := r.PathValue("pageNumber")
+	if page == "" {
+		page = "1"
 	}
-
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/medicaments?page=%v", page)
-	h.AddDeprecationHeaders(w, r, newPath)
-
-	medicaments := h.dataStore.GetMedicaments()
-	pageSize := 10
-	start := (page - 1) * pageSize
-	end := start + pageSize
-
-	if start >= len(medicaments) {
-		h.RespondWithError(w, http.StatusNotFound, "Page not found")
-		return
-	}
-
-	if end > len(medicaments) {
-		end = len(medicaments)
-	}
-
-	pagedMedicaments := medicaments[start:end]
-	totalItems := len(medicaments)
-	maxPage := (totalItems + pageSize - 1) / pageSize
-
-	response := map[string]any{
-		"data":       pagedMedicaments,
-		"page":       page,
-		"pageSize":   pageSize,
-		"totalItems": totalItems,
-		"maxPage":    maxPage,
-	}
-
-	h.RespondWithJSON(w, http.StatusOK, response)
+	h.RespondWithGone(w, r, fmt.Sprintf("/v1/medicaments?page=%s", page))
 }
 
-// FindMedicament searches for medicaments by name or CIP using query parameters
+// FindMedicament responds 410 Gone for the removed legacy endpoint
+// /medicament/{element}. Use /v1/medicaments?search={element} instead.
 func (h *Handler) FindMedicament(w http.ResponseWriter, r *http.Request) {
-	element := r.PathValue("element")
-	if element == "" {
-		h.RespondWithError(w, http.StatusBadRequest, "Missing search term")
-		return
-	}
-
-	// Validate input using the validator
-	if err := h.validator.ValidateInput(element); err != nil {
-		h.RespondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Sanitize input (replace + with space for flexible matching)
-	sanitizedElement := strings.ToLower(element)
-	sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
-
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/medicament?search=%v", element)
-	h.AddDeprecationHeaders(w, r, newPath)
-
-	medicaments := h.dataStore.GetMedicaments()
-	var results []entities.Medicament
-
-	for _, med := range medicaments {
-		if strings.Contains(med.DenominationNormalized, sanitizedElement) {
-			results = append(results, med)
-		}
-	}
-
-	// Return 404 if no results found
-	if len(results) == 0 {
-		h.RespondWithError(w, http.StatusNotFound, "No medicaments found")
-		return
-	}
-
-	h.RespondWithJSON(w, http.StatusOK, results)
+	h.RespondWithGone(w, r, fmt.Sprintf("/v1/medicaments?search=%s", r.PathValue("element")))
 }
 
-// FindMedicamentByCIS finds a medicament by CIS
+// FindMedicamentByCIS finds a medicament by CIS.
+// The legacy /medicament/id/{cis} route was removed (sunset 2026-07-31)
+// and now returns 410 Gone.
 func (h *Handler) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
+	// Removed legacy route: respond 410 Gone before any processing
+	if strings.HasPrefix(r.URL.Path, "/medicament/id/") {
+		h.RespondWithGone(w, r, fmt.Sprintf("/v1/medicaments/%s", r.PathValue("cis")))
+		return
+	}
+
 	cisStr := r.PathValue("cis")
-	path := r.URL.Path
 
 	cis, err := h.validator.ValidateCIS(cisStr)
 
 	if err != nil {
 		h.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	// Add deprecation headers for legacy endpoint
-	if strings.HasPrefix(path, "/medicament/id/") {
-		newPath := fmt.Sprintf("/v1/medicaments/%v", cis)
-		h.AddDeprecationHeaders(w, r, newPath)
 	}
 
 	medicamentsMap := h.dataStore.GetMedicamentsMap()
@@ -306,88 +245,34 @@ func (h *Handler) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
 	h.RespondWithJSON(w, http.StatusOK, med)
 }
 
-// FindMedicamentByCIP finds a medicament by its presentation cip7 or cip13
+// FindMedicamentByCIP responds 410 Gone for the removed legacy endpoint
+// /medicament/cip/{cip}. Use /v1/medicaments?cip={cip} instead.
 func (h *Handler) FindMedicamentByCIP(w http.ResponseWriter, r *http.Request) {
-	cipStr := r.PathValue("cip")
-	cip, err := h.validator.ValidateCIP(cipStr)
-	if err != nil {
-		h.RespondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/medicament?cip=%v", cip)
-	h.AddDeprecationHeaders(w, r, newPath)
-
-	med, found := h.findMedicamentByCIP(cip)
-	if !found {
-		h.RespondWithError(w, http.StatusNotFound, "Medicament not found")
-		return
-	}
-
-	h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
+	h.RespondWithGone(w, r, fmt.Sprintf("/v1/medicaments?cip=%s", r.PathValue("cip")))
 }
 
-// FindGeneriques searches for generiques by libelle (case-insensitive partial match)
+// FindGeneriques responds 410 Gone for the removed legacy endpoint
+// /generiques/{libelle}. Use /v1/generiques?libelle={libelle} instead.
 func (h *Handler) FindGeneriques(w http.ResponseWriter, r *http.Request) {
-	libelle := r.PathValue("libelle")
-	if libelle == "" {
-		h.RespondWithError(w, http.StatusBadRequest, "Missing libelle")
-		return
-	}
-
-	// Validate input using the validator
-	if err := h.validator.ValidateInput(libelle); err != nil {
-		h.RespondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Sanitize input and convert to lowercase for case-insensitive search
-	sanitizedLibelle := strings.ToLower(libelle)
-	// Normalize: replace + with space for flexible matching
-	sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
-
-	// Add deprecation headers
-	newPath := fmt.Sprintf("/v1/generiques?libelle=%v", libelle)
-	h.AddDeprecationHeaders(w, r, newPath)
-
-	generiques := h.dataStore.GetGeneriques()
-	var results []entities.GeneriqueList
-
-	for _, gen := range generiques {
-		if strings.Contains(gen.LibelleNormalized, sanitizedLibelle) {
-			results = append(results, gen)
-		}
-	}
-
-	if len(results) == 0 {
-		h.RespondWithError(w, http.StatusNotFound, "No generiques found")
-		return
-	}
-
-	h.RespondWithJSON(w, http.StatusOK, results)
+	h.RespondWithGone(w, r, fmt.Sprintf("/v1/generiques?libelle=%s", r.PathValue("libelle")))
 }
 
-// FindGeneriquesByGroupID finds generiques by group ID
+// FindGeneriquesByGroupID finds generiques by group ID.
+// The legacy /generiques/group/{groupId} route was removed (sunset 2026-07-31)
+// and now returns 410 Gone.
 func (h *Handler) FindGeneriquesByGroupID(w http.ResponseWriter, r *http.Request) {
-	// Support both v1 path parameter (groupID) and legacy path parameter (groupId)
-	groupIDStr := r.PathValue("groupID")
-	if groupIDStr == "" {
-		groupIDStr = r.PathValue("groupId")
+	// Removed legacy route: respond 410 Gone before any processing
+	if strings.HasPrefix(r.URL.Path, "/generiques/group/") {
+		h.RespondWithGone(w, r, fmt.Sprintf("/v1/generiques/%s", r.PathValue("groupId")))
+		return
 	}
+
+	groupIDStr := r.PathValue("groupID")
 
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
 		h.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
 		return
-	}
-
-	path := r.URL.Path
-
-	// Add deprecation headers for legacy endpoint only
-	if strings.HasPrefix(path, "/generiques/group/") {
-		newPath := fmt.Sprintf("/v1/generiques/%v", groupID)
-		h.AddDeprecationHeaders(w, r, newPath)
 	}
 
 	generiquesMap := h.dataStore.GetGeneriquesMap()

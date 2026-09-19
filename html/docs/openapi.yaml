@@ -8,9 +8,9 @@ info:
     - Données officielles mises à jour automatiquement 2 fois par jour (6h et 18h)
     - Accès gratuit avec rate limiting équitable (1000 tokens initiaux, recharge à 3 tokens/sec)
     - Données intègres et non altérées depuis la source BDPM
-    - Endpoints v1 modernes + endpoints legacy (dépréciés, suppression prévue le 31 juillet 2026)
+    - Endpoints v1 modernes + endpoints legacy (supprimés le 31 juillet 2026, désormais 410 Gone)
 
-    **Remarque :** Les endpoints legacy sont toujours fonctionnels mais seront supprimés. Veuillez migrer vers les endpoints v1.
+    **Remarque :** Les endpoints legacy ont été supprimés le 31 juillet 2026 et répondent désormais `410 Gone`. Chaque réponse inclut un header `Link; rel="successor-version"` indiquant l'endpoint v1 de remplacement.
 
     **Ressources utiles:**
     - [Guide de migration vers v1](https://github.com/Giygas/medicaments-api/blob/main/docs/MIGRATION.md)
@@ -38,9 +38,9 @@ tags:
   - name: Système
     description: Points de terminaison de santé et d'état du système
   - name: Médicaments (Legacy)
-    description: Points de terminaison legacy liés aux médicaments (dépréciés)
+    description: Points de terminaison legacy liés aux médicaments (supprimés, 410 Gone)
   - name: Génériques (Legacy)
-    description: Points de terminaison legacy des groupes de médicaments génériques (dépréciés)
+    description: Points de terminaison legacy des groupes de médicaments génériques (supprimés, 410 Gone)
 
 paths:
   /v1/medicaments:
@@ -829,9 +829,9 @@ paths:
   /database:
     get:
       deprecated: true
-      summary: "[LEGACY] Obtenir tous les médicaments"
+      summary: "[SUPPRIMÉ] Obtenir tous les médicaments"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Récupérer la liste complète de tous les médicaments dans la base de données.
 
@@ -839,8 +839,8 @@ paths:
       tags:
         - Médicaments (Legacy)
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -872,62 +872,28 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Medicament"
-              examples:
-                database:
-                  summary: Liste complète (legacy)
-                  value:
-                    - cis: "61504672"
-                      elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
-                      formePharmaceutique: "comprimé"
-                      voiesAdministration: ["orale"]
-                      statusAutorisation: "Autorisation active"
-                      typeProcedure: "Procédure nationale"
-                      etatComercialisation: "Commercialisée"
-                      dateAMM: "2000-01-01"
-                      titulaire: "MYLAN SAS"
-                      surveillanceRenforcee: "Non"
-                      composition: []
-                      generiques: []
-                      presentation: []
-                      conditions: []
-                    - cis: "61504672"
-                      elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
-                      formePharmaceutique: "comprimé"
-                      voiesAdministration: ["orale"]
-                      statusAutorisation: "Autorisation active"
-                      typeProcedure: "Procédure nationale"
-                      etatComercialisation: "Commercialisée"
-                      dateAMM: "2000-01-01"
-                      titulaire: "MYLAN SAS"
-                      surveillanceRenforcee: "Non"
-                      composition: []
-                      generiques: []
-                      presentation: []
-                      conditions: []
-        "500":
-          description: Erreur interne du serveur
+                  value: '299 - "Removed endpoint /database. Use /v1/medicaments/export instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                gone:
+                  value:
+                    error: "Gone"
+                    message: "Endpoint /database was removed on 2026-07-31T23:59:59Z. Use /v1/medicaments/export instead"
+                    code: 410
 
   /database/{pageNumber}:
     get:
       deprecated: true
-      summary: "[LEGACY] Obtenir des médicaments par page"
+      summary: "[SUPPRIMÉ] Obtenir des médicaments par page"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Pagination de la base de données (10 éléments/page).
 
-        **Migration :** Utilisez `/v1/medicaments?page={n}` à la place.
+        **Migration :** Utilisez `/v1/medicaments?page={n}&pageSize={m}` à la place.
       tags:
         - Médicaments (Legacy)
       parameters:
@@ -939,8 +905,8 @@ paths:
             type: integer
             minimum: 1
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -972,61 +938,24 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Medicament"
-                  page:
-                    type: integer
-                  pageSize:
-                    type: integer
-                  totalItems:
-                    type: integer
-                  maxPage:
-                    type: integer
-        "400":
-          description: Numéro de page invalide
+                  value: '299 - "Removed endpoint /database/{pageNumber}. Use /v1/medicaments?page={n} instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                bad-request:
+                gone:
                   value:
-                    error: "Bad Request"
-                    message: "Invalid page number"
-                    code: 400
-        "404":
-          description: Page non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not-found:
-                  value:
-                    error: "Not Found"
-                    message: "Page not found"
-                    code: 404
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    error: "Gone"
+                    message: "Endpoint /database/1 was removed on 2026-07-31T23:59:59Z. Use /v1/medicaments?page=1 instead"
+                    code: 410
 
   /medicament/{element}:
     get:
       deprecated: true
-      summary: "[LEGACY] Rechercher des médicaments par nom"
+      summary: "[SUPPRIMÉ] Rechercher des médicaments par nom"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Rechercher des médicaments par dénomination (insensible à la casse).
 
@@ -1044,8 +973,8 @@ paths:
             maxLength: 50
             pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -1077,50 +1006,24 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Medicament"
-        "400":
-          description: Terme de recherche invalide
+                  value: '299 - "Removed endpoint /medicament/{element}. Use /v1/medicaments?search={query} instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                bad-request:
+                gone:
                   value:
-                    error: "Bad Request"
-                    message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
-                    code: 400
-        "404":
-          description: Aucun médicament trouvé
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not-found:
-                  value:
-                    error: "Not Found"
-                    message: "No medicaments found"
-                    code: 404
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    error: "Gone"
+                    message: "Endpoint /medicament/paracetamol was removed on 2026-07-31T23:59:59Z. Use /v1/medicaments?search=paracetamol instead"
+                    code: 410
 
   /medicament/id/{cis}:
     get:
       deprecated: true
-      summary: "[LEGACY] Obtenir un médicament par code CIS"
+      summary: "[SUPPRIMÉ] Obtenir un médicament par code CIS"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Récupérer un médicament spécifique par son CIS (Code Identifiant de Spécialité).
 
@@ -1137,8 +1040,8 @@ paths:
             minimum: 1
             maximum: 999999999
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -1170,48 +1073,24 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Medicament"
-        "400":
-          description: Code CIS invalide
+                  value: '299 - "Removed endpoint /medicament/id/{cis}. Use /v1/medicaments/{cis} instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                bad-request:
+                gone:
                   value:
-                    error: "Bad Request"
-                    message: "Invalid CIS"
-                    code: 400
-        "404":
-          description: Médicament non trouvé
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not-found:
-                  value:
-                    error: "Not Found"
-                    message: "Medicament not found"
-                    code: 404
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    error: "Gone"
+                    message: "Endpoint /medicament/id/61504672 was removed on 2026-07-31T23:59:59Z. Use /v1/medicaments/61504672 instead"
+                    code: 410
 
   /generiques/{libelle}:
     get:
       deprecated: true
-      summary: "[LEGACY] Rechercher des groupes génériques par nom"
+      summary: "[SUPPRIMÉ] Rechercher des groupes génériques par nom"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Rechercher des groupes génériques par libellé (insensible à la casse).
 
@@ -1229,8 +1108,8 @@ paths:
             maxLength: 50
             pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -1262,50 +1141,24 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/GeneriqueListResponse"
-        "400":
-          description: Terme de recherche invalide
+                  value: '299 - "Removed endpoint /generiques/{libelle}. Use /v1/generiques?libelle={nom} instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                bad-request:
+                gone:
                   value:
-                    error: "Bad Request"
-                    message: "Invalid search term: must be alphanumeric with spaces, max 50 characters"
-                    code: 400
-        "404":
-          description: Aucun générique trouvé
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not-found:
-                  value:
-                    error: "Not Found"
-                    message: "No generiques found"
-                    code: 404
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    error: "Gone"
+                    message: "Endpoint /generiques/paracetamol was removed on 2026-07-31T23:59:59Z. Use /v1/generiques?libelle=paracetamol instead"
+                    code: 410
 
   /generiques/group/{groupId}:
     get:
       deprecated: true
-      summary: "[LEGACY] Obtenir un groupe générique par ID"
+      summary: "[SUPPRIMÉ] Obtenir un groupe générique par ID"
       description: |
-        **DEPRÉCIÉ - Ce endpoint sera supprimé le 31 juillet 2026**
+        **SUPPRIMÉ - Ce endpoint a été retiré le 31 juillet 2026 et répond désormais `410 Gone`.**
 
         Récupérer un groupe générique spécifique par son ID de groupe.
 
@@ -1322,8 +1175,8 @@ paths:
             minimum: 1
             maximum: 99999
       responses:
-        "200":
-          description: Réponse réussie
+        "410":
+          description: Endpoint supprimé (sunset 2026-07-31)
           headers:
             Deprecation:
               schema:
@@ -1355,41 +1208,17 @@ paths:
                 type: string
               examples:
                 warning-header:
-                  value: '299 - "Deprecated endpoint"'
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GeneriqueResponse"
-        "400":
-          description: ID de groupe invalide
+                  value: '299 - "Removed endpoint /generiques/group/{groupId}. Use /v1/generiques/{groupID} instead"'
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               examples:
-                bad-request:
+                gone:
                   value:
-                    error: "Bad Request"
-                    message: "Invalid group ID"
-                    code: 400
-        "404":
-          description: Groupe générique non trouvé
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                not-found:
-                  value:
-                    error: "Not Found"
-                    message: "Generique group not found"
-                    code: 404
-        "500":
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    error: "Gone"
+                    message: "Endpoint /generiques/group/1234 was removed on 2026-07-31T23:59:59Z. Use /v1/generiques/1234 instead"
+                    code: 410
 
 components:
   parameters:

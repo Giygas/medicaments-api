@@ -206,7 +206,7 @@ func TestExportMedicaments(t *testing.T) {
 			mockValidator := &MockDataValidator{}
 			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
-			req := httptest.NewRequest("GET", "/database", nil)
+			req := httptest.NewRequest("GET", "/v1/medicaments/export", nil)
 			rr := httptest.NewRecorder()
 
 			handler.ExportMedicaments(rr, req)
@@ -256,184 +256,76 @@ func TestExportMedicaments(t *testing.T) {
 	}
 }
 
-// TestServePagedMedicaments tests pagination
-func TestServePagedMedicaments(t *testing.T) {
-	factory := NewTestDataFactory()
+// TestLegacyEndpointsReturn410 verifies that the removed legacy endpoints
+// (sunset 2026-07-31) respond 410 Gone with deprecation headers pointing to
+// their v1 successors.
+func TestLegacyEndpointsReturn410(t *testing.T) {
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
 
 	tests := []struct {
-		name         string
-		pageNumber   string
-		medicaments  []entities.Medicament
-		expectedCode int
-		expectError  string
+		name        string
+		pattern     string
+		requestPath string
+		successor   string
+		handler     func(http.ResponseWriter, *http.Request)
 	}{
-		{
-			name:         "valid page 1",
-			pageNumber:   "1",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
-			expectedCode: http.StatusOK,
-		},
-		{
-			name:         "valid page 2",
-			pageNumber:   "2",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
-			expectedCode: http.StatusNotFound,
-			expectError:  "Page not found",
-		},
-		{
-			name:         "invalid page number",
-			pageNumber:   "invalid",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "Invalid page number",
-		},
-		{
-			name:         "negative page number",
-			pageNumber:   "-1",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "Invalid page number",
-		},
-		{
-			name:         "zero page number",
-			pageNumber:   "0",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Test Med 1")},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "Invalid page number",
-		},
+		{"database export", "/database", "/database", "/v1/medicaments/export", handler.ExportMedicaments},
+		{"database page", "/database/{pageNumber}", "/database/2", "/v1/medicaments?page=2", handler.ServePagedMedicaments},
+		{"medicament search", "/medicament/{element}", "/medicament/paracetamol", "/v1/medicaments?search=paracetamol", handler.FindMedicament},
+		{"medicament by CIS", "/medicament/id/{cis}", "/medicament/id/12345678", "/v1/medicaments/12345678", handler.FindMedicamentByCIS},
+		{"medicament by CIP", "/medicament/cip/{cip}", "/medicament/cip/1234567", "/v1/medicaments?cip=1234567", handler.FindMedicamentByCIP},
+		{"generiques by libelle", "/generiques/{libelle}", "/generiques/paracetamol", "/v1/generiques?libelle=paracetamol", handler.FindGeneriques},
+		{"generiques by group", "/generiques/group/{groupId}", "/generiques/group/100", "/v1/generiques/100", handler.FindGeneriquesByGroupID},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{medicaments: tt.medicaments}
-			mockValidator := &MockDataValidator{}
-			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
-
-			// Create a chi router with the route
+			// Create a chi router with the legacy route, mirroring server.go registration
 			router := chi.NewRouter()
-			router.Get("/database/{pageNumber}", handler.ServePagedMedicaments)
+			router.Get(tt.pattern, tt.handler)
 
-			req := httptest.NewRequest("GET", "/database/"+tt.pageNumber, nil)
+			req := httptest.NewRequest("GET", tt.requestPath, nil)
 			rr := httptest.NewRecorder()
 
 			router.ServeHTTP(rr, req)
 
-			if rr.Code != tt.expectedCode {
-				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
+			if rr.Code != http.StatusGone {
+				t.Fatalf("Expected status 410 Gone, got %d", rr.Code)
 			}
 
-			if tt.expectError != "" {
-				var response map[string]any
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if message, ok := response["message"].(string); !ok || message != tt.expectError {
-					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
-				}
-			} else {
-				// Verify pagination metadata
-				var response map[string]any
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if _, ok := response["data"]; !ok {
-					t.Error("Response should contain 'data' field")
-				}
-
-				if _, ok := response["page"]; !ok {
-					t.Error("Response should contain 'page' field")
-				}
-
-				if _, ok := response["pageSize"]; !ok {
-					t.Error("Response should contain 'pageSize' field")
-				}
-
-				if _, ok := response["totalItems"]; !ok {
-					t.Error("Response should contain 'totalItems' field")
-				}
-
-				if _, ok := response["maxPage"]; !ok {
-					t.Error("Response should contain 'maxPage' field")
-				}
-			}
-		})
-	}
-}
-
-// TestFindMedicament tests medicament search
-func TestFindMedicament(t *testing.T) {
-	factory := NewTestDataFactory()
-
-	tests := []struct {
-		name         string
-		element      string
-		medicaments  []entities.Medicament
-		expectedCode int
-		expectError  string
-	}{
-		{
-			name:    "valid search term",
-			element: "Doliprane",
-			medicaments: []entities.Medicament{
-				factory.CreateMedicament(1, "Doliprane"),
-				factory.CreateMedicament(2, "Ibuprofène"),
-			},
-			expectedCode: http.StatusOK,
-		},
-		{
-			name:         "no results",
-			element:      "NonExistent",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Doliprane")},
-			expectedCode: http.StatusNotFound,
-			expectError:  "No medicaments found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockDataStore{medicaments: tt.medicaments}
-			mockValidator := &MockDataValidator{}
-			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
-
-			// Create a chi router with the route
-			router := chi.NewRouter()
-			router.Get("/medicament/{element}", handler.FindMedicament)
-
-			req := httptest.NewRequest("GET", "/medicament/"+tt.element, nil)
-			rr := httptest.NewRecorder()
-
-			router.ServeHTTP(rr, req)
-
-			if rr.Code != tt.expectedCode {
-				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
+			// Verify deprecation headers
+			if rr.Header().Get("Deprecation") != "true" {
+				t.Error("Expected Deprecation header 'true'")
 			}
 
-			if tt.expectError != "" {
-				var response map[string]any
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON: %v", err)
-				}
+			if rr.Header().Get("Sunset") != "2026-07-31T23:59:59Z" {
+				t.Errorf("Expected Sunset header '2026-07-31T23:59:59Z', got %q", rr.Header().Get("Sunset"))
+			}
 
-				if message, ok := response["message"].(string); !ok || message != tt.expectError {
-					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
-				}
-			} else {
-				// For successful responses, expect JSON array
-				var response []entities.Medicament
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON array: %v", err)
-				}
+			link := rr.Header().Get("Link")
+			if !strings.Contains(link, tt.successor) || !strings.Contains(link, `rel="successor-version"`) {
+				t.Errorf("Expected Link header with successor %s and rel=successor-version, got %q", tt.successor, link)
+			}
 
-				// For "no results" case, expect empty array
-				if tt.name == "no results" && len(response) != 0 {
-					t.Errorf("Expected empty array for no results, got %d items", len(response))
-				}
+			if xDeprecated := rr.Header().Get("X-Deprecated"); !strings.Contains(xDeprecated, tt.successor) {
+				t.Errorf("Expected X-Deprecated header to contain %s, got %q", tt.successor, xDeprecated)
+			}
+
+			if warning := rr.Header().Get("Warning"); !strings.Contains(warning, "299") {
+				t.Errorf("Expected Warning header 299, got %q", warning)
+			}
+
+			// Verify JSON error body mentions the successor
+			var response map[string]any
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to unmarshal JSON: %v", err)
+			}
+			if message, ok := response["message"].(string); !ok || !strings.Contains(message, tt.successor) {
+				t.Errorf("Expected error message to contain %s, got %v", tt.successor, response["message"])
 			}
 		})
 	}
@@ -490,73 +382,11 @@ func TestFindMedicamentByCIS(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
-			// Create a chi router with the route
+			// Create a chi router with the v1 route (shares the handler with the removed legacy route)
 			router := chi.NewRouter()
-			router.Get("/medicament/id/{cis}", handler.FindMedicamentByCIS)
+			router.Get("/v1/medicaments/{cis}", handler.FindMedicamentByCIS)
 
-			req := httptest.NewRequest("GET", "/medicament/id/"+tt.cis, nil)
-			rr := httptest.NewRecorder()
-
-			router.ServeHTTP(rr, req)
-
-			if rr.Code != tt.expectedCode {
-				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
-			}
-
-			if tt.expectError != "" {
-				var response map[string]any
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if message, ok := response["message"].(string); !ok || message != tt.expectError {
-					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
-				}
-			}
-		})
-	}
-}
-
-// TestFindGeneriques tests generique search
-func TestFindGeneriques(t *testing.T) {
-	factory := NewTestDataFactory()
-
-	tests := []struct {
-		name         string
-		libelle      string
-		generiques   []entities.GeneriqueList
-		expectedCode int
-		expectError  string
-	}{
-		{
-			name:    "valid libelle search",
-			libelle: "Paracetamol",
-			generiques: []entities.GeneriqueList{
-				factory.CreateGeneriqueList(1, "Paracetamol", []int{1}),
-			},
-			expectedCode: http.StatusOK,
-		},
-		{
-			name:         "no results",
-			libelle:      "NonExistent",
-			generiques:   []entities.GeneriqueList{factory.CreateGeneriqueList(1, "Test", []int{1})},
-			expectedCode: http.StatusNotFound,
-			expectError:  "No generiques found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockStore := NewMockDataStoreBuilder().WithGeneriques(tt.generiques).Build()
-			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
-
-			// Create a chi router with the route
-			router := chi.NewRouter()
-			router.Get("/generiques/{libelle}", handler.FindGeneriques)
-
-			req := httptest.NewRequest("GET", "/generiques/"+tt.libelle, nil)
+			req := httptest.NewRequest("GET", "/v1/medicaments/"+tt.cis, nil)
 			rr := httptest.NewRecorder()
 
 			router.ServeHTTP(rr, req)
@@ -631,11 +461,11 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 			mockValidator := NewMockDataValidatorBuilder().Build()
 			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
 
-			// Create a chi router with the route
+			// Create a chi router with the v1 route (shares the handler with the removed legacy route)
 			router := chi.NewRouter()
-			router.Get("/generiques/group/{groupId}", handler.FindGeneriquesByGroupID)
+			router.Get("/v1/generiques/{groupID}", handler.FindGeneriquesByGroupID)
 
-			req := httptest.NewRequest("GET", "/generiques/group/"+tt.groupID, nil)
+			req := httptest.NewRequest("GET", "/v1/generiques/"+tt.groupID, nil)
 			rr := httptest.NewRecorder()
 
 			router.ServeHTTP(rr, req)
@@ -653,164 +483,6 @@ func TestFindGeneriquesByGroupID(t *testing.T) {
 
 				if message, ok := response["message"].(string); !ok || message != tt.expectError {
 					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
-				}
-			}
-		})
-	}
-}
-
-// TestFindMedicamentByCIP tests medicament lookup by CIP code (CIP7 or CIP13)
-func TestFindMedicamentByCIP(t *testing.T) {
-	factory := NewTestDataFactory()
-
-	// Create test data with presentations
-	medWithPresentation := factory.CreateMedicament(1, "Doliprane")
-	medWithPresentation.Presentation = []entities.Presentation{
-		{Cis: 1, Cip7: 1234567, Cip13: 1234567890123, Libelle: "Boîte de 8 comprimés"},
-	}
-
-	medWithDifferentPresentation := factory.CreateMedicament(2, "Ibuprofène")
-	medWithDifferentPresentation.Presentation = []entities.Presentation{
-		{Cis: 2, Cip7: 7654321, Cip13: 7654321098765, Libelle: "Boîte de 20 gélules"},
-	}
-
-	tests := []struct {
-		name          string
-		cip           string
-		medicaments   []entities.Medicament
-		expectedCode  int
-		expectError   string
-		checkCipMatch int // The CIP that should match (0 if none)
-	}{
-		{
-			name: "valid CIP7 code found",
-			cip:  "1234567",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-				medWithDifferentPresentation,
-			},
-			expectedCode:  http.StatusOK,
-			checkCipMatch: 1234567,
-		},
-		{
-			name: "valid CIP13 code found",
-			cip:  "1234567890123",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-				medWithDifferentPresentation,
-			},
-			expectedCode:  http.StatusOK,
-			checkCipMatch: 1234567890123,
-		},
-		{
-			name: "non-numeric CIP code",
-			cip:  "abcd123",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-			},
-			expectedCode: http.StatusBadRequest,
-			expectError:  "input contains invalid characters. Only numeric characters are allowed",
-		},
-		{
-			name: "CIP code not found in any presentation",
-			cip:  "9999999",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-			},
-			expectedCode: http.StatusNotFound,
-			expectError:  "Medicament not found",
-		},
-		{
-			name:         "medicament with presentation but CIP doesn't match",
-			cip:          "9999999",
-			medicaments:  []entities.Medicament{factory.CreateMedicament(1, "Different CIP")},
-			expectedCode: http.StatusNotFound,
-			expectError:  "Medicament not found",
-		},
-		{
-			name: "CIP code found in CIP13 but not CIP7",
-			cip:  "7654321098765",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-				medWithDifferentPresentation,
-			},
-			expectedCode:  http.StatusOK,
-			checkCipMatch: 7654321098765,
-		},
-		{
-			name: "CIP code with leading zeros",
-			cip:  "0123456",
-			medicaments: []entities.Medicament{
-				medWithPresentation,
-			},
-			expectedCode: http.StatusNotFound,
-			expectError:  "Medicament not found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Build presentation maps for O(1) lookups
-			presentationsCIP7Map := make(map[int]entities.Presentation)
-			presentationsCIP13Map := make(map[int]entities.Presentation)
-			for _, med := range tt.medicaments {
-				for _, pres := range med.Presentation {
-					presentationsCIP7Map[pres.Cip7] = pres
-					presentationsCIP13Map[pres.Cip13] = pres
-				}
-			}
-
-			mockStore := NewMockDataStoreBuilder().
-				WithMedicaments(tt.medicaments).
-				WithPresentationsCIP7Map(presentationsCIP7Map).
-				WithPresentationsCIP13Map(presentationsCIP13Map).
-				Build()
-			mockValidator := NewMockDataValidatorBuilder().Build()
-			handler := NewHTTPHandler(mockStore, mockValidator, NewMockHealthCheckerBuilder().Build())
-
-			// Create a chi router with the route
-			router := chi.NewRouter()
-			router.Get("/medicament/cip/{cip}", handler.FindMedicamentByCIP)
-
-			req := httptest.NewRequest("GET", "/medicament/cip/"+tt.cip, nil)
-			rr := httptest.NewRecorder()
-
-			router.ServeHTTP(rr, req)
-
-			if rr.Code != tt.expectedCode {
-				t.Errorf("Expected status %d, got %d", tt.expectedCode, rr.Code)
-			}
-
-			if tt.expectError != "" {
-				var response map[string]any
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON: %v", err)
-				}
-
-				if message, ok := response["message"].(string); !ok || message != tt.expectError {
-					t.Errorf("Expected error %s, got %v", tt.expectError, response["message"])
-				}
-			} else {
-				// For successful responses, expect JSON object
-				var response entities.Medicament
-				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				if err != nil {
-					t.Errorf("Failed to unmarshal JSON object: %v", err)
-				}
-
-				// Verify that the returned medicament contains the expected CIP
-				if tt.checkCipMatch != 0 {
-					found := false
-					for _, pres := range response.Presentation {
-						if pres.Cip7 == tt.checkCipMatch || pres.Cip13 == tt.checkCipMatch {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("Expected to find CIP %d in presentation, got %+v", tt.checkCipMatch, response.Presentation)
-					}
 				}
 			}
 		})

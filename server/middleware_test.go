@@ -34,13 +34,14 @@ func TestGetTokenCost(t *testing.T) {
 		// V1 Presentations endpoint (now uses path parameter)
 		{"V1 presentations", "/v1/presentations/1234567", "", 5},
 
-		// Legacy endpoints (for backward compatibility)
-		{"Legacy database", "/database", "", 200},
-		{"Legacy database page", "/database/1", "", 20},
-		{"Legacy medicament by ID", "/medicament/id/12345678", "", 10},
-		{"Legacy medicament by CIP", "/medicament/cip/1234567", "", 10},
-		{"Legacy medicament search", "/medicament/test", "", 80},
-		{"Legacy generiques", "/generiques/test", "", 20},
+		// Legacy endpoints (removed 2026-07-31, now 410 Gone stubs using default cost)
+		{"Legacy database", "/database", "", 5},
+		{"Legacy database page", "/database/1", "", 5},
+		{"Legacy medicament by ID", "/medicament/id/12345678", "", 5},
+		{"Legacy medicament by CIP", "/medicament/cip/1234567", "", 5},
+		{"Legacy medicament search", "/medicament/test", "", 5},
+		{"Legacy generiques", "/generiques/test", "", 5},
+		{"Legacy generiques group", "/generiques/group/1", "", 5},
 
 		// Default case
 		{"Default endpoint", "/unknown", "", 5},

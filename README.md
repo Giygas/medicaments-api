@@ -7,7 +7,7 @@
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
-[![Changelog](https://img.shields.io/badge/Changelog-v1.2.0-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/Changelog-v2.0.0-blue)](CHANGELOG.md)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), rate limiting par token bucket, et support Docker complet avec stack observabilité.
 
@@ -31,9 +31,9 @@ L'API délivre des performances exceptionnelles : lookups O(1) par code CIS ou C
 | `/`                 | Documentation SPA              | [Full API](html/docs/openapi.yaml) |
 | `/docs`             | Swagger UI interactive         | [Full API](html/docs/openapi.yaml) |
 
-**Endpoints legacy (dépréciés - suppression juillet 2026) :**
+**Endpoints legacy (supprimés le 31 juillet 2026) :**
 
-Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 2026.
+Ces endpoints ont été supprimés le 31 juillet 2026. Ils répondent désormais `410 Gone`, accompagnés d'un header `Link; rel="successor-version"` pointant vers l'endpoint v1 de remplacement.
 
 | Endpoint                     | Description        | Migration                            |
 | ---------------------------- | ------------------ | ------------------------------------ |
@@ -41,6 +41,7 @@ Ces endpoints sont toujours disponibles mais seront supprimés le 31 juillet 202
 | `GET /database/{page}`       | Pagination         | → `/v1/medicaments?page={n}`         |
 | `GET /medicament/{nom}`      | Recherche nom      | → `/v1/medicaments?search={nom}`     |
 | `GET /medicament/id/{cis}`   | Recherche CIS      | → `/v1/medicaments/{cis}`            |
+| `GET /medicament/cip/{cip}`  | Recherche CIP      | → `/v1/medicaments?cip={cip}`        |
 | `GET /generiques/{libelle}`  | Génériques libellé | → `/v1/generiques?libelle={libelle}` |
 | `GET /generiques/group/{id}` | Groupe générique   | → `/v1/generiques/{id}`              |
 
