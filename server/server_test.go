@@ -184,14 +184,19 @@ func TestSetupRoutes(t *testing.T) {
 	server := NewServer(cfg, dc)
 
 	// Test API routes
-	expectedRoutes := []string{
-		"/database",
-		"/database/{pageNumber}",
-		"/medicament/{element}",
-		"/medicament/id/{cis}",
-		"/generiques/{libelle}",
-		"/generiques/group/{groupId}",
-		"/health",
+	// Legacy routes were removed (sunset 2026-07-31) and must respond 410 Gone
+	expectedRoutes := []struct {
+		route string
+		gone  bool
+	}{
+		{"/database", true},
+		{"/database/{pageNumber}", true},
+		{"/medicament/{element}", true},
+		{"/medicament/id/{cis}", true},
+		{"/medicament/cip/{cip}", true},
+		{"/generiques/{libelle}", true},
+		{"/generiques/group/{groupId}", true},
+		{"/health", false},
 	}
 
 	// Test documentation routes
@@ -207,7 +212,8 @@ func TestSetupRoutes(t *testing.T) {
 	router := server.router.(*chi.Mux)
 
 	// Check API routes
-	for _, route := range expectedRoutes {
+	for _, tc := range expectedRoutes {
+		route := tc.route
 		// Chi doesn't expose route listing directly, so we'll test by making requests
 		rr := httptest.NewRecorder()
 
@@ -217,10 +223,24 @@ func TestSetupRoutes(t *testing.T) {
 		testRoute = strings.ReplaceAll(testRoute, "{cis}", "123")
 		testRoute = strings.ReplaceAll(testRoute, "{libelle}", "test")
 		testRoute = strings.ReplaceAll(testRoute, "{groupId}", "1")
+		testRoute = strings.ReplaceAll(testRoute, "{cip}", "1234567")
 
 		req := httptest.NewRequest("GET", testRoute, nil)
 		req.RemoteAddr = "127.0.0.1:1234" // Set localhost RemoteAddr to pass BlockDirectAccessMiddleware
 		router.ServeHTTP(rr, req)
+
+		if tc.gone {
+			// Removed legacy routes must respond 410 Gone with successor link
+			if rr.Code != http.StatusGone {
+				t.Errorf("Legacy route %s should respond 410 Gone, got %d", route, rr.Code)
+			} else {
+				link := rr.Header().Get("Link")
+				if !strings.Contains(link, "successor-version") {
+					t.Errorf("Legacy route %s should return Link header with successor-version, got %q", route, link)
+				}
+			}
+			continue
+		}
 
 		// Routes that require data may return 404 when data container is empty
 		// This is expected behavior - we're just testing that routes are registered

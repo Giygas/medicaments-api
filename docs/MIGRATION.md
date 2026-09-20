@@ -4,7 +4,22 @@
 
 Les endpoints v1 utilisent des paramètres de requête ou de chemin selon l'opération pour une architecture RESTful cohérente et optimisée.
 
-**⚠️ Date de sunset des endpoints legacy** : **31 juillet 2026**
+**🚨 Endpoints legacy supprimés depuis le 31 juillet 2026.** Ils répondent désormais `410 Gone` avec un header `Link: <...>; rel="successor-version"` indiquant l'endpoint v1 de remplacement :
+
+```http
+HTTP/1.1 410 Gone
+Deprecation: true
+Sunset: 2026-07-31T23:59:59Z
+Link: <https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol>; rel="successor-version"
+X-Deprecated: Use /v1/medicaments?search=paracetamol instead
+Warning: 299 - "Removed endpoint /medicament/paracetamol. Use /v1/medicaments?search=paracetamol instead"
+
+{
+  "error": "Gone",
+  "message": "Endpoint /medicament/paracetamol was removed on 2026-07-31T23:59:59Z. Use /v1/medicaments?search=paracetamol instead",
+  "code": 410
+}
+```
 
 ## Table de Migration
 
@@ -207,15 +222,17 @@ if (response.status === 400) {
 }
 ```
 
-### Headers de dépréciation
+### Réponse 410 Gone des endpoints legacy
 
-Les endpoints legacy renvoient les headers suivants pour aider les clients à migrer :
+Depuis le 31 juillet 2026, les endpoints legacy sont supprimés et répondent `410 Gone` avec les headers suivants pour aider les clients à migrer :
 
 - `Deprecation: true`
 - `Sunset: 2026-07-31T23:59:59Z`
 - `Link: <https://medicaments-api.giygas.dev/v1/...>; rel="successor-version"`
 - `X-Deprecated: Use /v1/... instead`
-- `Warning: 299 - "Deprecated endpoint..."`
+- `Warning: 299 - "Removed endpoint ... Use ... instead"`
+
+Le corps de la réponse est un `ErrorResponse` JSON dont le message indique la date de suppression et l'endpoint v1 de remplacement.
 
 ## Changements Majeurs (Breaking Changes)
 

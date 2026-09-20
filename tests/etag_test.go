@@ -26,13 +26,13 @@ func setupETagTestServer(dataContainer *data.DataContainer) *server.Server {
 }
 
 func TestETagFunctionality(t *testing.T) {
-	// NOTE: ETag functionality is implemented in most v1 endpoints and ExportMedicaments:
-	// - ExportMedicaments (old /database endpoint)
-	// - FindMedicamentByCIP (both old and v1)
+	// NOTE: ETag functionality is implemented in most v1 endpoints:
+	// - ExportMedicaments (/v1/medicaments/export)
+	// - FindMedicamentByCIP (via /v1/medicaments?cip=)
 	// - ServePresentationsV1
 	// - ServeGeneriquesV1 (group and libelle)
 	// - ServeMedicamentsV1 (page and search)
-	// This test demonstrates ETag functionality using FindMedicamentByCIP as an example
+	// This test demonstrates ETag functionality using the v1 CIP query as an example
 
 	// Initialize test data
 	dataContainer := data.NewDataContainer()
@@ -125,7 +125,7 @@ func TestETagFunctionality(t *testing.T) {
 	router := srv.Router()
 
 	// First request - should return 200 with ETag
-	req1 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req1 := httptest.NewRequest("GET", "/v1/medicaments?cip=1234567", nil)
 	req1.RemoteAddr = "127.0.0.1:12345"
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
@@ -142,7 +142,7 @@ func TestETagFunctionality(t *testing.T) {
 	}
 
 	// Second request with If-None-Match - should return 304
-	req2 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req2 := httptest.NewRequest("GET", "/v1/medicaments?cip=1234567", nil)
 	req2.RemoteAddr = "127.0.0.1:12345"
 	req2.Header.Set("If-None-Match", etag1)
 	w2 := httptest.NewRecorder()
@@ -161,7 +161,7 @@ func TestETagFunctionality(t *testing.T) {
 	}
 
 	// Test with different ETag - should return 200
-	req3 := httptest.NewRequest("GET", "/medicament/cip/1234567", nil)
+	req3 := httptest.NewRequest("GET", "/v1/medicaments?cip=1234567", nil)
 	req3.RemoteAddr = "127.0.0.1:12345"
 	req3.Header.Set("If-None-Match", `"different-etag"`)
 	w3 := httptest.NewRecorder()

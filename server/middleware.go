@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -257,7 +256,7 @@ func init() {
 // - Unknown/invalid requests: 5 tokens (default)
 //
 // V1 routes are checked first for performance.
-// Legacy routes (deprecated, will be removed) are handled last.
+// Legacy routes (removed 2026-07-31, now 410 Gone) use the default cost.
 func getTokenCost(r *http.Request) int64 {
 	requestPath := r.URL.Path
 
@@ -333,32 +332,8 @@ func getTokenCost(r *http.Request) int64 {
 		}
 	}
 
-	// Legacy routes - existing logic preserved
-	endpoint, element := path.Split(r.URL.Path)
-
-	switch endpoint {
-	case "/":
-		switch element {
-		case "medicament": // This case is when the user forgot to add something to search
-			return 20
-		case "database":
-			return 200
-		case "openapi.yaml":
-			return 0
-		default:
-			return 5
-		}
-	case "/medicament/id/":
-		return 10
-	case "/medicament/cip/":
-		return 10
-	case "/medicament/":
-		return 80
-	case "/generiques/":
-		return 20
-	case "/database/":
-		return 20
-	}
+	// Legacy routes now respond 410 Gone. These stub responses are cheap to
+	// serve, so they fall through to the default token cost below.
 
 	return 5 // Default cost for other endpoints
 }

@@ -564,30 +564,6 @@
     </header>
 
     <main class="container">
-      <!-- Deprecation Notice Banner -->
-      <div
-        style="
-          background: var(--color-accent);
-          color: white;
-          padding: 1rem 1.5rem;
-          border-radius: 8px;
-          margin-bottom: 2rem;
-          text-align: center;
-        "
-      >
-        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.1rem">
-          Nouvelle API v1 disponible !
-        </div>
-        <div style="font-size: 0.95rem">
-          Les endpoints anciens sont dépréciés et seront supprimés le
-          <strong>31 juillet 2026</strong>.
-          <br />
-          <a href="#endpoints" style="color: white; text-decoration: underline"
-            >Voir les nouveaux endpoints v1 →</a
-          >
-        </div>
-      </div>
-
       <section class="hero">
         <h1>API pour les Médicaments Français</h1>
         <p class="hero-subtitle">
@@ -1506,12 +1482,14 @@ BASE_URL="https://medicaments-api.giygas.dev"
               font-weight: 500;
             "
           >
-            Endpoints Legacy (Dépréciés - Suppression juillet 2026)
+            Endpoints Legacy (Supprimés le 31 juillet 2026)
           </h3>
           <p style="color: var(--color-text-muted); margin-bottom: 1rem">
-            Ces endpoints sont toujours disponibles mais seront supprimés le
-            <strong>31 juillet 2026</strong>. Veuillez migrer vers les endpoints
-            v1 ci-dessus.
+            Ces endpoints ont été supprimés le
+            <strong>31 juillet 2026</strong>. Ils répondent désormais
+            <strong>410 Gone</strong>, accompagnés d'un header
+            <code>Link; rel="successor-version"</code> pointant vers l'endpoint
+            v1 de remplacement.
           </p>
           <div style="overflow-x: auto">
             <table style="width: 100%; border-collapse: collapse; opacity: 0.7">
@@ -1533,25 +1511,16 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       color: var(--color-text);
                     "
                   >
-                    Description
+                    Statut
                   </th>
                   <th
                     style="
-                      text-align: center;
+                      text-align: left;
                       padding: 0.75rem;
                       color: var(--color-text);
                     "
                   >
-                    Cache
-                  </th>
-                  <th
-                    style="
-                      text-align: center;
-                      padding: 0.75rem;
-                      color: var(--color-text);
-                    "
-                  >
-                    Coût
+                    Migration
                   </th>
                 </tr>
               </thead>
@@ -1568,18 +1537,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /database</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Base complète (15,803 médicaments)
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    6h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
@@ -1589,7 +1546,18 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >200</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/medicaments/export</code
                     >
                   </td>
                 </tr>
@@ -1605,28 +1573,27 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /database/{page}</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Pagination (10 éléments/page)
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    6h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-primary);
+                        background: var(--color-accent);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >20</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/medicaments?page={n}</code
                     >
                   </td>
                 </tr>
@@ -1642,18 +1609,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /medicament/{nom}</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Recherche par nom (regex)
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    1h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
@@ -1663,7 +1618,18 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >80</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/medicaments?search={nom}</code
                     >
                   </td>
                 </tr>
@@ -1679,28 +1645,63 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /medicament/id/{cis}</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Recherche par identifiant CIS
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    12h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-primary);
+                        background: var(--color-accent);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >10</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/medicaments/{cis}</code
+                    >
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border)">
+                  <td style="padding: 0.75rem">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >GET /medicament/cip/{cip}</code
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; text-align: center">
+                    <span
+                      style="
+                        background: var(--color-accent);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                      "
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/medicaments?cip={cip}</code
                     >
                   </td>
                 </tr>
@@ -1716,28 +1717,27 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /generiques/{libelle}</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Génériques par libellé
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    1h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-primary);
+                        background: var(--color-accent);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >20</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/generiques?libelle={libelle}</code
                     >
                   </td>
                 </tr>
@@ -1753,28 +1753,27 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /generiques/group/{id}</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Groupe générique par ID
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    12h
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
-                        background: var(--color-primary);
+                        background: var(--color-accent);
                         color: white;
                         padding: 0.25rem 0.5rem;
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >20</span
+                      >410 Gone</span
+                    >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    <code
+                      style="
+                        background: var(--color-bg);
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                      "
+                      >/v1/generiques/{id}</code
                     >
                   </td>
                 </tr>
@@ -1790,18 +1789,6 @@ BASE_URL="https://medicaments-api.giygas.dev"
                       >GET /health</code
                     >
                   </td>
-                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
-                    Santé système simplifiée (statut + données)
-                  </td>
-                  <td
-                    style="
-                      padding: 0.75rem;
-                      text-align: center;
-                      color: var(--color-text-muted);
-                    "
-                  >
-                    -
-                  </td>
                   <td style="padding: 0.75rem; text-align: center">
                     <span
                       style="
@@ -1811,8 +1798,11 @@ BASE_URL="https://medicaments-api.giygas.dev"
                         border-radius: 4px;
                         font-size: 0.75rem;
                       "
-                      >5</span
+                      >200 OK</span
                     >
+                  </td>
+                  <td style="padding: 0.75rem; color: var(--color-text-muted)">
+                    Toujours actif
                   </td>
                 </tr>
               </tbody>
