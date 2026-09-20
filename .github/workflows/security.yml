@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup (includes golangci-lint)
         uses: ./.github/actions/go-setup
@@ -55,7 +55,7 @@ jobs:
           echo "✅ No known vulnerabilities found"
 
       - name: Upload gosec report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: gosec-report
           path: |
@@ -64,7 +64,7 @@ jobs:
           retention-days: 30
 
       - name: Upload govulncheck report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: govulncheck-report
           path: vuln-report.json
@@ -81,7 +81,7 @@ jobs:
       pull-requests: write  # required to comment PR results (read-only default blocks it)
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup
         uses: ./.github/actions/go-setup
@@ -116,7 +116,7 @@ jobs:
 
       - name: Comment PR with security results
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -148,7 +148,7 @@ jobs:
             });
 
       - name: Upload full security reports
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: security-full-reports
           path: |

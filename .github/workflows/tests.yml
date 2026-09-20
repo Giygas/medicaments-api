@@ -21,7 +21,7 @@ jobs:
       should_run: ${{ steps.filter.outputs.should_run }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 50
 
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup (includes bc and golangci-lint)
         uses: ./.github/actions/go-setup
@@ -105,7 +105,7 @@ jobs:
         run: gosec -fmt json -out gosec-report.json ./... || true
 
       - name: Upload gosec report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: gosec-report
           path: gosec-report.json
@@ -157,7 +157,7 @@ jobs:
         test-type: [unit, integration]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup
         uses: ./.github/actions/go-setup
@@ -198,7 +198,7 @@ jobs:
     if: needs.check-changes.outputs.should_run == 'true'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup
         uses: ./.github/actions/go-setup
@@ -214,7 +214,7 @@ jobs:
         run: go test ./tests/ -bench=. -benchmem -count=5 -run=^$ -timeout 15m | tee benchmarks.txt
 
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
           path: benchmarks.txt
@@ -227,7 +227,7 @@ jobs:
     if: needs.check-changes.outputs.should_run == 'true'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup
         uses: ./.github/actions/go-setup
@@ -255,7 +255,7 @@ jobs:
 
       - name: Upload Coverage Reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-reports
           path: |
@@ -271,7 +271,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Download benchmark results
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: benchmark-results
           path: .
@@ -463,7 +463,7 @@ jobs:
           cat PERFORMANCE_REPORT.md
 
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: performance-report
           path: |
