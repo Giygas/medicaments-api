@@ -340,6 +340,10 @@ Pour l'historique complet des versions et des changements détaillés, consultez
 
 ### Versions
 
+- **v2.1.0** (Septembre 2026) - Champs de prix des présentations (prix public, honoraires de dispensation), toolchain Go 1.27
+- **v2.0.0** (Septembre 2026) - Suppression des endpoints legacy (410 Gone avec headers de succession), API concentrée sur /v1
+- **v1.2.2** (Mars 2026) - Cache ETag étendu aux groupes génériques et recherches par CIP
+- **v1.2.1** (Mars 2026) - Correction du trailing slash des présentations, weak ETags compatibles CDN
 - **v1.2.0** (Février 2026) - Architecture Docker refactorée avec submodule observabilité, pageSize parameter, limites de recherche
 - **v1.1.0** (Février 2026) - API RESTful v1, améliorations de performance 22-207%, métriques Prometheus
 - **v1.0.0** (Décembre 2025) - Version initiale
