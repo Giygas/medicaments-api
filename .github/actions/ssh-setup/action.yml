@@ -1,6 +1,14 @@
 name: "SSH Setup"
 description: "Install SSH keys and setup known_hosts"
 
+inputs:
+  ssh-private-key:
+    description: "SSH private key"
+    required: true
+  ssh-host:
+    description: "SSH host"
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -8,5 +16,5 @@ runs:
       shell: bash
       run: |
         install -m 600 -D /dev/null ~/.ssh/id_rsa
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
+        echo "${{ inputs.ssh-private-key }}" > ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ inputs.ssh-host }} > ~/.ssh/known_hosts

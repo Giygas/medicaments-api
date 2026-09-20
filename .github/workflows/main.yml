@@ -102,6 +102,9 @@ jobs:
 
       - name: SSH Setup
         uses: ./.github/actions/ssh-setup
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-host: ${{ secrets.SSH_HOST }}
 
       - name: Validate required secrets
         shell: bash
