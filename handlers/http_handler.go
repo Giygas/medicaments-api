@@ -449,10 +449,8 @@ func (h *Handler) ServeGeneriquesV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sanitize input and convert to lowercase for case-insensitive search
-	sanitizedLibelle := strings.ToLower(libelle)
-	// Normalize: replace + with space for flexible matching
-	sanitizedLibelle = strings.ReplaceAll(sanitizedLibelle, "+", " ")
+	// Sanitize and normalize input (accent-insensitive, case-insensitive)
+	sanitizedLibelle := entities.NormalizeText(libelle)
 
 	// Split search query into individual words for multi-word search
 	searchWords := strings.Fields(sanitizedLibelle)
@@ -572,9 +570,8 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Sanitize and normalize input (replace + with space for flexible matching)
-		sanitizedElement := strings.ToLower(searchQuery)
-		sanitizedElement = strings.ReplaceAll(sanitizedElement, "+", " ")
+		// Sanitize and normalize input (accent-insensitive, case-insensitive)
+		sanitizedElement := entities.NormalizeText(searchQuery)
 
 		// Split search query into individual words for multi-word search
 		searchWords := strings.Fields(sanitizedElement)
