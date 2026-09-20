@@ -782,7 +782,7 @@ func TestValidateInput_ExcessiveRepetition(t *testing.T) {
 	}
 }
 
-func TestValidateInput_AccentsRejected(t *testing.T) {
+func TestValidateInput_AccentsAccepted(t *testing.T) {
 	validator := NewDataValidator()
 
 	accentInputs := []string{
@@ -799,13 +799,8 @@ func TestValidateInput_AccentsRejected(t *testing.T) {
 	for _, input := range accentInputs {
 		t.Run(input, func(t *testing.T) {
 			err := validator.ValidateInput(input)
-			if err == nil {
-				t.Errorf("Expected error for accented input '%s'", input)
-			}
-
-			expectedError := "accents not supported. Try removing them"
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Errorf("Expected error to contain '%s', got '%s'", expectedError, err.Error())
+			if err != nil {
+				t.Errorf("Expected accented input '%s' to be accepted (folded at normalization time), got '%s'", input, err.Error())
 			}
 		})
 	}

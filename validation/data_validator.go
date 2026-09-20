@@ -15,8 +15,10 @@ import (
 // Pre-compiled regex patterns for performance optimization
 // Compiled once at package initialization and reused for all validations
 var (
-	// Input validation: alphanumeric + safe punctuation (ASCII-only)
-	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\+\.\-\/']+$`)
+	// Input validation: alphanumeric + accented French letters + safe punctuation.
+	// Accented input is accepted and folded to ASCII at query-normalization
+	// time (see entities.NormalizeText), so "ibuprofène" matches "IBUPROFENE".
+	inputRegex = regexp.MustCompile(`^[a-zA-Z0-9àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ\s\+\.\-\/']+$`)
 
 	// This whitelist regex already blocks:
 	// <script	| (contains < and >)
@@ -327,12 +329,9 @@ func (v *Validator) ValidateInput(input string) error {
 	}
 
 	// Check for French accented characters (source BDPM data is uppercase without accents)
-	if v.containsAccents(input) {
-		return fmt.Errorf("accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')")
-	}
-
 	// Check that user input contains only accepted characters
-	// Allow only alphanumeric characters, spaces, and safe punctuation
+	// Allow only alphanumeric characters (French accents accepted, folded at
+	// normalization time), spaces, and safe punctuation
 	// Pattern: letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign
 	if !inputRegex.MatchString(input) {
 		return fmt.Errorf("input contains invalid characters. Only letters, numbers, spaces, hyphens, periods, forward slash, apostrophe, and plus sign are allowed")
@@ -408,18 +407,6 @@ func (v *Validator) hasExcessiveRepetition(input string) bool {
 			}
 		}
 		if allSame {
-			return true
-		}
-	}
-	return false
-}
-
-// containsAccents checks if input contains French accented characters
-// Source BDPM data is uppercase without accents (e.g., IBUPROFENE, PARACETAMOL)
-func (v *Validator) containsAccents(input string) bool {
-	accents := "àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ"
-	for _, r := range input {
-		if strings.ContainsRune(accents, r) {
 			return true
 		}
 	}

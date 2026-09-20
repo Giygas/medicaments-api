@@ -8,7 +8,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/juju/ratelimit v1.0.2
 	github.com/prometheus/client_golang v1.23.2
-	golang.org/x/text v0.33.0
+	golang.org/x/text v0.39.0
 )
 
 require (

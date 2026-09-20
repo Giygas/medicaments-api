@@ -108,7 +108,7 @@ func GeneriquesParser(medicaments *[]entities.Medicament, mMap *map[int]entities
 		currentGenerique := entities.GeneriqueList{
 			GroupID:           groupInt,
 			Libelle:           libelle[groupInt],
-			LibelleNormalized: strings.ReplaceAll(strings.ToLower(libelle[groupInt]), "+", " "),
+			LibelleNormalized: entities.NormalizeText(libelle[groupInt]),
 			Medicaments:       medicaments,
 			OrphanCIS:         orphaned,
 		}

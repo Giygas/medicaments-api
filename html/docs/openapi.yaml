@@ -1255,11 +1255,12 @@ components:
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
         Maximum 250 résultats par recherche (erreur 400 « Search too broad » si dépassé ; utilisez /v1/medicaments/export pour l'ensemble des données).
+        La recherche est insensible aux accents et à la casse : « comprime » trouve « COMPRIMÉ » et « comprimé » trouve « comprime ».
       schema:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
+        pattern: "^[a-zA-Z0-9àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ\\s\\-\\.\\+/']+$"
     QueryCip:
       name: cip
       in: query
@@ -1277,13 +1278,12 @@ components:
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
         Maximum 100 résultats par recherche (erreur 400 « Search too broad » si dépassé ; utilisez /v1/medicaments/export pour l'ensemble des données).
-        Note: Les données source BDPM sont en majuscules sans accents (ex: PARACETAMOL).
-        Utilisez des caractères ASCII (sans accents).
+        La recherche est insensible aux accents et à la casse : « solute » trouve « SOLUTÉ ».
       schema:
         type: string
         minLength: 3
         maxLength: 50
-        pattern: "^[a-zA-Z0-9\\s\\-\\.\\+/']+$"
+        pattern: "^[a-zA-Z0-9àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ\\s\\-\\.\\+/']+$"
     QueryGroup:
       name: group
       in: query

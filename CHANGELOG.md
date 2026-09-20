@@ -7,6 +7,12 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+#### Ajouté
+
+- **Recherche insensible aux accents** : `comprime` trouve désormais `COMPRIMÉ` et inversement, sur `/v1/medicaments?search=` comme sur `/v1/generiques?libelle=`
+  - Les requêtes accentuées (`?search=comprimé`) sont désormais acceptées et normalisées (les caractères accentués français sont valides en entrée) — auparavant rejetées en 400
+  - La normalisation (NFD) s'applique symétriquement à l'index et à la requête ; les requêtes ASCII existantes retournent un sur-ensemble de leurs résultats précédents (changement purement additif)
+
 #### Changé
 
 - **Champs de prix nullables** : `prixPublique` et `honorairesDispensation` retournent désormais `null` (au lieu de `0`) lorsque la source BDPM ne déclare pas de prix — champs introduits en 2.1.0

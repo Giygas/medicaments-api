@@ -1314,6 +1314,122 @@ func TestServeMedicamentsV1_MultiWordSearch(t *testing.T) {
 	}
 }
 
+// TestServeMedicamentsV1_AccentInsensitiveSearch verifies that search is
+// accent-insensitive in both directions: unaccented queries match accented
+// data (the historical trap: BDPM mixes "comprimé"/"comprime"), and
+// accented queries are accepted and folded instead of rejected.
+func TestServeMedicamentsV1_AccentInsensitiveSearch(t *testing.T) {
+	medicaments := []entities.Medicament{
+		{
+			Cis:                    10000003,
+			Denomination:           "IBUPROFENE 200 mg, comprimé enrobé",
+			DenominationNormalized: entities.NormalizeText("IBUPROFENE 200 mg, comprimé enrobé"),
+			Presentation:           []entities.Presentation{},
+		},
+		{
+			Cis:                    10000004,
+			Denomination:           "PARACETAMOL 500 mg, comprime pellicule",
+			DenominationNormalized: entities.NormalizeText("PARACETAMOL 500 mg, comprime pellicule"),
+			Presentation:           []entities.Presentation{},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		expectedMatch string
+	}{
+		{"unaccented query matches accented data", "?search=enrobe", 1, "IBUPROFENE 200 mg, comprimé enrobé"},
+		{"accented query matches accented data", "?search=enrobé", 1, "IBUPROFENE 200 mg, comprimé enrobé"},
+		{"uppercase accented query", "?search=ENROBÉ", 1, "IBUPROFENE 200 mg, comprimé enrobé"},
+		{"accented query matches unaccented data", "?search=pelliculé", 1, "PARACETAMOL 500 mg, comprime pellicule"},
+		{"mixed multi-word accent query", "?search=comprimé+enrobé", 1, "IBUPROFENE 200 mg, comprimé enrobé"},
+		{"both spellings of comprime match both entries", "?search=comprime", 2, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithMedicaments(medicaments).Build()
+			handler := NewHTTPHandler(mockStore, NewMockDataValidatorBuilder().Build(), NewMockHealthCheckerBuilder().Build())
+
+			req := httptest.NewRequest("GET", "/v1/medicaments"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeMedicamentsV1(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("Expected 200 for %q, got %d (body: %s)", tt.queryParams, w.Code, w.Body.String())
+			}
+
+			var response []entities.Medicament
+			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if len(response) != tt.expectedCount {
+				t.Errorf("Expected %d results for %q, got %d", tt.expectedCount, tt.queryParams, len(response))
+			}
+
+			if tt.expectedMatch != "" && len(response) > 0 {
+				found := false
+				for _, med := range response {
+					if med.Denomination == tt.expectedMatch {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected to find '%s' in results", tt.expectedMatch)
+				}
+			}
+		})
+	}
+}
+
+// TestServeGeneriquesV1_AccentInsensitiveSearch is the generiques-search
+// counterpart of the accent-insensitivity contract.
+func TestServeGeneriquesV1_AccentInsensitiveSearch(t *testing.T) {
+	generiques := []entities.GeneriqueList{
+		{
+			GroupID:           100,
+			Libelle:           "ISOPRÉNALINE, soluté injectable",
+			LibelleNormalized: entities.NormalizeText("ISOPRÉNALINE, soluté injectable"),
+		},
+	}
+
+	tests := []struct {
+		name        string
+		queryParams string
+	}{
+		{"unaccented query matches accented libelle", "?libelle=solute"},
+		{"accented query matches accented libelle", "?libelle=soluté"},
+		{"accented brand word", "?libelle=isoprénaline"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := NewMockDataStoreBuilder().WithGeneriques(generiques).Build()
+			handler := NewHTTPHandler(mockStore, NewMockDataValidatorBuilder().Build(), NewMockHealthCheckerBuilder().Build())
+
+			req := httptest.NewRequest("GET", "/v1/generiques"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			handler.ServeGeneriquesV1(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("Expected 200 for %q, got %d (body: %s)", tt.queryParams, w.Code, w.Body.String())
+			}
+
+			var response []entities.GeneriqueList
+			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+			if len(response) != 1 || response[0].GroupID != 100 {
+				t.Errorf("Expected group 100 for %q, got %d results", tt.queryParams, len(response))
+			}
+		})
+	}
+}
+
 // TestServeMedicamentsV1_MultiWordWordCountLimit tests the 6-word limit
 func TestServeMedicamentsV1_MultiWordWordCountLimit(t *testing.T) {
 	medicaments := []entities.Medicament{
