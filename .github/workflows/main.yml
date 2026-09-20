@@ -30,7 +30,6 @@ jobs:
               - '**/*.go'
               - 'go.mod'
               - 'go.sum'
-              - '!html/**'
             docs:
               - 'html/**'
           list-files: shell
@@ -46,7 +45,7 @@ jobs:
     name: Build Application
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.app-changed == 'true'
+    if: needs.detect-changes.outputs.app-changed == 'true' || needs.detect-changes.outputs.docs-changed == 'true'
 
     steps:
       - name: Checkout code
@@ -83,7 +82,9 @@ jobs:
     name: Deploy to Server
     runs-on: ubuntu-latest
     needs: [detect-changes, test, build]
-    if: needs.detect-changes.outputs.app-changed == 'true'
+    # !cancelled() tolerates 'test' being skipped on docs-only changes;
+    # !failure() still blocks deployment when tests fail.
+    if: ${{ !cancelled() && !failure() && (needs.detect-changes.outputs.app-changed == 'true' || needs.detect-changes.outputs.docs-changed == 'true') }}
 
     steps:
       - name: Checkout code
