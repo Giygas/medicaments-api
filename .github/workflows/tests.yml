@@ -1,9 +1,8 @@
 name: Comprehensive Test Suite
 
 on:
-  push:
-    branches:
-      - main
+  # NOTE: no push trigger — pushes to main are tested via Deploy App's
+  # workflow_call, which avoids running the full suite twice per merge.
   pull_request:
     branches:
       - main
