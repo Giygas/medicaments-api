@@ -85,7 +85,7 @@ paths:
                   summary: Pagination
                   value:
                     data:
-                      - cis: "61504672"
+                      - cis: 61504672
                         elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                         formePharmaceutique: "comprimé"
                         voiesAdministration: ["orale"]
@@ -106,7 +106,7 @@ paths:
                 search:
                   summary: Recherche par nom
                   value:
-                    - cis: "61504672"
+                    - cis: 61504672
                       elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -120,7 +120,7 @@ paths:
                       generiques: []
                       presentation: []
                       conditions: []
-                    - cis: "60001234"
+                    - cis: 60001234
                       elementPharmaceutique: "DOLIPRANE 1000 mg, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -146,11 +146,11 @@ paths:
                     error: "Bad Request"
                     message: "Only one parameter allowed at a time"
                     code: 400
-                accents-not-supported:
-                  summary: Accents non supportés
+                search-too-broad:
+                  summary: Recherche trop large
                   value:
                     error: "Bad Request"
-                    message: "Accents not supported. Try removing them (e.g., use 'ibuprofene' instead of 'ibuprofène')"
+                    message: "Search too broad. Maximum 250 results returned. Use more specific search terms or /export for full dataset"
                     code: 400
                 word-limit-exceeded:
                   summary: Limite de mots dépassée
@@ -176,19 +176,6 @@ paths:
                     error: "Not Found"
                     message: "No medicaments found"
                     code: 404
-        "429":
-          description: Trop de résultats retournés
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                too-many-results:
-                  summary: Limite de recherche dépassée
-                  value:
-                    error: "Too Many Requests"
-                    message: "Too many results returned. Maximum 250 results per search. Use /export for full dataset"
-                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -235,7 +222,7 @@ paths:
                 export:
                   summary: Export complet
                   value:
-                    - cis: "61504672"
+                    - cis: 61504672
                       elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -249,7 +236,7 @@ paths:
                       generiques: []
                       presentation: []
                       conditions: []
-                    - cis: "61504672"
+                    - cis: 61504672
                       elementPharmaceutique: "PARACETAMOL 500 mg, comprimé"
                       formePharmaceutique: "comprimé"
                       voiesAdministration: ["orale"]
@@ -320,7 +307,7 @@ paths:
                 medicament:
                   summary: Médicament trouvé
                   value:
-                    cis: "61504672"
+                    cis: 61504672
                     elementPharmaceutique: "PARACETAMOL MYLAN 1 g, comprimé"
                     formePharmaceutique: "comprimé"
                     voiesAdministration: ["orale"]
@@ -385,6 +372,19 @@ paths:
       responses:
         "200":
           description: Réponse réussie
+          headers:
+            ETag:
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: 'W/"abc123"'
+            Last-Modified:
+              schema:
+                type: string
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
           content:
             application/json:
               schema:
@@ -398,7 +398,7 @@ paths:
                     - groupID: 1368
                       libelle: "PARACETAMOL 400 mg + CAFEINE 50 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 20 mg - PRONTALGINE, comprimé"
                       medicaments:
-                        - cis: "61644230"
+                        - cis: 61644230
                           elementPharmaceutique: "PRONTALGINE, comprimé"
                           formePharmaceutique: "comprimé"
                           type: "Princeps"
@@ -412,7 +412,7 @@ paths:
                             - elementPharmaceutique: "comprimé"
                               substance: "PHOSPHATE DE CODÉINE HÉMIHYDRATÉ"
                               dosage: "20,0 mg"
-                        - cis: "63399979"
+                        - cis: 63399979
                           elementPharmaceutique: "PARACETAMOL/CAFEINE/CODEINE ARROW 400 mg/50 mg/20 mg, comprimé"
                           formePharmaceutique: "comprimé"
                           type: "Générique"
@@ -430,7 +430,7 @@ paths:
                     - groupID: 1643
                       libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
                       medicaments:
-                        - cis: "66003374"
+                        - cis: 66003374
                           elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
                           formePharmaceutique: "comprimé pelliculé"
                           type: "Princeps"
@@ -441,7 +441,7 @@ paths:
                             - elementPharmaceutique: "comprimé pelliculé"
                               substance: "CODÉINE (PHOSPHATE DE) HÉMIHYDRATÉ"
                               dosage: "30 mg"
-                        - cis: "69458587"
+                        - cis: 69458587
                           elementPharmaceutique: "PARACETAMOL/CODEINE BIOGARAN 500 mg/30 mg, comprimé"
                           formePharmaceutique: "comprimé"
                           type: "Générique"
@@ -464,6 +464,12 @@ paths:
                   value:
                     error: "Bad Request"
                     message: "Needs libelle param"
+                    code: 400
+                search-too-broad:
+                  summary: Recherche trop large
+                  value:
+                    error: "Bad Request"
+                    message: "Search too broad. Maximum 100 results returned. Use more specific search terms or /export for full dataset"
                     code: 400
         "404":
           description: Aucun générique trouvé
@@ -523,13 +529,13 @@ paths:
               examples:
                 presentation:
                   value:
-                    cis: "60904643"
-                    cip7: "2756239"
+                    cis: 60904643
+                    cip7: 2756239
                     libelle: "CODOLIPRANE 500 mg/30 mg, comprimé (16)"
                     statusAdministratif: "Présentation active"
                     etatComercialisation: "Commercialisée"
                     dateDeclaration: "1965-01-19"
-                    cip13: "3400936403114"
+                    cip13: 3400936403114
                     agreement: "non"
                     tauxRemboursement: "65%"
                     prix: 3.85
@@ -548,7 +554,7 @@ paths:
                     message: "Invalid CIP"
                     code: 400
         "404":
-          description: Aucun générique trouvé
+          description: Présentation introuvable
           content:
             application/json:
               schema:
@@ -557,21 +563,8 @@ paths:
                 not-found:
                   value:
                     error: "Not Found"
-                    message: "No generiques found"
+                    message: "Presentation not found"
                     code: 404
-        "429":
-          description: Trop de résultats retournés
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                too-many-results:
-                  summary: Limite de recherche dépassée
-                  value:
-                    error: "Too Many Requests"
-                    message: "Too many results returned. Maximum 100 results per search. Use /export for full dataset"
-                    code: 429
         "500":
           description: Erreur interne du serveur
           content:
@@ -623,7 +616,7 @@ paths:
                     groupID: 1643
                     libelle: "PARACETAMOL 500 mg + CODEINE (PHOSPHATE DE) HEMIHYDRATE 30 mg - DAFALGAN CODEINE, comprimé pelliculé"
                     medicaments:
-                      - cis: "66003374"
+                      - cis: 66003374
                         elementPharmaceutique: "DAFALGAN CODEINE, comprimé pelliculé"
                         formePharmaceutique: "comprimé pelliculé"
                         type: "Princeps"
@@ -1309,15 +1302,6 @@ components:
       schema:
         type: string
         pattern: "^[0-9]{7}|[0-9]{13}$"
-    PathGroupId:
-      name: groupId
-      in: path
-      required: true
-      description: ID de groupe (entier positif inférieur à 100 000)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 99999
     PathGroupID:
       name: groupID
       in: path
@@ -1354,8 +1338,7 @@ components:
       title: Medicament
       properties:
         cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
+          type: integer
           title: Code CIS
         elementPharmaceutique:
           type: string
@@ -1408,33 +1391,15 @@ components:
             type: string
           title: Conditions de prescription
 
-    GeneriqueResponse:
-      type: object
-      title: GeneriqueResponse
-      properties:
-        cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
-          title: Code CIS
-        group:
-          type: string
-          pattern: "^[0-9]+$"
-          title: ID de groupe générique
-        libelle:
-          type: string
-          title: Libellé de groupe générique
-
     PresentationResponse:
       type: object
       title: PresentationResponse
       properties:
         cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
+          type: integer
           title: Code CIS
         cip7:
-          type: string
-          pattern: "^[0-9]{7}$"
+          type: integer
           title: Code CIP-7
         libelle:
           type: string
@@ -1450,8 +1415,7 @@ components:
           format: date
           title: Date de déclaration
         cip13:
-          type: string
-          pattern: "^[0-9]{13}$"
+          type: integer
           title: Code CIP-13
         agreement:
           type: string
@@ -1481,8 +1445,7 @@ components:
       title: GeneriqueListResponse
       properties:
         groupID:
-          type: string
-          pattern: "^[0-9]+$"
+          type: integer
           title: ID de groupe générique
         libelle:
           type: string
@@ -1493,10 +1456,9 @@ components:
             $ref: "#/components/schemas/GeneriqueMedicament"
           title: Liste des médicaments du groupe
         orphanCIS:
-          type: array
+          type: ["array", "null"]
           items:
             type: integer
-          nullable: true
           title: CIS orphelins
           description: |
             Liste des codes CIS référencés dans le groupe générique mais sans entrée médicament correspondante dans la base de données.
@@ -1527,8 +1489,7 @@ components:
       title: CompositionItem
       properties:
         cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
+          type: integer
           title: Code CIS
         elementPharmaceutique:
           type: string
@@ -1554,8 +1515,7 @@ components:
       title: GeneriqueItem
       properties:
         cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
+          type: integer
           title: Code CIS
         group:
           type: string
@@ -1569,8 +1529,7 @@ components:
       title: GeneriqueMedicament
       properties:
         cis:
-          type: string
-          pattern: "^[0-9]{1,9}$"
+          type: integer
           title: Code CIS
         elementPharmaceutique:
           type: string
