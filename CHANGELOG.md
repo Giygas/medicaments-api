@@ -7,6 +7,11 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+#### Corrigé
+
+- **Renommage du champ `prixPublique` en `prixPublic`** : « prix » est masculin, l'accord correct est « prix public » (coquille introduite en 2.1.0, corrigée avant toute consommation connue)
+  - Rappel de la sémantique : `prixPublic = prix + honorairesDispensation`
+
 #### Ajouté
 
 - **Recherche insensible aux accents** : `comprime` trouve désormais `COMPRIMÉ` et inversement, sur `/v1/medicaments?search=` comme sur `/v1/generiques?libelle=`
@@ -15,7 +20,7 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 #### Changé
 
-- **Champs de prix nullables** : `prixPublique` et `honorairesDispensation` retournent désormais `null` (au lieu de `0`) lorsque la source BDPM ne déclare pas de prix — champs introduits en 2.1.0
+- **Champs de prix nullables** : `prixPublic` et `honorairesDispensation` retournent désormais `null` (au lieu de `0`) lorsque la source BDPM ne déclare pas de prix — champs introduits en 2.1.0
 - **Dépréciation — sémantique `0` de `prix`** : `prix` continue de retourner `0` en l'absence de prix déclaré, mais cette sémantique est **dépréciée avec sunset au 2026-12-31** (v3.0.0), où `prix` retournera `null`
   - Les réponses contenant des présentations portent un header `Warning: 299` annonçant la transition
   - **Migration pendant la transition** : détecter l'absence de prix par `prix == 0 || prix == null` — test robuste avant et après le sunset (`0` n'est jamais un prix réel dans les données BDPM) ; après le 2026-12-31 (v3.0.0), `prix == null` suffira

@@ -14,6 +14,6 @@ type Presentation struct {
 	// (2026-12-31, v3.0.0), where it becomes *float64/null like the two
 	// fields below. See CHANGELOG 2.2.0.
 	Prix                   float64  `json:"prix"`
-	PrixPublique           *float64 `json:"prixPublique"`
+	PrixPublic             *float64 `json:"prixPublic"`
 	HonorairesDispensation *float64 `json:"honorairesDispensation"`
 }
