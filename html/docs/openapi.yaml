@@ -532,6 +532,8 @@ paths:
                     agreement: "non"
                     tauxRemboursement: "65%"
                     prix: 3.85
+                    prixPublique: 3.99
+                    honorairesDispensation: 0.50
         "400":
           description: Code CIP invalide
           content:
@@ -1458,8 +1460,16 @@ components:
           title: Taux de remboursement
         prix:
           type: number
-          format: float
+          format: double
           title: Prix
+        prixPublique:
+          type: number
+          format: double
+          title: Prix public
+        honorairesDispensation:
+          type: number
+          format: double
+          title: Honoraires de dispensation
 
     GeneriqueListResponse:
       type: object

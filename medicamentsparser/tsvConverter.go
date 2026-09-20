@@ -13,6 +13,25 @@ import (
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
+// parsePrice normalizes a BDPM price field: strips thousand-separator
+// commas (keeping the decimal one), converts the decimal comma to a
+// period, parses to float64 and rounds to 2 decimals. Empty fields
+// return 0 without error.
+func parsePrice(field string) (float64, error) {
+	if field == "" {
+		return 0, nil
+	}
+	if n := strings.Count(field, ","); n > 1 {
+		field = strings.Replace(field, ",", "", n-1)
+	}
+	normalized := strings.ReplaceAll(field, ",", ".")
+	val, err := strconv.ParseFloat(normalized, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid price value '%s': %w", normalized, err)
+	}
+	return math.Round(val*100) / 100, nil
+}
+
 func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	if wg != nil {
 		defer wg.Done()
@@ -37,6 +56,7 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	skippedMissingColumns := 0
 	skippedFormatErrors := 0
 
+parseLine:
 	for scanner.Scan() {
 		lineCount++
 		line := scanner.Text()
@@ -49,8 +69,10 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 
 		fields := strings.Split(line, "\t")
 
-		// Check for missing columns
-		if len(fields) < 10 {
+		// Check for missing columns (12 required: CIS, CIP7, libellé,
+		// statut administratif, état de commercialisation, date, CIP13,
+		// agrément, taux de remboursement, prix, prix public, honoraires)
+		if len(fields) < 12 {
 			skippedMissingColumns++
 			continue
 		}
@@ -73,45 +95,38 @@ func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 			continue
 		}
 
-		// Because the downloaded database has commas as thousands and decimal separators,
-		// all the commas have to be removed except for the last one
-		// If the prix is empty, 0.0 will we added in the prix section
-		var prix float32
+		// Price columns use commas as thousands and decimal separators.
+		// 0 - prix du médicament
+		// 1 - prix public du médicament
+		// 2 - honoraires dispensation
+		// Empty price fields default to 0.0; invalid prices skip the line.
+		prices := []string{fields[9], fields[10], fields[11]}
+		outputPrices := make([]float64, 0, 3)
 
-		if fields[9] != "" {
-
-			// Count the number of commas
-			numCommas := strings.Count(fields[9], ",")
-
-			// If there's more than one comma, replace all but the last one
-			if numCommas > 1 {
-				fields[9] = strings.Replace(fields[9], ",", "", numCommas-1)
-			}
-
-			// Replace the last comma with a period
-			p, err := strconv.ParseFloat(strings.ReplaceAll(fields[9], ",", "."), 32)
-
+		for _, p := range prices {
+			prix, err := parsePrice(p)
 			if err != nil {
-				return nil, fmt.Errorf("invalid price value '%s': %w", fields[9], err)
+				logging.Warn("Skipping presentations line with invalid price",
+					"line", lineCount, "error", err)
+				skippedFormatErrors++
+				continue parseLine
 			}
-			p = math.Trunc(p*100) / 100
-
-			prix = float32(p)
-		} else {
-			prix = 0.0
+			outputPrices = append(outputPrices, prix)
 		}
 
 		record := entities.Presentation{
-			Cis:                  cis,
-			Cip7:                 cip7,
-			Libelle:              fields[2],
-			StatusAdministratif:  fields[3],
-			EtatComercialisation: fields[4],
-			DateDeclaration:      fields[5],
-			Cip13:                cip13,
-			Agreement:            fields[7],
-			TauxRemboursement:    fields[8],
-			Prix:                 prix,
+			Cis:                    cis,
+			Cip7:                   cip7,
+			Libelle:                fields[2],
+			StatusAdministratif:    fields[3],
+			EtatComercialisation:   fields[4],
+			DateDeclaration:        fields[5],
+			Cip13:                  cip13,
+			Agreement:              fields[7],
+			TauxRemboursement:      fields[8],
+			Prix:                   outputPrices[0],
+			PrixPublique:           outputPrices[1],
+			HonorairesDispensation: outputPrices[2],
 		}
 
 		jsonRecords = append(jsonRecords, record)
