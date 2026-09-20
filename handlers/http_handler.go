@@ -190,7 +190,7 @@ func (h *Handler) RespondWithGone(w http.ResponseWriter, r *http.Request, succes
 // prixSunsetDate is the enforcement date for the field-level sunset of the
 // legacy "0 means absent" semantics of the prix field (announced in v2.2.0).
 // At v3.0.0, prix becomes null when the source declares no price, like
-// prixPublique and honorairesDispensation already do.
+// prixPublic and honorairesDispensation already do.
 const prixSunsetDate = "2026-12-31"
 
 // addPrixSunsetWarning attaches the RFC 7234 Warning header announcing the

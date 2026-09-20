@@ -120,7 +120,7 @@ parseLine:
 			skippedFormatErrors++
 			continue parseLine
 		}
-		prixPublique, err := parseOptionalPrice(fields[10])
+		prixPublic, err := parseOptionalPrice(fields[10])
 		if err != nil {
 			logging.Warn("Skipping presentations line with invalid price",
 				"line", lineCount, "error", err)
@@ -146,7 +146,7 @@ parseLine:
 			Agreement:              fields[7],
 			TauxRemboursement:      fields[8],
 			Prix:                   prix,
-			PrixPublique:           prixPublique,
+			PrixPublic:             prixPublic,
 			HonorairesDispensation: honoraires,
 		}
 

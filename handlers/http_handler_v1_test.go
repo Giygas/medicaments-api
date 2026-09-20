@@ -137,7 +137,7 @@ func TestServePresentationsV1_PrixSunsetContract(t *testing.T) {
 		EtatComercialisation:   "Commercialisée",
 		DateDeclaration:        "2020-02-01",
 		Prix:                   0, // absent in source, legacy contract
-		PrixPublique:           &prices,
+		PrixPublic:             &prices,
 		HonorairesDispensation: nil,
 	}
 
@@ -175,8 +175,8 @@ func TestServePresentationsV1_PrixSunsetContract(t *testing.T) {
 	if !strings.Contains(body, `"prix":0`) {
 		t.Errorf("Expected prix:0 (legacy contract) in response, got: %s", body)
 	}
-	if !strings.Contains(body, `"prixPublique":19.99`) {
-		t.Errorf("Expected prixPublique:19.99 in response, got: %s", body)
+	if !strings.Contains(body, `"prixPublic":19.99`) {
+		t.Errorf("Expected prixPublic:19.99 in response, got: %s", body)
 	}
 }
 

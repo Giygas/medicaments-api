@@ -539,7 +539,7 @@ paths:
                     agreement: "non"
                     tauxRemboursement: "65%"
                     prix: 3.85
-                    prixPublique: 3.99
+                    prixPublic: 3.99
                     honorairesDispensation: 0.50
         "400":
           description: Code CIP invalide
@@ -1429,10 +1429,11 @@ components:
           title: Prix
           deprecated: true
           description: "Prix. Retourne `0` lorsque la source ne déclare pas de prix (≈35 % des présentations) — **sunset : `prix` retournera `null` au 2026-12-31 (v3.0.0)**. Pendant la transition, détectez l'absence par `prix == 0 || prix == null`."
-        prixPublique:
+        prixPublic:
           type: ["number", "null"]
           format: double
           title: Prix public
+          description: "Prix public (prix + honoraires de dispensation). `null` lorsque la source ne déclare pas de prix."
           description: Prix public. `null` lorsque la source ne déclare pas de prix.
         honorairesDispensation:
           type: ["number", "null"]

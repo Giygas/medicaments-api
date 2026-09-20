@@ -477,37 +477,37 @@ func TestTSVPresentationsEdgeCases(t *testing.T) {
 	_ = os.MkdirAll("files", 0755)
 
 	testCases := []struct {
-		name                 string
-		content              string
-		expectRecords        int
-		expectSkips          bool
-		checkPrices          bool     // verify parsed prices of first record
-		expectedPrix         float64  // legacy contract: 0 when absent (until sunset)
-		expectedPrixPublique *float64 // nil = absent price (JSON null)
-		expectedHonoraires   *float64 // nil = absent price (JSON null)
-		description          string
+		name               string
+		content            string
+		expectRecords      int
+		expectSkips        bool
+		checkPrices        bool     // verify parsed prices of first record
+		expectedPrix       float64  // legacy contract: 0 when absent (until sunset)
+		expectedPrixPublic *float64 // nil = absent price (JSON null)
+		expectedHonoraires *float64 // nil = absent price (JSON null)
+		description        string
 	}{
 		{
-			name:                 "Valid data",
-			content:              "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
-			expectRecords:        1,
-			expectSkips:          false,
-			checkPrices:          true,
-			expectedPrix:         24.34,
-			expectedPrixPublique: f64Ptr(25.50),
-			expectedHonoraires:   f64Ptr(0.50),
-			description:          "Normal valid presentation record",
+			name:               "Valid data",
+			content:            "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
+			expectRecords:      1,
+			expectSkips:        false,
+			checkPrices:        true,
+			expectedPrix:       24.34,
+			expectedPrixPublic: f64Ptr(25.50),
+			expectedHonoraires: f64Ptr(0.50),
+			description:        "Normal valid presentation record",
 		},
 		{
-			name:                 "Empty line in middle",
-			content:              "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\t12,81\t13,20\t0,40\n",
-			expectRecords:        2,
-			expectSkips:          true,
-			checkPrices:          true,
-			expectedPrix:         24.34,
-			expectedPrixPublique: f64Ptr(25.50),
-			expectedHonoraires:   f64Ptr(0.50),
-			description:          "Empty line between valid records should be skipped",
+			name:               "Empty line in middle",
+			content:            "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\t12,81\t13,20\t0,40\n",
+			expectRecords:      2,
+			expectSkips:        true,
+			checkPrices:        true,
+			expectedPrix:       24.34,
+			expectedPrixPublic: f64Ptr(25.50),
+			expectedHonoraires: f64Ptr(0.50),
+			description:        "Empty line between valid records should be skipped",
 		},
 		{
 			name:          "Missing columns (9 instead of 12)",
@@ -545,37 +545,37 @@ func TestTSVPresentationsEdgeCases(t *testing.T) {
 			description:   "Non-numeric CIP7 should cause format error skip",
 		},
 		{
-			name:                 "Invalid price skips line, does not abort file",
-			content:              "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\tabc\t13,20\t0,40\n60000114\t3696351\t20 récipient(s) unidose(s) polyéthylène de 5 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963511\toui\t65%\t12,81\t13,20\t0,40\n",
-			expectRecords:        2,
-			expectSkips:          true,
-			checkPrices:          true,
-			expectedPrix:         24.34,
-			expectedPrixPublique: f64Ptr(25.50),
-			expectedHonoraires:   f64Ptr(0.50),
-			description:          "A line with a non-numeric price is skipped with a warning; other lines still parse",
+			name:               "Invalid price skips line, does not abort file",
+			content:            "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\tabc\t13,20\t0,40\n60000114\t3696351\t20 récipient(s) unidose(s) polyéthylène de 5 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963511\toui\t65%\t12,81\t13,20\t0,40\n",
+			expectRecords:      2,
+			expectSkips:        true,
+			checkPrices:        true,
+			expectedPrix:       24.34,
+			expectedPrixPublic: f64Ptr(25.50),
+			expectedHonoraires: f64Ptr(0.50),
+			description:        "A line with a non-numeric price is skipped with a warning; other lines still parse",
 		},
 		{
-			name:                 "Empty prices: prix 0 (legacy), others null",
-			content:              "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t\t\t\n",
-			expectRecords:        1,
-			expectSkips:          false,
-			checkPrices:          true,
-			expectedPrix:         0,
-			expectedPrixPublique: nil,
-			expectedHonoraires:   nil,
-			description:          "Empty prix parses as 0 (legacy contract until sunset); prixPublique and honoraires stay nil (JSON null)",
+			name:               "Empty prices: prix 0 (legacy), others null",
+			content:            "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t\t\t\n",
+			expectRecords:      1,
+			expectSkips:        false,
+			checkPrices:        true,
+			expectedPrix:       0,
+			expectedPrixPublic: nil,
+			expectedHonoraires: nil,
+			description:        "Empty prix parses as 0 (legacy contract until sunset); prixPublic and honoraires stay nil (JSON null)",
 		},
 		{
-			name:                 "Thousands separator in price",
-			content:              "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t2,551,50\t2,551,50\t0,50\n",
-			expectRecords:        1,
-			expectSkips:          false,
-			checkPrices:          true,
-			expectedPrix:         2551.50,
-			expectedPrixPublique: f64Ptr(2551.50),
-			expectedHonoraires:   f64Ptr(0.50),
-			description:          "Commas used as thousands separators are stripped, keeping the decimal comma",
+			name:               "Thousands separator in price",
+			content:            "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t2,551,50\t2,551,50\t0,50\n",
+			expectRecords:      1,
+			expectSkips:        false,
+			checkPrices:        true,
+			expectedPrix:       2551.50,
+			expectedPrixPublic: f64Ptr(2551.50),
+			expectedHonoraires: f64Ptr(0.50),
+			description:        "Commas used as thousands separators are stripped, keeping the decimal comma",
 		},
 		{
 			name:          "Extra columns (13 instead of 12)",
@@ -610,11 +610,11 @@ func TestTSVPresentationsEdgeCases(t *testing.T) {
 			if tc.checkPrices && len(result) > 0 {
 				r := result[0]
 				if r.Prix != tc.expectedPrix ||
-					!f64PtrEqual(r.PrixPublique, tc.expectedPrixPublique) ||
+					!f64PtrEqual(r.PrixPublic, tc.expectedPrixPublic) ||
 					!f64PtrEqual(r.HonorairesDispensation, tc.expectedHonoraires) {
-					t.Errorf("Expected [prix=%v, prixPublique=%v, honoraires=%v], got [prix=%v, prixPublique=%v, honoraires=%v]. Description: %s",
-						tc.expectedPrix, tc.expectedPrixPublique, tc.expectedHonoraires,
-						r.Prix, r.PrixPublique, r.HonorairesDispensation, tc.description)
+					t.Errorf("Expected [prix=%v, prixPublic=%v, honoraires=%v], got [prix=%v, prixPublic=%v, honoraires=%v]. Description: %s",
+						tc.expectedPrix, tc.expectedPrixPublic, tc.expectedHonoraires,
+						r.Prix, r.PrixPublic, r.HonorairesDispensation, tc.description)
 				}
 			}
 
