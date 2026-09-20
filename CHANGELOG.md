@@ -7,6 +7,28 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+## [2.1.0] - 2026-09-20
+
+### Pour les utilisateurs de l'API
+
+#### Ajouté
+
+- **Nouveaux champs de prix sur les présentations** : `prixPublique` (prix public) et `honorairesDispensation` (honoraires de dispensation), issus des nouvelles colonnes BDPM
+  - Exposés sur `/v1/presentations/{cip}` et dans les présentations embarquées de `/v1/medicaments/{cis}` et `/v1/medicaments/export`
+  - `0` lorsque la source ne fournit pas de valeur (≈35 % des présentations n'ont pas de prix déclaré)
+
+#### Changé
+
+- **Précision des prix** : les trois champs de prix passent en `float64`, arrondis au centime (auparavant tronqués en `float32`)
+- **Résilience du parsing** : une ligne de présentation contenant un prix invalide est désormais ignorée avec un avertissement, au lieu de faire échouer l'intégralité de la mise à jour
+
+### Pour les auto-hébergés
+
+#### Changé
+
+- **Toolchain** : Go 1.26 → 1.27 ; actions GitHub mises à jour (checkout v7, setup-go v7, upload-artifact v7, download-artifact v8, cache v6, github-script v9)
+- **Sécurité** : les fichiers de journal sont créés avec les permissions `0600` (résolution gosec G302, CWE-276) ; l'analyse gosec passe à 0 problème
+
 ## [2.0.0] - 2026-09-20
 
 ### Pour les utilisateurs de l'API
@@ -381,7 +403,8 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 - **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
 - **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Non publié]: https://github.com/giygas/medicaments-api/compare/v2.0.0...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/giygas/medicaments-api/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/giygas/medicaments-api/compare/v1.2.2...v2.0.0
 [1.2.2]: https://github.com/giygas/medicaments-api/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/giygas/medicaments-api/compare/v1.2.0...v1.2.1

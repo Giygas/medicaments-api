@@ -466,57 +466,91 @@ func TestTSVPresentationsEdgeCases(t *testing.T) {
 	_ = os.MkdirAll("files", 0755)
 
 	testCases := []struct {
-		name          string
-		content       string
-		expectRecords int
-		expectSkips   bool
-		description   string
+		name           string
+		content        string
+		expectRecords  int
+		expectSkips    bool
+		expectedPrices []float64 // optional: [prix, prixPublique, honoraires] of first record
+		description    string
 	}{
 		{
-			name:          "Valid data",
-			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
-			expectRecords: 1,
-			expectSkips:   false,
-			description:   "Normal valid presentation record",
+			name:           "Valid data",
+			content:        "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
+			expectRecords:  1,
+			expectSkips:    false,
+			expectedPrices: []float64{24.34, 25.50, 0.50},
+			description:    "Normal valid presentation record",
 		},
 		{
-			name:          "Empty line in middle",
-			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\t12,81\t2\n",
-			expectRecords: 2,
-			expectSkips:   true,
-			description:   "Empty line between valid records should be skipped",
+			name:           "Empty line in middle",
+			content:        "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\t12,81\t13,20\t0,40\n",
+			expectRecords:  2,
+			expectSkips:    true,
+			expectedPrices: []float64{24.34, 25.50, 0.50},
+			description:    "Empty line between valid records should be skipped",
 		},
 		{
-			name:          "Missing columns (9 instead of 10)",
+			name:          "Missing columns (9 instead of 12)",
 			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\n",
 			expectRecords: 0,
 			expectSkips:   true,
 			description:   "Line with only 9 columns should be skipped",
 		},
 		{
-			name:          "Extra tabs (consecutive tabs)",
-			content:       "60002283\t4949729\t\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			name:          "Missing columns (11 instead of 12)",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\n",
 			expectRecords: 0,
 			expectSkips:   true,
-			description:   "Consecutive tabs causing empty fields should be treated as missing columns",
+			description:   "Line missing the honoraires column should be skipped, not panic",
+		},
+		{
+			name:          "Extra tabs (consecutive tabs)",
+			content:       "60002283\t4949729\t\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
+			expectRecords: 0,
+			expectSkips:   true,
+			description:   "Consecutive tabs shift columns, causing an invalid CIP13 and a format-error skip",
 		},
 		{
 			name:          "Invalid CIS (non-numeric)",
-			content:       "abc123\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			content:       "abc123\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
 			expectRecords: 0,
 			expectSkips:   true,
 			description:   "Non-numeric CIS should cause format error skip",
 		},
 		{
 			name:          "Invalid CIP7 (non-numeric)",
-			content:       "60002283\tabc123\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\n",
+			content:       "60002283\tabc123\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n",
 			expectRecords: 0,
 			expectSkips:   true,
 			description:   "Non-numeric CIP7 should cause format error skip",
 		},
 		{
-			name:          "Extra columns (11 instead of 10)",
-			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t1\textra\n",
+			name:           "Invalid price skips line, does not abort file",
+			content:        "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\n60002746\t3696350\t20 récipient(s) unidose(s) polyéthylène de 2 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963504\toui\t65%\tabc\t13,20\t0,40\n60000114\t3696351\t20 récipient(s) unidose(s) polyéthylène de 5 ml\tPrésentation active\tDéclaration de commercialisation\t30/11/2006\t3400936963511\toui\t65%\t12,81\t13,20\t0,40\n",
+			expectRecords:  2,
+			expectSkips:    true,
+			expectedPrices: []float64{24.34, 25.50, 0.50},
+			description:    "A line with a non-numeric price is skipped with a warning; other lines still parse",
+		},
+		{
+			name:           "Empty price fields default to 0.0",
+			content:        "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t\t\t\n",
+			expectRecords:  1,
+			expectSkips:    false,
+			expectedPrices: []float64{0, 0, 0},
+			description:    "Empty prix, prix public and honoraires fields parse as 0.0",
+		},
+		{
+			name:           "Thousands separator in price",
+			content:        "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t2,551,50\t2,551,50\t0,50\n",
+			expectRecords:  1,
+			expectSkips:    false,
+			expectedPrices: []float64{2551.50, 2551.50, 0.50},
+			description:    "Commas used as thousands separators are stripped, keeping the decimal comma",
+		},
+		{
+			name:          "Extra columns (13 instead of 12)",
+			content:       "60002283\t4949729\tplaquette PVC PVDC aluminium de 30 comprimé(s)\tPrésentation active\tDéclaration de commercialisation\t16/03/2011\t3400949497294\toui\t100%\t24,34\t25,50\t0,50\textra\n",
 			expectRecords: 1,
 			expectSkips:   false,
 			description:   "Extra columns should be silently ignored",
@@ -541,6 +575,17 @@ func TestTSVPresentationsEdgeCases(t *testing.T) {
 			// Verify record count
 			if len(result) != tc.expectRecords {
 				t.Errorf("Expected %d records, got %d. Description: %s", tc.expectRecords, len(result), tc.description)
+			}
+
+			// Verify parsed price values of the first record when specified
+			if tc.expectedPrices != nil && len(result) > 0 {
+				r := result[0]
+				if r.Prix != tc.expectedPrices[0] ||
+					r.PrixPublique != tc.expectedPrices[1] ||
+					r.HonorairesDispensation != tc.expectedPrices[2] {
+					t.Errorf("Expected prices %v, got [prix=%v, prixPublique=%v, honoraires=%v]. Description: %s",
+						tc.expectedPrices, r.Prix, r.PrixPublique, r.HonorairesDispensation, tc.description)
+				}
 			}
 
 			// Verify that skipping occurred as expected
