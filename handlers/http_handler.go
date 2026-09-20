@@ -187,6 +187,21 @@ func (h *Handler) RespondWithGone(w http.ResponseWriter, r *http.Request, succes
 	h.RespondWithError(w, http.StatusGone, fmt.Sprintf("Endpoint %s was removed on %s. Use %s instead", oldPath, legacySunsetDate, successorPath))
 }
 
+// prixSunsetDate is the enforcement date for the field-level sunset of the
+// legacy "0 means absent" semantics of the prix field (announced in v2.2.0).
+// At v3.0.0, prix becomes null when the source declares no price, like
+// prixPublique and honorairesDispensation already do.
+const prixSunsetDate = "2026-12-31"
+
+// addPrixSunsetWarning attaches the RFC 7234 Warning header announcing the
+// prix field-level sunset to responses that embed presentation data.
+// Remove this helper and its call sites at v3.0.0 enforcement.
+func addPrixSunsetWarning(w http.ResponseWriter) {
+	w.Header().Set("Warning", fmt.Sprintf(
+		"299 - \"Field 'prix' returns 0 when the source declares no price; it will return null after %s (see CHANGELOG)\"",
+		prixSunsetDate))
+}
+
 // ExportMedicaments returns all medicaments.
 // The legacy /database route was removed (sunset 2026-07-31) and now returns 410 Gone.
 func (h *Handler) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +212,7 @@ func (h *Handler) ExportMedicaments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	medicaments := h.dataStore.GetMedicaments()
+	addPrixSunsetWarning(w)
 	h.RespondWithJSONAndETag(w, r, http.StatusOK, medicaments)
 }
 
@@ -242,6 +258,7 @@ func (h *Handler) FindMedicamentByCIS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	addPrixSunsetWarning(w)
 	h.RespondWithJSON(w, http.StatusOK, med)
 }
 
@@ -394,6 +411,7 @@ func (h *Handler) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
 	// Search first in the CIP7
 	presentationsCIP7 := h.dataStore.GetPresentationsCIP7Map()
 	if pres, ok := presentationsCIP7[cip]; ok {
+		addPrixSunsetWarning(w)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, pres)
 		return
 	}
@@ -402,6 +420,7 @@ func (h *Handler) ServePresentationsV1(w http.ResponseWriter, r *http.Request) {
 	presentationsCIP13 := h.dataStore.GetPresentationsCIP13Map()
 
 	if pres, ok := presentationsCIP13[cip]; ok {
+		addPrixSunsetWarning(w)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, pres)
 		return
 	}
@@ -540,6 +559,7 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			"maxPage":    maxPage,
 		}
 
+		addPrixSunsetWarning(w)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, response)
 		return
 	}
@@ -587,6 +607,7 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		addPrixSunsetWarning(w)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, results)
 		return
 	}
@@ -605,6 +626,7 @@ func (h *Handler) ServeMedicamentsV1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		addPrixSunsetWarning(w)
 		h.RespondWithJSONAndETag(w, r, http.StatusOK, med)
 		return
 	}
