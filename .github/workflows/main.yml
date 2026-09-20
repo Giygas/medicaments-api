@@ -19,7 +19,7 @@ jobs:
       changed-files: ${{ steps.filter.outputs.all_changed_files }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Filter changed files
         uses: dorny/paths-filter@v3
@@ -50,13 +50,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Go Setup
         uses: ./.github/actions/go-setup
 
       - name: Cache built binary
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: binary-cache
         with:
           path: medicaments-api
@@ -73,7 +73,7 @@ jobs:
           file medicaments-api
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: medicaments-api-binary
           path: medicaments-api
@@ -87,7 +87,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Show changed files
         run: |
@@ -95,7 +95,7 @@ jobs:
           echo "${{ needs.detect-changes.outputs.changed-files }}"
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: medicaments-api-binary
           path: .
