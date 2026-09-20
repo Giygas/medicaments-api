@@ -7,6 +7,14 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Non publié]
 
+#### Changé
+
+- **Champs de prix nullables** : `prixPublique` et `honorairesDispensation` retournent désormais `null` (au lieu de `0`) lorsque la source BDPM ne déclare pas de prix — champs introduits en 2.1.0
+- **Dépréciation — sémantique `0` de `prix`** : `prix` continue de retourner `0` en l'absence de prix déclaré, mais cette sémantique est **dépréciée avec sunset au 2026-12-31** (v3.0.0), où `prix` retournera `null`
+  - Les réponses contenant des présentations portent un header `Warning: 299` annonçant la transition
+  - **Migration pendant la transition** : détecter l'absence de prix par `prix == 0 || prix == null` — test robuste avant et après le sunset (`0` n'est jamais un prix réel dans les données BDPM) ; après le 2026-12-31 (v3.0.0), `prix == null` suffira
+  - Documentation OpenAPI : champ `prix` marqué `deprecated: true`
+
 ## [2.1.0] - 2026-09-20
 
 ### Pour les utilisateurs de l'API

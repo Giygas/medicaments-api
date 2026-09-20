@@ -122,6 +122,64 @@ func TestServePresentationsV1_Success(t *testing.T) {
 	}
 }
 
+// TestServePresentationsV1_PrixSunsetContract verifies the field-level
+// sunset of the legacy prix semantics: absent prices marshal as null for
+// the nullable fields while prix keeps its 0-when-absent contract, and
+// every presentation-bearing response carries the RFC 7234 Warning header.
+func TestServePresentationsV1_PrixSunsetContract(t *testing.T) {
+	prices := 19.99
+	presentation := entities.Presentation{
+		Cis:                    1,
+		Cip7:                   1234567,
+		Cip13:                  1234567890123,
+		Libelle:                "Boîte de 8 comprimés",
+		StatusAdministratif:    "Présentation commercialisée",
+		EtatComercialisation:   "Commercialisée",
+		DateDeclaration:        "2020-02-01",
+		Prix:                   0, // absent in source, legacy contract
+		PrixPublique:           &prices,
+		HonorairesDispensation: nil,
+	}
+
+	handler := NewHTTPHandler(
+		NewMockDataStoreBuilder().
+			WithPresentationsCIP7Map(map[int]entities.Presentation{1234567: presentation}).
+			WithPresentationsCIP13Map(map[int]entities.Presentation{}).
+			Build(),
+		NewMockDataValidatorBuilder().Build(),
+		NewMockHealthCheckerBuilder().Build(),
+	)
+
+	router := chi.NewRouter()
+	router.Get("/v1/presentations/{cip}", handler.ServePresentationsV1)
+
+	req := httptest.NewRequest("GET", "/v1/presentations/1234567", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK, got %d", rr.Code)
+	}
+
+	// Warning header announces the field-level sunset
+	warning := rr.Header().Get("Warning")
+	if !strings.Contains(warning, "299") || !strings.Contains(warning, "prix") || !strings.Contains(warning, prixSunsetDate) {
+		t.Errorf("Expected prix sunset Warning header, got: %q", warning)
+	}
+
+	// Raw JSON contract: null for absent nullable prices, 0 for legacy prix
+	body := rr.Body.String()
+	if !strings.Contains(body, `"honorairesDispensation":null`) {
+		t.Errorf("Expected honorairesDispensation:null in response, got: %s", body)
+	}
+	if !strings.Contains(body, `"prix":0`) {
+		t.Errorf("Expected prix:0 (legacy contract) in response, got: %s", body)
+	}
+	if !strings.Contains(body, `"prixPublique":19.99`) {
+		t.Errorf("Expected prixPublique:19.99 in response, got: %s", body)
+	}
+}
+
 // TestServePresentationsV1_Errors tests error cases for presentation lookup
 func TestServePresentationsV1_Errors(t *testing.T) {
 	tests := []struct {

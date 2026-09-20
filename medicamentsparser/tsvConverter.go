@@ -32,6 +32,19 @@ func parsePrice(field string) (float64, error) {
 	return math.Round(val*100) / 100, nil
 }
 
+// parseOptionalPrice behaves like parsePrice but returns nil when the field
+// is empty, so absent prices marshal as JSON null instead of a fake 0.
+func parseOptionalPrice(field string) (*float64, error) {
+	if field == "" {
+		return nil, nil
+	}
+	v, err := parsePrice(field)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
 func makePresentations(wg *sync.WaitGroup) ([]entities.Presentation, error) {
 	if wg != nil {
 		defer wg.Done()
@@ -96,22 +109,30 @@ parseLine:
 		}
 
 		// Price columns use commas as thousands and decimal separators.
-		// 0 - prix du médicament
-		// 1 - prix public du médicament
-		// 2 - honoraires dispensation
-		// Empty price fields default to 0.0; invalid prices skip the line.
-		prices := []string{fields[9], fields[10], fields[11]}
-		outputPrices := make([]float64, 0, 3)
-
-		for _, p := range prices {
-			prix, err := parsePrice(p)
-			if err != nil {
-				logging.Warn("Skipping presentations line with invalid price",
-					"line", lineCount, "error", err)
-				skippedFormatErrors++
-				continue parseLine
-			}
-			outputPrices = append(outputPrices, prix)
+		// 0 - prix du médicament (legacy contract: empty -> 0 until sunset)
+		// 1 - prix public du médicament (nullable: empty -> null)
+		// 2 - honoraires dispensation (nullable: empty -> null)
+		// Invalid prices skip the line.
+		prix, err := parsePrice(fields[9])
+		if err != nil {
+			logging.Warn("Skipping presentations line with invalid price",
+				"line", lineCount, "error", err)
+			skippedFormatErrors++
+			continue parseLine
+		}
+		prixPublique, err := parseOptionalPrice(fields[10])
+		if err != nil {
+			logging.Warn("Skipping presentations line with invalid price",
+				"line", lineCount, "error", err)
+			skippedFormatErrors++
+			continue parseLine
+		}
+		honoraires, err := parseOptionalPrice(fields[11])
+		if err != nil {
+			logging.Warn("Skipping presentations line with invalid price",
+				"line", lineCount, "error", err)
+			skippedFormatErrors++
+			continue parseLine
 		}
 
 		record := entities.Presentation{
@@ -124,9 +145,9 @@ parseLine:
 			Cip13:                  cip13,
 			Agreement:              fields[7],
 			TauxRemboursement:      fields[8],
-			Prix:                   outputPrices[0],
-			PrixPublique:           outputPrices[1],
-			HonorairesDispensation: outputPrices[2],
+			Prix:                   prix,
+			PrixPublique:           prixPublique,
+			HonorairesDispensation: honoraires,
 		}
 
 		jsonRecords = append(jsonRecords, record)
