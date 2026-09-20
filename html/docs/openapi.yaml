@@ -7,6 +7,7 @@ info:
     **Caractéristiques principales :**
     - Données officielles mises à jour automatiquement 2 fois par jour (6h et 18h)
     - Accès gratuit avec rate limiting équitable (1000 tokens initiaux, recharge à 3 tokens/sec)
+    - Recherches plafonnées : 250 résultats max pour `/v1/medicaments?search=`, 100 max pour `/v1/generiques?libelle=` (erreur 400 au-delà) — `/v1/medicaments/export` pour l'ensemble des données
     - Données intègres et non altérées depuis la source BDPM
     - Endpoints v1 modernes + endpoints legacy (supprimés le 31 juillet 2026, désormais 410 Gone)
 
@@ -16,7 +17,7 @@ info:
     - [Guide de migration vers v1](https://github.com/Giygas/medicaments-api/blob/main/docs/MIGRATION.md)
     - [Base de données BDPM](https://base-donnees-publique.medicaments.gouv.fr)
 
-  version: 1.2.0
+  version: 2.1.0
   contact:
     name: GitHub Repository
     url: https://github.com/giygas/medicaments-api
@@ -1253,7 +1254,7 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
-        Maximum 250 résultats par recherche (retourne 429 si dépassé).
+        Maximum 250 résultats par recherche (erreur 400 « Search too broad » si dépassé ; utilisez /v1/medicaments/export pour l'ensemble des données).
       schema:
         type: string
         minLength: 3
@@ -1275,7 +1276,7 @@ components:
         Terme de recherche multi-mots (1-6 mots requis, logique ET).
         Les mots sont séparés par + ou espace dans l'URL.
         Minimum 3 caractères, maximum 50 caractères.
-        Maximum 100 résultats par recherche (retourne 429 si dépassé).
+        Maximum 100 résultats par recherche (erreur 400 « Search too broad » si dépassé ; utilisez /v1/medicaments/export pour l'ensemble des données).
         Note: Les données source BDPM sont en majuscules sans accents (ex: PARACETAMOL).
         Utilisez des caractères ASCII (sans accents).
       schema:
