@@ -324,6 +324,10 @@ type documentEnvelope struct {
 // extracted from the document itself, compressed size and file modification
 // time as the fetch timestamp.
 func scanDocument(path string) (DocumentMeta, error) {
+	// #nosec G304 -- path is produced by os.ReadDir over the configured
+	// cache directory during the startup scan, never from user input; the
+	// serving path validates (cis, docType) keys before touching the
+	// filesystem.
 	f, err := os.Open(path)
 	if err != nil {
 		return DocumentMeta{}, err
@@ -360,6 +364,8 @@ func scanDocument(path string) (DocumentMeta, error) {
 // metadata. The recorded timestamp is read from the marker body, falling
 // back to the file modification time for manually created markers.
 func scanTombstone(path string) (DocumentMeta, error) {
+	// #nosec G304 -- path is produced by os.ReadDir over the configured
+	// cache directory during the startup scan, never from user input.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return DocumentMeta{}, err
