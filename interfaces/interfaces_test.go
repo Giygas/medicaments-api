@@ -112,13 +112,13 @@ func (m *MockParser) ParseAllMedicaments() ([]entities.Medicament, map[int]entit
 	}
 
 	return []entities.Medicament{
-			{Cis: 1, Denomination: "Test Medicament"},
-			{Cis: 2, Denomination: "Another Test"},
-		}, map[int]entities.Presentation{
-			1234567: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-		}, map[int]entities.Presentation{
-			3400912345678: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
-		}, nil
+		{Cis: 1, Denomination: "Test Medicament"},
+		{Cis: 2, Denomination: "Another Test"},
+	}, map[int]entities.Presentation{
+		1234567: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+	}, map[int]entities.Presentation{
+		3400912345678: {Cis: 1, Cip7: 1234567, Cip13: 3400912345678},
+	}, nil
 }
 
 func (m *MockParser) GeneriquesParser(medicaments *[]entities.Medicament, medicamentsMap *map[int]entities.Medicament) ([]entities.GeneriqueList, map[int]entities.GeneriqueList, error) {
