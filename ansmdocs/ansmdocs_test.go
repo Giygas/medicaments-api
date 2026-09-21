@@ -572,7 +572,7 @@ func TestFetcherSendsUserAgent(t *testing.T) {
 		mu.Lock()
 		gotUA = r.Header.Get("User-Agent")
 		mu.Unlock()
-		w.Write(loadFixture(t, "both_tabs.html"))
+		_, _ = w.Write(loadFixture(t, "both_tabs.html"))
 	}))
 	t.Cleanup(ts.Close)
 
@@ -602,7 +602,7 @@ func TestFetcherHappyPath(t *testing.T) {
 		paths = append(paths, r.URL.Path)
 		mu.Unlock()
 		w.Header().Set("Content-Type", "text/html")
-		w.Write(page)
+		_, _ = w.Write(page)
 	}))
 	t.Cleanup(ts.Close)
 	f := newTestFetcher(ts.URL, nil)
@@ -688,7 +688,7 @@ func TestFetcherRetriesOn429AndHonorsRetryAfter(t *testing.T) {
 			http.Error(w, "slow down", http.StatusTooManyRequests)
 			return
 		}
-		w.Write(page)
+		_, _ = w.Write(page)
 	}))
 	t.Cleanup(ts.Close)
 	f := newTestFetcher(ts.URL, func(c *Config) {
@@ -783,7 +783,7 @@ func TestFetcherBodyTooLarge(t *testing.T) {
 	// Arrange
 	big := []byte(strings.Repeat("a", 4096))
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(big)
+		_, _ = w.Write(big)
 	}))
 	t.Cleanup(ts.Close)
 	f := newTestFetcher(ts.URL, func(c *Config) { c.MaxBodyBytes = 512; c.Backoff = time.Millisecond })
@@ -834,7 +834,7 @@ func TestFetcherRateLimiterRespectsContext(t *testing.T) {
 	// Arrange
 	page := loadFixture(t, "both_tabs.html")
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(page)
+		_, _ = w.Write(page)
 	}))
 	t.Cleanup(ts.Close)
 	// Capacity 1 at 0.5 req/s: the first request consumes the initial
@@ -866,7 +866,7 @@ func TestFetcherSingleflightDeduplicates(t *testing.T) {
 		hits++
 		mu.Unlock()
 		<-release
-		w.Write(page)
+		_, _ = w.Write(page)
 	}))
 	t.Cleanup(ts.Close)
 	f := newTestFetcher(ts.URL, nil)
