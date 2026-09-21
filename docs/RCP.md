@@ -264,9 +264,10 @@ Puis dans le `.env` du service :
 DOCS_CACHE_DIR=/var/lib/medicaments-api/docs
 ```
 
-Dimensionnement : ~15 800 médicaments × 2 documents × quelques dizaines de Ko
-gzip — comptez **2 à 4 Go** de pire cas si tout le corpus finit caché (en
-pratique seul le corpus réellement demandé l'est).
+Dimensionnement : ~15 800 médicaments × 2 documents ≈ 12–30 Ko gzip chacun —
+comptez **0,4 à 1 Go** de pire cas si tout le corpus finit caché (en pratique
+seul le corpus réellement demandé l'est ; une poignée de très gros RCP —
+vaccins, biologiques — pèse davantage que la moyenne).
 
 ### systemd (durcissement)
 
