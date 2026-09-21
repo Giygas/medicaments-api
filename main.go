@@ -13,8 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/giygas/medicaments-api/ansmdocs"
 	"github.com/giygas/medicaments-api/config"
 	"github.com/giygas/medicaments-api/data"
+	"github.com/giygas/medicaments-api/docstore"
+	"github.com/giygas/medicaments-api/handlers"
+	"github.com/giygas/medicaments-api/interfaces"
 	"github.com/giygas/medicaments-api/logging"
 	"github.com/giygas/medicaments-api/medicamentsparser"
 	"github.com/giygas/medicaments-api/scheduler"
@@ -25,11 +29,21 @@ import (
 //go:embed certigna-services-ca.pem
 var certignaCA []byte
 
+// Compile-time checks ensuring the concrete docstore and ansmdocs types
+// satisfy the interfaces they are wired as. The repo convention places these
+// assertions next to the implementation; here they live at the composition
+// root because the implementation packages stay interface-agnostic.
+var (
+	_ interfaces.DocumentStore = (*docstore.DocumentStore)(nil)
+	_ interfaces.ANSMFetcher   = (*ansmdocs.Fetcher)(nil)
+)
+
 // newCertignaHTTPClient creates an HTTP client that trusts the Certigna Services CA
 // intermediate certificate, which is required to verify TLS connections to
 // base-donnees-publique.medicaments.gouv.fr. The server does not send the full
 // certificate chain, so the intermediate CA is bundled and added to the system cert pool.
-func newCertignaHTTPClient() (*http.Client, error) {
+// The timeout bounds a single request made through the returned client.
+func newCertignaHTTPClient(timeout time.Duration) (*http.Client, error) {
 	pool, err := x509.SystemCertPool()
 	if err != nil {
 		pool = x509.NewCertPool()
@@ -38,13 +52,60 @@ func newCertignaHTTPClient() (*http.Client, error) {
 		return nil, fmt.Errorf("failed to parse Certigna intermediate CA cert")
 	}
 	return &http.Client{
-		Timeout: 5 * time.Minute,
+		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				RootCAs: pool,
 			},
 		},
 	}, nil
+}
+
+// appVersion returns the application version reported in the ANSM fetcher
+// User-Agent: the APP_VERSION environment variable when set (the Makefile
+// and docker-compose export it), falling back to "dev".
+func appVersion() string {
+	if v := os.Getenv("APP_VERSION"); v != "" {
+		return v
+	}
+	return "dev"
+}
+
+// initDocsDependencies constructs the ANSM document cache and fetcher when
+// the feature is enabled (DOCS_ENABLED=true). When disabled it returns nil
+// interfaces — the kill switch: the docs endpoints answer 501 and no
+// directory scan, rate limiter or upstream request ever happens.
+func initDocsDependencies(cfg *config.Config) (interfaces.DocumentStore, interfaces.ANSMFetcher, error) {
+	if !cfg.DocsEnabled {
+		logging.Info("ANSM documents feature disabled (DOCS_ENABLED=false): docs endpoints will answer 501")
+		return nil, nil, nil
+	}
+
+	store, err := docstore.NewDocumentStore(cfg.DocsCacheDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize docs cache in %s: %w", cfg.DocsCacheDir, err)
+	}
+
+	// The ANSM upstream serves an incomplete TLS chain: reuse the bundled
+	// Certigna intermediate CA, but bound each request by the configured
+	// DOCS_FETCH_TIMEOUT instead of the parser's generous download budget.
+	docsClient, err := newCertignaHTTPClient(cfg.DocsFetchTimeout)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create ANSM docs HTTP client: %w", err)
+	}
+
+	fetcher := ansmdocs.NewFetcher(ansmdocs.Config{
+		UserAgent:  fmt.Sprintf("medicaments-api/%s (+https://medicaments-api.giygas.dev)", appVersion()),
+		Timeout:    cfg.DocsFetchTimeout,
+		RatePerSec: cfg.DocsFetchRatePerSec,
+		Client:     docsClient,
+	})
+
+	logging.Info("ANSM documents feature enabled",
+		"cache_dir", cfg.DocsCacheDir,
+		"fetch_rate_per_sec", cfg.DocsFetchRatePerSec,
+		"fetch_timeout", cfg.DocsFetchTimeout.String())
+	return store, fetcher, nil
 }
 
 func main() {
@@ -86,17 +147,32 @@ func main() {
 		"log_level", cfg.LogLevel,
 		"allow_direct_access", cfg.AllowDirectAccess,
 		"max_request_body", cfg.MaxRequestBody,
-		"max_header_size", cfg.MaxHeaderSize)
+		"max_header_size", cfg.MaxHeaderSize,
+		"docs_enabled", cfg.DocsEnabled)
 
 	// Initialize data container and parser
 	dataContainer := data.NewDataContainer()
 
-	httpClient, err := newCertignaHTTPClient()
+	// BDPM TSV downloads are large: keep the parser's generous 5-minute budget
+	httpClient, err := newCertignaHTTPClient(5 * time.Minute)
 	if err != nil {
 		logging.Error("Failed to create HTTP client", "error", err)
 		os.Exit(1)
 	}
 	parser := medicamentsparser.NewMedicamentsParser(httpClient)
+
+	// ANSM documents (RCP/notice) dependencies: nil interfaces when the
+	// feature is disabled act as the kill switch (docs endpoints answer
+	// 501). They are threaded into the handler via WithDocuments so the
+	// /v1/medicaments/{cis}/rcp and /notice routes can serve documents.
+	docsStore, docsFetcher, err := initDocsDependencies(cfg)
+	if err != nil {
+		logging.Error("Failed to initialize ANSM docs dependencies", "error", err)
+		os.Exit(1)
+	}
+	logging.Info("ANSM docs dependencies wired",
+		"store_ready", docsStore != nil,
+		"fetcher_ready", docsFetcher != nil)
 
 	// Initialize and start scheduler with dependency injection
 	sched := scheduler.NewScheduler(dataContainer, parser)
@@ -106,8 +182,8 @@ func main() {
 	}
 	defer sched.Stop()
 
-	// Initialize and start server
-	srv := server.NewServer(cfg, dataContainer)
+	// Initialize and start server, wiring the ANSM documents dependencies
+	srv := server.NewServer(cfg, dataContainer, handlers.WithDocuments(docsStore, docsFetcher, cfg.DocsFetchTimeout))
 
 	// Channel to listen for interrupt signals
 	quit := make(chan os.Signal, 1)

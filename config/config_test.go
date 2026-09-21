@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestLoadValidConfig(t *testing.T) {
@@ -188,6 +189,18 @@ func cleanupEnv() {
 	if err := os.Unsetenv("ALLOW_DIRECT_ACCESS"); err != nil {
 		log.Printf("Failed to unset ALLOW_DIRECT_ACCESS: %v", err)
 	}
+	if err := os.Unsetenv("DOCS_ENABLED"); err != nil {
+		log.Printf("Failed to unset DOCS_ENABLED: %v", err)
+	}
+	if err := os.Unsetenv("DOCS_CACHE_DIR"); err != nil {
+		log.Printf("Failed to unset DOCS_CACHE_DIR: %v", err)
+	}
+	if err := os.Unsetenv("DOCS_FETCH_RATE_PER_SEC"); err != nil {
+		log.Printf("Failed to unset DOCS_FETCH_RATE_PER_SEC: %v", err)
+	}
+	if err := os.Unsetenv("DOCS_FETCH_TIMEOUT"); err != nil {
+		log.Printf("Failed to unset DOCS_FETCH_TIMEOUT: %v", err)
+	}
 }
 
 func TestDetectEnvironment(t *testing.T) {
@@ -260,6 +273,10 @@ func TestGetEnvVars(t *testing.T) {
 		"MAX_HEADER_SIZE",
 		"ALLOW_DIRECT_ACCESS",
 		"DISABLE_RATE_LIMITER",
+		"DOCS_ENABLED",
+		"DOCS_CACHE_DIR",
+		"DOCS_FETCH_RATE_PER_SEC",
+		"DOCS_FETCH_TIMEOUT",
 	}
 
 	if len(envVars) != len(expectedVars) {
@@ -701,6 +718,259 @@ func TestValidateAddress_IPv6PrivateRanges(t *testing.T) {
 				// The test documents the current behavior
 			}
 		})
+	}
+}
+
+// setDocsTestBaseEnv sets the baseline variables required for Load to succeed
+// and clears all DOCS_* variables so each test controls its own docs config.
+func setDocsTestBaseEnv() {
+	_ = os.Setenv("PORT", "8002")
+	_ = os.Setenv("ADDRESS", "127.0.0.1")
+	_ = os.Setenv("ENV", "dev")
+	_ = os.Setenv("LOG_LEVEL", "info")
+	unsetDocsEnv()
+}
+
+// unsetDocsEnv clears all DOCS_* environment variables.
+func unsetDocsEnv() {
+	_ = os.Unsetenv("DOCS_ENABLED")
+	_ = os.Unsetenv("DOCS_CACHE_DIR")
+	_ = os.Unsetenv("DOCS_FETCH_RATE_PER_SEC")
+	_ = os.Unsetenv("DOCS_FETCH_TIMEOUT")
+}
+
+func TestDocsConfigDefaults(t *testing.T) {
+	// Arrange: baseline env, no DOCS_* variables set
+	setDocsTestBaseEnv()
+	defer cleanupEnv()
+
+	// Act
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Assert
+	if !cfg.DocsEnabled {
+		t.Error("Expected default DocsEnabled=true, got false")
+	}
+	if cfg.DocsCacheDir != "./files/docs" {
+		t.Errorf("Expected default DocsCacheDir ./files/docs, got %s", cfg.DocsCacheDir)
+	}
+	if cfg.DocsFetchRatePerSec != 2.0 {
+		t.Errorf("Expected default DocsFetchRatePerSec 2.0, got %g", cfg.DocsFetchRatePerSec)
+	}
+	if cfg.DocsFetchTimeout != 15*time.Second {
+		t.Errorf("Expected default DocsFetchTimeout 15s, got %s", cfg.DocsFetchTimeout)
+	}
+}
+
+func TestDocsConfigExplicitValues(t *testing.T) {
+	// Arrange
+	setDocsTestBaseEnv()
+	defer cleanupEnv()
+	_ = os.Setenv("DOCS_ENABLED", "true")
+	_ = os.Setenv("DOCS_CACHE_DIR", "/var/lib/medicaments-api/docs")
+	_ = os.Setenv("DOCS_FETCH_RATE_PER_SEC", "5")
+	_ = os.Setenv("DOCS_FETCH_TIMEOUT", "30s")
+
+	// Act
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Assert
+	if !cfg.DocsEnabled {
+		t.Error("Expected DocsEnabled=true, got false")
+	}
+	if cfg.DocsCacheDir != "/var/lib/medicaments-api/docs" {
+		t.Errorf("Expected DocsCacheDir /var/lib/medicaments-api/docs, got %s", cfg.DocsCacheDir)
+	}
+	if cfg.DocsFetchRatePerSec != 5.0 {
+		t.Errorf("Expected DocsFetchRatePerSec 5.0, got %g", cfg.DocsFetchRatePerSec)
+	}
+	if cfg.DocsFetchTimeout != 30*time.Second {
+		t.Errorf("Expected DocsFetchTimeout 30s, got %s", cfg.DocsFetchTimeout)
+	}
+}
+
+func TestDocsConfigDisabled(t *testing.T) {
+	// Arrange
+	setDocsTestBaseEnv()
+	defer cleanupEnv()
+	_ = os.Setenv("DOCS_ENABLED", "false")
+
+	// Act
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Assert: the kill switch parses to false while the rest stays valid
+	if cfg.DocsEnabled {
+		t.Error("Expected DocsEnabled=false, got true")
+	}
+}
+
+func TestDocsEnabledParsing(t *testing.T) {
+	// DOCS_ENABLED follows the lenient bool parsing used by the other bool
+	// flags: an unusable value falls back to the default (true), so a typo
+	// can never silently disable the feature.
+	tests := []struct {
+		name          string
+		envValue      string
+		expectedValue bool
+	}{
+		{"DOCS_ENABLED=true", "true", true},
+		{"DOCS_ENABLED=TRUE", "TRUE", true},
+		{"DOCS_ENABLED=1", "1", true},
+		{"DOCS_ENABLED=false", "false", false},
+		{"DOCS_ENABLED=FALSE", "FALSE", false},
+		{"DOCS_ENABLED=0", "0", false},
+		{"DOCS_ENABLED not set", "", true},
+		{"DOCS_ENABLED invalid", "invalid", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setDocsTestBaseEnv()
+			defer cleanupEnv()
+			_ = os.Setenv("DOCS_ENABLED", tt.envValue)
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+
+			if cfg.DocsEnabled != tt.expectedValue {
+				t.Errorf("Expected DocsEnabled=%v for %s, got %v", tt.expectedValue, tt.name, cfg.DocsEnabled)
+			}
+		})
+	}
+}
+
+func TestInvalidDocsFetchRatePerSec(t *testing.T) {
+	testCases := []struct {
+		value    string
+		expected string
+	}{
+		{"0.1", "must be between 0.25 and 10"},
+		{"10.5", "must be between 0.25 and 10"},
+		{"-1", "must be between 0.25 and 10"},
+		{"abc", "failed to parse DOCS_FETCH_RATE_PER_SEC"},
+	}
+
+	for _, tc := range testCases {
+		setDocsTestBaseEnv()
+		defer cleanupEnv()
+		_ = os.Setenv("DOCS_FETCH_RATE_PER_SEC", tc.value)
+
+		_, err := Load()
+		if err == nil {
+			t.Errorf("Expected error for DOCS_FETCH_RATE_PER_SEC=%s, got nil", tc.value)
+			continue
+		}
+		if !containsString(err.Error(), tc.expected) {
+			t.Errorf("Expected error containing %q for DOCS_FETCH_RATE_PER_SEC=%s, got: %s", tc.expected, tc.value, err.Error())
+		}
+	}
+}
+
+func TestValidDocsFetchRatePerSec(t *testing.T) {
+	testCases := []struct {
+		value    string
+		expected float64
+	}{
+		{"0.25", 0.25},
+		{"0.5", 0.5},
+		{"2", 2.0},
+		{"10", 10.0},
+	}
+
+	for _, tc := range testCases {
+		setDocsTestBaseEnv()
+		defer cleanupEnv()
+		_ = os.Setenv("DOCS_FETCH_RATE_PER_SEC", tc.value)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Errorf("Expected no error for DOCS_FETCH_RATE_PER_SEC=%s, got %v", tc.value, err)
+			continue
+		}
+
+		if cfg.DocsFetchRatePerSec != tc.expected {
+			t.Errorf("Expected DocsFetchRatePerSec %g for %s, got %g", tc.expected, tc.value, cfg.DocsFetchRatePerSec)
+		}
+	}
+}
+
+func TestInvalidDocsFetchTimeout(t *testing.T) {
+	testCases := []struct {
+		value    string
+		expected string
+	}{
+		{"abc", "failed to parse DOCS_FETCH_TIMEOUT"},
+		{"15", "failed to parse DOCS_FETCH_TIMEOUT"}, // missing time unit
+		{"0s", "DOCS_FETCH_TIMEOUT must be positive"},
+		{"-5s", "DOCS_FETCH_TIMEOUT must be positive"},
+	}
+
+	for _, tc := range testCases {
+		setDocsTestBaseEnv()
+		defer cleanupEnv()
+		_ = os.Setenv("DOCS_FETCH_TIMEOUT", tc.value)
+
+		_, err := Load()
+		if err == nil {
+			t.Errorf("Expected error for DOCS_FETCH_TIMEOUT=%s, got nil", tc.value)
+			continue
+		}
+		if !containsString(err.Error(), tc.expected) {
+			t.Errorf("Expected error containing %q for DOCS_FETCH_TIMEOUT=%s, got: %s", tc.expected, tc.value, err.Error())
+		}
+	}
+}
+
+func TestValidDocsFetchTimeout(t *testing.T) {
+	testCases := []struct {
+		value    string
+		expected time.Duration
+	}{
+		{"15s", 15 * time.Second},
+		{"250ms", 250 * time.Millisecond},
+		{"1m", time.Minute},
+		{"1h", time.Hour},
+	}
+
+	for _, tc := range testCases {
+		setDocsTestBaseEnv()
+		defer cleanupEnv()
+		_ = os.Setenv("DOCS_FETCH_TIMEOUT", tc.value)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Errorf("Expected no error for DOCS_FETCH_TIMEOUT=%s, got %v", tc.value, err)
+			continue
+		}
+
+		if cfg.DocsFetchTimeout != tc.expected {
+			t.Errorf("Expected DocsFetchTimeout %s for %s, got %s", tc.expected, tc.value, cfg.DocsFetchTimeout)
+		}
+	}
+}
+
+func TestInvalidDocsCacheDir(t *testing.T) {
+	setDocsTestBaseEnv()
+	defer cleanupEnv()
+	_ = os.Setenv("DOCS_CACHE_DIR", "   ")
+
+	_, err := Load()
+	if err == nil {
+		t.Error("Expected error for whitespace-only DOCS_CACHE_DIR, got nil")
+	}
+	if err != nil && !containsString(err.Error(), "DOCS_CACHE_DIR cannot be empty") {
+		t.Errorf("Expected error mentioning DOCS_CACHE_DIR cannot be empty, got: %s", err.Error())
 	}
 }
 

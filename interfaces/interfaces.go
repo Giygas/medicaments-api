@@ -3,9 +3,11 @@
 package interfaces
 
 import (
+	"context"
 	"net/http"
 	"time"
 
+	"github.com/giygas/medicaments-api/docstore"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -135,4 +137,40 @@ type DataValidator interface {
 
 	// ValidateCIP validates CIP codes
 	ValidateCIP(input string) (int, error)
+}
+
+// DocumentStore defines the contract for the permanent on-disk cache of
+// ANSM RCP and patient notice documents. It provides typed hit, tombstone
+// (negative cache) and miss results, and feeds the metrics gauges and
+// /v1/diagnostics through Stats.
+type DocumentStore interface {
+	// Get returns the cached document JSON and its metadata for the given
+	// (cis, docType) pair. Outcomes are distinguished by sentinel errors:
+	// hit (nil error), tombstone (docstore.ErrTombstone — never refetch
+	// upstream) and miss (docstore.ErrNotFound).
+	Get(cis, docType string) ([]byte, *docstore.DocumentMeta, error)
+
+	// Put atomically caches the final processed document JSON and updates
+	// the in-memory index, superseding any tombstone recorded for the key.
+	Put(cis, docType string, jsonBytes []byte, sourceDate string) error
+
+	// PutTombstone records that no document exists upstream for the given
+	// (cis, docType) pair so it is never fetched again.
+	PutTombstone(cis, docType string) error
+
+	// Stats returns the current store counters (documents, tombstones,
+	// total compressed bytes).
+	Stats() docstore.Stats
+}
+
+// ANSMFetcher defines the contract for lazily retrieving ANSM documents.
+// Implementations must stay polite towards the upstream (custom User-Agent,
+// global rate limiting, singleflight deduplication keyed by (cis, docType)).
+type ANSMFetcher interface {
+	// Fetch retrieves the document for the given (cis, docType) pair and
+	// returns the final sectioned JSON ready for DocumentStore.Put, together
+	// with its ANSM source date (YYYY-MM-DD). A document definitively
+	// absent upstream is reported via ansmdocs.ErrNotAvailable: the caller
+	// must record a tombstone and never refetch it.
+	Fetch(ctx context.Context, cis, docType string) ([]byte, string, error)
 }

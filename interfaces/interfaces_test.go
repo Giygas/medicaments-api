@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giygas/medicaments-api/docstore"
 	"github.com/giygas/medicaments-api/medicamentsparser/entities"
 )
 
@@ -317,6 +320,82 @@ func (e *mockError) Error() string {
 	return e.msg
 }
 
+// Sentinel errors mimicking docstore.ErrNotFound / docstore.ErrTombstone and
+// ansmdocs.ErrNotAvailable for the mocks below. They stay local so the
+// interface tests exercise the contracts, not the concrete packages.
+var (
+	errMockNotFound     = errors.New("mock: document not found")
+	errMockTombstone    = errors.New("mock: document marked as missing (tombstone)")
+	errMockNotAvailable = errors.New("mock: document not available upstream")
+)
+
+// mockStoredDoc is one cached document held by MockDocumentStore.
+type mockStoredDoc struct {
+	payload    []byte
+	sourceDate string
+}
+
+// MockDocumentStore implements DocumentStore interface for testing
+type MockDocumentStore struct {
+	documents  map[string]mockStoredDoc
+	tombstones map[string]bool
+	putCount   int
+	tombstoned int
+}
+
+func (m *MockDocumentStore) Get(cis, docType string) ([]byte, *docstore.DocumentMeta, error) {
+	key := cis + "|" + docType
+	if m.tombstones[key] {
+		return nil, &docstore.DocumentMeta{Tombstone: true}, errMockTombstone
+	}
+	doc, ok := m.documents[key]
+	if !ok {
+		return nil, nil, errMockNotFound
+	}
+	return doc.payload, &docstore.DocumentMeta{SourceDate: doc.sourceDate}, nil
+}
+
+func (m *MockDocumentStore) Put(cis, docType string, jsonBytes []byte, sourceDate string) error {
+	key := cis + "|" + docType
+	if m.documents == nil {
+		m.documents = make(map[string]mockStoredDoc)
+	}
+	// A real document always supersedes a tombstone for the same key.
+	delete(m.tombstones, key)
+	m.documents[key] = mockStoredDoc{payload: jsonBytes, sourceDate: sourceDate}
+	m.putCount++
+	return nil
+}
+
+func (m *MockDocumentStore) PutTombstone(cis, docType string) error {
+	if m.tombstones == nil {
+		m.tombstones = make(map[string]bool)
+	}
+	m.tombstones[cis+"|"+docType] = true
+	m.tombstoned++
+	return nil
+}
+
+func (m *MockDocumentStore) Stats() docstore.Stats {
+	return docstore.Stats{
+		Documents:  len(m.documents),
+		Tombstones: len(m.tombstones),
+	}
+}
+
+// MockANSMFetcher implements ANSMFetcher interface for testing
+type MockANSMFetcher struct {
+	payload    []byte
+	sourceDate string
+	err        error
+	fetchCount int
+}
+
+func (m *MockANSMFetcher) Fetch(ctx context.Context, cis, docType string) ([]byte, string, error) {
+	m.fetchCount++
+	return m.payload, m.sourceDate, m.err
+}
+
 // Test functions demonstrating the benefits of interfaces
 
 func TestDataStoreInterface(t *testing.T) {
@@ -411,6 +490,113 @@ func TestDataValidatorInterface(t *testing.T) {
 	}
 }
 
+func TestDocumentStoreInterface(t *testing.T) {
+	// Arrange: empty store
+	store := &MockDocumentStore{
+		documents:  make(map[string]mockStoredDoc),
+		tombstones: make(map[string]bool),
+	}
+
+	// Act & Assert: miss on the empty store
+	if _, _, err := store.Get("60016308", "rcp"); err == nil {
+		t.Error("Expected miss error on empty store, got nil")
+	}
+
+	// Act: cache a document
+	if err := store.Put("60016308", "rcp", []byte(`{"cis":"60016308"}`), "2025-11-07"); err != nil {
+		t.Fatalf("Unexpected error on Put: %v", err)
+	}
+
+	// Assert: hit returns the payload and its metadata
+	payload, meta, err := store.Get("60016308", "rcp")
+	if err != nil {
+		t.Fatalf("Unexpected error on Get after Put: %v", err)
+	}
+	if string(payload) != `{"cis":"60016308"}` {
+		t.Errorf("Expected cached payload, got %s", string(payload))
+	}
+	if meta == nil || meta.SourceDate != "2025-11-07" {
+		t.Errorf("Expected metadata with source date 2025-11-07, got %+v", meta)
+	}
+
+	// Act: record a tombstone for another document type
+	if err := store.PutTombstone("60016308", "notice"); err != nil {
+		t.Fatalf("Unexpected error on PutTombstone: %v", err)
+	}
+
+	// Assert: tombstone lookup surfaces the sentinel error
+	if _, _, err := store.Get("60016308", "notice"); !errors.Is(err, errMockTombstone) {
+		t.Errorf("Expected tombstone error, got %v", err)
+	}
+
+	// Assert: stats reflect both entries
+	stats := store.Stats()
+	if stats.Documents != 1 {
+		t.Errorf("Expected 1 document in stats, got %d", stats.Documents)
+	}
+	if stats.Tombstones != 1 {
+		t.Errorf("Expected 1 tombstone in stats, got %d", stats.Tombstones)
+	}
+
+	// Act: a real document supersedes the tombstone for the same key
+	if err := store.Put("60016308", "notice", []byte(`{"cis":"60016308","type":"notice"}`), "2025-11-07"); err != nil {
+		t.Fatalf("Unexpected error on Put over tombstone: %v", err)
+	}
+	if _, _, err := store.Get("60016308", "notice"); err != nil {
+		t.Errorf("Expected hit after tombstone superseded, got %v", err)
+	}
+
+	// Assert: call counters tracked the operations above
+	if store.putCount != 2 {
+		t.Errorf("Expected 2 Put calls, got %d", store.putCount)
+	}
+	if store.tombstoned != 1 {
+		t.Errorf("Expected 1 PutTombstone call, got %d", store.tombstoned)
+	}
+}
+
+func TestANSMFetcherInterface(t *testing.T) {
+	// Arrange: successful fetch
+	fetcher := &MockANSMFetcher{
+		payload:    []byte(`{"cis":"60016308","type":"rcp"}`),
+		sourceDate: "2025-11-07",
+	}
+
+	// Act
+	payload, sourceDate, err := fetcher.Fetch(context.Background(), "60016308", "rcp")
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if string(payload) != `{"cis":"60016308","type":"rcp"}` {
+		t.Errorf("Expected fetched payload, got %s", string(payload))
+	}
+	if sourceDate != "2025-11-07" {
+		t.Errorf("Expected source date 2025-11-07, got %s", sourceDate)
+	}
+	if fetcher.fetchCount != 1 {
+		t.Errorf("Expected 1 fetch call, got %d", fetcher.fetchCount)
+	}
+
+	// Arrange: document definitively absent upstream
+	fetcher = &MockANSMFetcher{err: errMockNotAvailable}
+
+	// Act
+	payload, sourceDate, err = fetcher.Fetch(context.Background(), "60016308", "notice")
+
+	// Assert: the sentinel surfaces to the caller (tombstone signal)
+	if !errors.Is(err, errMockNotAvailable) {
+		t.Errorf("Expected errMockNotAvailable, got %v", err)
+	}
+	if payload != nil {
+		t.Errorf("Expected nil payload on error, got %s", string(payload))
+	}
+	if sourceDate != "" {
+		t.Errorf("Expected empty source date on error, got %s", sourceDate)
+	}
+}
+
 // Example of how interfaces enable dependency injection
 type Service struct {
 	dataStore DataStore
@@ -454,4 +640,6 @@ func TestCompileTimeChecks(t *testing.T) {
 	var _ Scheduler = (*MockScheduler)(nil)
 	var _ HTTPHandler = (*MockHTTPHandler)(nil)
 	var _ DataValidator = (*MockDataValidator)(nil)
+	var _ DocumentStore = (*MockDocumentStore)(nil)
+	var _ ANSMFetcher = (*MockANSMFetcher)(nil)
 }

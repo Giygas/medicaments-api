@@ -26,6 +26,11 @@ func TestGetTokenCost(t *testing.T) {
 		{"V1 medicaments by CIS (path param)", "/v1/medicaments/12345678", "", 10},
 		{"V1 medicaments default", "/v1/medicaments", "", 5},
 
+		// V1 ANSM document endpoints (lazy fetch tier)
+		{"V1 medicament RCP document", "/v1/medicaments/12345678/rcp", "", 20},
+		{"V1 medicament notice document", "/v1/medicaments/12345678/notice", "", 20},
+		{"V1 document route not shadowed by export exclusion", "/v1/medicaments/12345678/rcp", "x=1", 20},
+
 		// V1 Generiques endpoint
 		{"V1 generiques libelle", "/v1/generiques", "libelle=paracetamol", 30},
 		{"V1 generiques by group ID (path param)", "/v1/generiques/1", "", 5},

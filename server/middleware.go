@@ -276,6 +276,16 @@ func getTokenCost(r *http.Request) int64 {
 			return 5
 		}
 
+		// Match /v1/medicaments/{cis}/rcp and /v1/medicaments/{cis}/notice:
+		// ANSM document retrieval (lazy fetch tier, same cost as pagination).
+		// Checked before the plain {cis} lookup below, which shares the
+		// /v1/medicaments/ prefix.
+		if len(requestPath) > len(v1MedicamentsPrefix) &&
+			requestPath[:len(v1MedicamentsPrefix)] == v1MedicamentsPrefix &&
+			(strings.HasSuffix(requestPath, "/rcp") || strings.HasSuffix(requestPath, "/notice")) {
+			return 20
+		}
+
 		// Match /v1/medicaments/{cis} (excludes /v1/medicaments and /v1/medicaments/export/*)
 		if len(requestPath) > len(v1MedicamentsPrefix) &&
 			requestPath[:len(v1MedicamentsPrefix)] == v1MedicamentsPrefix &&

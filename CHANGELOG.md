@@ -5,10 +5,15 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Non publié]
+## [2.2.0] - 2026-09-21
 
 #### Ajouté
 
+- **Documents ANSM (RCP & notices)** : `GET /v1/medicaments/{cis}/rcp` et `GET /v1/medicaments/{cis}/notice` servent le Résumé des Caractéristiques du Produit et la notice patient au format JSON sectionné (rubriques à identifiants stables, HTML assaini par liste blanche) — voir [docs/RCP.md](docs/RCP.md)
+  - Récupération paresseuse : chaque document est téléchargé depuis l'ANSM au plus une fois, puis servi depuis un cache disque gzip permanent ; les documents absents en amont sont mis en tombstone (404 définitif, jamais re-téléchargés)
+  - ETag fort et `Cache-Control` (1 h client / 24 h CDN) pour la revalidation `304` et le cache CDN ; coût de 20 tokens par requête
+  - Champs `source` et `miseAJour` portés par chaque réponse pour l'attribution obligatoire Etalab 2.0
+  - Kill switch `DOCS_ENABLED` (défaut activé) et politesse amont : singleflight, débit global 2 req/s, retry honorant `Retry-After`
 - **Recherche insensible aux accents** : `comprime` trouve désormais `COMPRIMÉ` et inversement, sur `/v1/medicaments?search=` comme sur `/v1/generiques?libelle=`
   - Les requêtes accentuées (`?search=comprimé`) sont désormais acceptées et normalisées (les caractères accentués français sont valides en entrée) — auparavant rejetées en 400
   - La normalisation (NFD) s'applique symétriquement à l'index et à la requête ; les requêtes ASCII existantes retournent un sur-ensemble de leurs résultats précédents (changement purement additif)
@@ -417,7 +422,8 @@ fetch("https://medicaments-api.giygas.dev/v1/medicaments?search=paracetamol");
 - **Nouveaux fichiers de test** : Tests de fumée, validation ETag, endpoints v1, cohérence inter-fichiers
 - **Benchmarks CI** : Non bloquants avec tolérance de 25 % de variance
 
-[Non publié]: https://github.com/giygas/medicaments-api/compare/v2.1.0...HEAD
+[Non publié]: https://github.com/giygas/medicaments-api/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/giygas/medicaments-api/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/giygas/medicaments-api/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/giygas/medicaments-api/compare/v1.2.2...v2.0.0
 [1.2.2]: https://github.com/giygas/medicaments-api/compare/v1.2.1...v1.2.2

@@ -33,15 +33,59 @@ type Handler struct {
 	dataStore     interfaces.DataStore
 	validator     interfaces.DataValidator
 	healthChecker interfaces.HealthChecker
+
+	// ANSM documents (RCP/notice) dependencies. A nil docStore or
+	// docFetcher is the kill switch: the docs endpoints answer 501 and no
+	// cache lookup or upstream fetch ever happens.
+	docStore        interfaces.DocumentStore
+	docFetcher      interfaces.ANSMFetcher
+	docFetchTimeout time.Duration
+}
+
+// defaultDocsFetchTimeout bounds a single ANSM upstream request when no
+// explicit timeout is injected (mirrors ansmdocs.DefaultTimeout).
+const defaultDocsFetchTimeout = 15 * time.Second
+
+// HandlerOption customizes a Handler under construction.
+type HandlerOption func(*Handler)
+
+// WithDocuments wires the ANSM document (RCP/notice) dependencies into the
+// handler, enabling the GET /v1/medicaments/{cis}/rcp and
+// /v1/medicaments/{cis}/notice endpoints. Passing nil store and/or fetcher
+// keeps the kill switch active (endpoints answer 501); a non-positive
+// fetchTimeout falls back to defaultDocsFetchTimeout.
+func WithDocuments(store interfaces.DocumentStore, fetcher interfaces.ANSMFetcher, fetchTimeout time.Duration) HandlerOption {
+	return func(h *Handler) {
+		h.docStore = store
+		h.docFetcher = fetcher
+		if fetchTimeout > 0 {
+			h.docFetchTimeout = fetchTimeout
+		}
+	}
+}
+
+// NewHandler creates the concrete Handler with injected dependencies and
+// options. It is the constructor to use when the caller needs the concrete
+// type (e.g. the server registering the docs routes, which are not part of
+// the frozen interfaces.HTTPHandler contract).
+func NewHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator, healthChecker interfaces.HealthChecker, opts ...HandlerOption) *Handler {
+	h := &Handler{
+		dataStore:       dataStore,
+		validator:       validator,
+		healthChecker:   healthChecker,
+		docFetchTimeout: defaultDocsFetchTimeout,
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(h)
+		}
+	}
+	return h
 }
 
 // NewHTTPHandler creates a new HTTP handler with injected dependencies
-func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator, healthChecker interfaces.HealthChecker) interfaces.HTTPHandler {
-	return &Handler{
-		dataStore:     dataStore,
-		validator:     validator,
-		healthChecker: healthChecker,
-	}
+func NewHTTPHandler(dataStore interfaces.DataStore, validator interfaces.DataValidator, healthChecker interfaces.HealthChecker, opts ...HandlerOption) interfaces.HTTPHandler {
+	return NewHandler(dataStore, validator, healthChecker, opts...)
 }
 
 // ServeHTTP implements the http.Handler interface
@@ -322,6 +366,9 @@ type DiagnosticsResponseImpl struct {
 	DataAgeHours  float64        `json:"data_age_hours"`
 	System        map[string]any `json:"system"`
 	DataIntegrity map[string]any `json:"data_integrity"`
+	// Docs carries the ANSM documents (RCP/notice) store stats; it is nil
+	// (and omitted from the JSON) when the feature is disabled.
+	Docs *DocsDiagnosticsImpl `json:"docs,omitempty"`
 }
 
 // ServeDiagnosticsV1 returns detailed system diagnostics including data integrity
@@ -389,6 +436,7 @@ func (h *Handler) ServeDiagnosticsV1(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		DataIntegrity: dataIntegrity,
+		Docs:          h.buildDocsDiagnostics(),
 	}
 
 	// Add 10-second cache to prevent hammering while keeping data reasonably fresh
