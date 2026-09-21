@@ -9,20 +9,25 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds all application configuration
 type Config struct {
-	Port               string
-	Address            string
-	Env                Environment // Type-safe environment enum
-	LogLevel           string      // Console logging level (file logging is always DEBUG)
-	LogRetentionWeeks  int         // Number of weeks to keep log files
-	MaxLogFileSize     int64       // Maximum log file size in bytes
-	MaxRequestBody     int64       // Maximum request body size in bytes
-	MaxHeaderSize      int64       // Maximum header size in bytes
-	AllowDirectAccess  bool        // Allow 0.0.0.0/:: binding (staging/development only)
-	DisableRateLimiter bool        // Disable rate limiting middleware
+	Port                string
+	Address             string
+	Env                 Environment   // Type-safe environment enum
+	LogLevel            string        // Console logging level (file logging is always DEBUG)
+	LogRetentionWeeks   int           // Number of weeks to keep log files
+	MaxLogFileSize      int64         // Maximum log file size in bytes
+	MaxRequestBody      int64         // Maximum request body size in bytes
+	MaxHeaderSize       int64         // Maximum header size in bytes
+	AllowDirectAccess   bool          // Allow 0.0.0.0/:: binding (staging/development only)
+	DisableRateLimiter  bool          // Disable rate limiting middleware
+	DocsEnabled         bool          // Kill switch for ANSM documents: endpoints answer 501 and no fetching occurs when false
+	DocsCacheDir        string        // Directory holding the cached RCP/notice document JSON files
+	DocsFetchRatePerSec float64       // Global upstream politeness rate towards ANSM (requests per second)
+	DocsFetchTimeout    time.Duration // Timeout for a single upstream ANSM request
 }
 
 // Environment represents the application environment
@@ -100,6 +105,18 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse ENV: %w", err)
 	}
 
+	// DOCS_* numeric values control upstream politeness: a malformed value
+	// must fail fast instead of silently running on defaults.
+	docsRate, err := getFloat64EnvWithDefault("DOCS_FETCH_RATE_PER_SEC", 2.0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse DOCS_FETCH_RATE_PER_SEC: %w", err)
+	}
+
+	docsTimeout, err := getDurationEnvWithDefault("DOCS_FETCH_TIMEOUT", 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse DOCS_FETCH_TIMEOUT: %w", err)
+	}
+
 	cfg := &Config{
 		Port:               getEnvWithDefault("PORT", "8000"),
 		Address:            getEnvWithDefault("ADDRESS", "127.0.0.1"),
@@ -112,6 +129,12 @@ func Load() (*Config, error) {
 		AllowDirectAccess:  getBoolEnvWithDefault("ALLOW_DIRECT_ACCESS", false),
 		DisableRateLimiter: getBoolEnvWithDefault("DISABLE_RATE_LIMITER", false),
 	}
+
+	// ANSM documents (RCP/notice) configuration
+	cfg.DocsEnabled = getBoolEnvWithDefault("DOCS_ENABLED", true)
+	cfg.DocsCacheDir = getEnvWithDefault("DOCS_CACHE_DIR", "./files/docs")
+	cfg.DocsFetchRatePerSec = docsRate
+	cfg.DocsFetchTimeout = docsTimeout
 
 	if err := validateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
@@ -157,6 +180,21 @@ func validateConfig(cfg *Config) error {
 	// Validate MAX_LOG_FILE_SIZE
 	if err := validateMaxLogFileSize(cfg.MaxLogFileSize); err != nil {
 		return fmt.Errorf("invalid MAX_LOG_FILE_SIZE: %w", err)
+	}
+
+	// Validate DOCS_CACHE_DIR
+	if err := validateDocsCacheDir(cfg.DocsCacheDir); err != nil {
+		return fmt.Errorf("invalid DOCS_CACHE_DIR: %w", err)
+	}
+
+	// Validate DOCS_FETCH_RATE_PER_SEC
+	if err := validateDocsFetchRatePerSec(cfg.DocsFetchRatePerSec); err != nil {
+		return fmt.Errorf("invalid DOCS_FETCH_RATE_PER_SEC: %w", err)
+	}
+
+	// Validate DOCS_FETCH_TIMEOUT
+	if err := validateDocsFetchTimeout(cfg.DocsFetchTimeout); err != nil {
+		return fmt.Errorf("invalid DOCS_FETCH_TIMEOUT: %w", err)
 	}
 
 	return nil
@@ -281,6 +319,36 @@ func validateMaxLogFileSize(size int64) error {
 	return nil
 }
 
+// validateDocsCacheDir validates the DOCS_CACHE_DIR environment variable
+func validateDocsCacheDir(dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("DOCS_CACHE_DIR cannot be empty")
+	}
+
+	return nil
+}
+
+// validateDocsFetchRatePerSec validates the DOCS_FETCH_RATE_PER_SEC environment
+// variable: the upstream politeness rate must stay within the agreed bounds
+// (never more aggressive than 10 req/s, never slower than one request every
+// 4 seconds so the lazy fetch stays usable)
+func validateDocsFetchRatePerSec(rate float64) error {
+	if rate < 0.25 || rate > 10 {
+		return fmt.Errorf("DOCS_FETCH_RATE_PER_SEC must be between 0.25 and 10, got: %g", rate)
+	}
+
+	return nil
+}
+
+// validateDocsFetchTimeout validates the DOCS_FETCH_TIMEOUT environment variable
+func validateDocsFetchTimeout(timeout time.Duration) error {
+	if timeout <= 0 {
+		return fmt.Errorf("DOCS_FETCH_TIMEOUT must be positive, got: %s", timeout)
+	}
+
+	return nil
+}
+
 // getEnvWithDefault gets an environment variable with a default value
 func getEnvWithDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -319,6 +387,39 @@ func getBoolEnvWithDefault(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
+// getFloat64EnvWithDefault gets an environment variable as float64 with a
+// default value. Unlike the lenient helpers above, a malformed value returns
+// an error instead of silently falling back: DOCS_FETCH_RATE_PER_SEC governs
+// upstream politeness and must never run on an unintended default.
+func getFloat64EnvWithDefault(key string, defaultValue float64) (float64, error) {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	floatValue, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value %q: %w", value, err)
+	}
+	return floatValue, nil
+}
+
+// getDurationEnvWithDefault gets an environment variable as time.Duration
+// with a default value (e.g. "15s", "30s", "1m"). A malformed value returns
+// an error instead of silently falling back (see getFloat64EnvWithDefault).
+func getDurationEnvWithDefault(key string, defaultValue time.Duration) (time.Duration, error) {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	durationValue, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value %q: %w", value, err)
+	}
+	return durationValue, nil
+}
+
 // GetEnvVars returns a list of all expected environment variables
 func GetEnvVars() []string {
 	return []string{
@@ -332,6 +433,10 @@ func GetEnvVars() []string {
 		"MAX_HEADER_SIZE",
 		"ALLOW_DIRECT_ACCESS",
 		"DISABLE_RATE_LIMITER",
+		"DOCS_ENABLED",
+		"DOCS_CACHE_DIR",
+		"DOCS_FETCH_RATE_PER_SEC",
+		"DOCS_FETCH_TIMEOUT",
 	}
 }
 

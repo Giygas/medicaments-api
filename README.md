@@ -21,15 +21,17 @@ L'API délivre des performances exceptionnelles : lookups O(1) par code CIS ou C
 
 **Nouveaux endpoints v1 (recommandés) :**
 
-| Endpoint            | Description                    | Documentation                      |
-| ------------------- | ------------------------------ | ---------------------------------- |
-| `/v1/medicaments`   | Recherche & browse médicaments | [Full API](html/docs/openapi.yaml) |
-| `/v1/generiques`    | Groupes génériques             | [Full API](html/docs/openapi.yaml) |
-| `/v1/presentations` | Présentations par CIP          | [Full API](html/docs/openapi.yaml) |
-| `/v1/diagnostics`   | Métriques système détaillées   | [Full API](html/docs/openapi.yaml) |
-| `/health`           | Santé système simplifiée       | [Full API](html/docs/openapi.yaml) |
-| `/`                 | Documentation SPA              | [Full API](html/docs/openapi.yaml) |
-| `/docs`             | Swagger UI interactive         | [Full API](html/docs/openapi.yaml) |
+| Endpoint                            | Description                    | Documentation                      |
+| ----------------------------------- | ------------------------------ | ---------------------------------- |
+| `/v1/medicaments`                   | Recherche & browse médicaments | [Full API](html/docs/openapi.yaml) |
+| `/v1/medicaments/{cis}/rcp`         | RCP ANSM (JSON sectionné)      | [Docs RCP](docs/RCP.md)            |
+| `/v1/medicaments/{cis}/notice`      | Notice ANSM (JSON sectionné)   | [Docs RCP](docs/RCP.md)            |
+| `/v1/generiques`                    | Groupes génériques             | [Full API](html/docs/openapi.yaml) |
+| `/v1/presentations`                 | Présentations par CIP          | [Full API](html/docs/openapi.yaml) |
+| `/v1/diagnostics`                   | Métriques système détaillées   | [Full API](html/docs/openapi.yaml) |
+| `/health`                           | Santé système simplifiée       | [Full API](html/docs/openapi.yaml) |
+| `/`                                 | Documentation SPA              | [Full API](html/docs/openapi.yaml) |
+| `/docs`                             | Swagger UI interactive         | [Full API](html/docs/openapi.yaml) |
 
 **Endpoints legacy (supprimés le 31 juillet 2026) :**
 
@@ -103,6 +105,25 @@ curl "https://medicaments-api.giygas.dev/v1/generiques/1234"
 # Présentations par CIP
 curl "https://medicaments-api.giygas.dev/v1/presentations/3400936403114"
 ```
+
+### Documents ANSM — RCP & notices (API v1)
+
+Le RCP (Résumé des Caractéristiques du Produit) et la notice patient de chaque
+médicament, servis en **JSON sectionné** (rubriques avec identifiants stables).
+Le document est téléchargé paresseusement depuis l'ANSM au premier accès, puis
+caché définitivement sur disque (fetch-once, serve-forever) :
+
+```bash
+# RCP par code CIS
+curl "https://medicaments-api.giygas.dev/v1/medicaments/60016308/rcp"
+
+# Notice patient
+curl "https://medicaments-api.giygas.dev/v1/medicaments/60016308/notice"
+```
+
+Documentation complète — format JSON sectionné, cache disque & tombstones,
+en-têtes de cache, attribution Etalab 2.0 et notes de déploiement :
+voir [Documents ANSM (RCP & Notices)](docs/RCP.md).
 
 ### Recherche multi-mots
 
@@ -218,6 +239,7 @@ Pour la documentation complète Docker, voir [DOCKER.md](DOCKER.md)
 ## Documentation
 
 - 📖 **[Spécification OpenAPI complète](html/docs/openapi.yaml)** - Définition complète de l'API avec exemples
+- 💊 **[Documents ANSM (RCP & notices)](docs/RCP.md)** - Endpoints documents, JSON sectionné, cache disque, attribution Etalab 2.0
 - 🐳 **[Guide Docker complet](DOCKER.md)** - Setup Docker, stack observabilité, monitoring avancé
 - 🏗️ **[Architecture du système](docs/ARCHITECTURE.md)** - Design des interfaces, flux de données, middleware stack
 - ⚡ **[Performance et benchmarks](docs/PERFORMANCE.md)** - Mesures de performance, optimisations, profilage

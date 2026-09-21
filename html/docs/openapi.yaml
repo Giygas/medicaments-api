@@ -358,6 +358,285 @@ paths:
                     message: "Internal server error"
                     code: 500
 
+  /v1/medicaments/{cis}/rcp:
+    get:
+      summary: Obtenir le RCP d'un médicament (v1)
+      description: |
+        Récupérer le Résumé des Caractéristiques du Produit (RCP) d'un médicament par son code CIS.
+
+        Le document est récupéré paresseusement depuis la [base de données publique des médicaments (ANSM)](https://base-donnees-publique.medicaments.gouv.fr)
+        au premier appel, mis en cache définitivement côté serveur, puis servi sous forme de JSON sectionné.
+        Un document absent de la source ANSM est mémorisé (cache négatif) : les appels suivants répondent `404` sans nouvel appel amont.
+
+        **Attribution (licence Etalab 2.0) :** toute réutilisation des données doit citer les champs `source` et `miseAJour` présents dans la réponse.
+      tags:
+        - Médicaments (v1)
+      parameters:
+        - $ref: "#/components/parameters/PathCis"
+      responses:
+        "200":
+          description: RCP trouvé (mis en cache ou récupéré depuis l'ANSM)
+          headers:
+            ETag:
+              description: ETag fort (sha256 hexadécimal du contenu, sans préfixe W/)
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: '"6f3a1b2c4d5e6f708192a3b4c5d6e7f89a0b1c2d3e4f5061728394a5b6c7d8e9"'
+            Cache-Control:
+              description: Politique de cache des documents (1 h client, 24 h cache partagé)
+              schema:
+                type: string
+              examples:
+                cache-control-header:
+                  value: "public, max-age=3600, s-maxage=86400"
+            Last-Modified:
+              description: Date de mise en cache du document
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnsmDocument"
+              examples:
+                rcp:
+                  summary: RCP sectionné
+                  value:
+                    cis: "60016308"
+                    type: "rcp"
+                    titre: "CARVEDILOL VIATRIS 25 mg, comprimé pelliculé sécable"
+                    miseAJour: "2025-11-07"
+                    source: "ANSM - Base de données publique des médicaments"
+                    sections:
+                      - id: "1"
+                        titre: "DÉNOMINATION DU MÉDICAMENT"
+                        contenu: "<p>CARVEDILOL VIATRIS 25 mg, comprimé pelliculé sécable</p>"
+                      - id: "4.2"
+                        titre: "Posologie et mode d'administration"
+                        contenu: "<p>Un comprimé par jour...</p>"
+        "304":
+          description: Document non modifié (If-None-Match correspondant à l'ETag fort)
+          headers:
+            ETag:
+              description: ETag fort correspondant à la version en cache du client
+              schema:
+                type: string
+            Cache-Control:
+              description: Politique de cache des documents
+              schema:
+                type: string
+              examples:
+                cache-control-header:
+                  value: "public, max-age=3600, s-maxage=86400"
+        "400":
+          description: Code CIS invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "CIS should have 8 digits"
+                    code: 400
+        "404":
+          description: Médicament inconnu ou document absent de la source ANSM (cache négatif)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                medicament-not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Medicament not found"
+                    code: 404
+                document-not-available:
+                  value:
+                    error: "Not Found"
+                    message: "Document not available for this medicament"
+                    code: 404
+        "501":
+          description: Fonctionnalité documents ANSM désactivée sur ce serveur (DOCS_ENABLED=false)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                disabled:
+                  value:
+                    error: "Not Implemented"
+                    message: "ANSM documents feature is disabled on this server"
+                    code: 501
+        "502":
+          description: Échec de récupération du document auprès de l'ANSM (réseau ou parsing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-gateway:
+                  value:
+                    error: "Bad Gateway"
+                    message: "Failed to retrieve document from ANSM"
+                    code: 502
+        "500":
+          description: Erreur interne du serveur (cache de documents)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Document cache error"
+                    code: 500
+
+  /v1/medicaments/{cis}/notice:
+    get:
+      summary: Obtenir la notice patient d'un médicament (v1)
+      description: |
+        Récupérer la notice d'information du patient d'un médicament par son code CIS.
+
+        Le document est récupéré paresseusement depuis la [base de données publique des médicaments (ANSM)](https://base-donnees-publique.medicaments.gouv.fr)
+        au premier appel, mis en cache définitivement côté serveur, puis servi sous forme de JSON sectionné.
+        Un document absent de la source ANSM est mémorisé (cache négatif) : les appels suivants répondent `404` sans nouvel appel amont.
+
+        **Attribution (licence Etalab 2.0) :** toute réutilisation des données doit citer les champs `source` et `miseAJour` présents dans la réponse.
+      tags:
+        - Médicaments (v1)
+      parameters:
+        - $ref: "#/components/parameters/PathCis"
+      responses:
+        "200":
+          description: Notice trouvée (mise en cache ou récupérée depuis l'ANSM)
+          headers:
+            ETag:
+              description: ETag fort (sha256 hexadécimal du contenu, sans préfixe W/)
+              schema:
+                type: string
+              examples:
+                etag-header:
+                  value: '"a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890123456789012"'
+            Cache-Control:
+              description: Politique de cache des documents (1 h client, 24 h cache partagé)
+              schema:
+                type: string
+              examples:
+                cache-control-header:
+                  value: "public, max-age=3600, s-maxage=86400"
+            Last-Modified:
+              description: Date de mise en cache du document
+              schema:
+                type: string
+                format: date-time
+              examples:
+                last-modified-header:
+                  value: "Mon, 15 Jan 2026 06:00:00 GMT"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnsmDocument"
+              examples:
+                notice:
+                  summary: Notice sectionnée
+                  value:
+                    cis: "60016308"
+                    type: "notice"
+                    titre: "CARVEDILOL VIATRIS 25 mg, comprimé pelliculé sécable"
+                    miseAJour: "2025-11-07"
+                    source: "ANSM - Base de données publique des médicaments"
+                    sections:
+                      - id: "denomination-du-medicament"
+                        titre: "Dénomination du médicament"
+                        contenu: "<p>CARVEDILOL VIATRIS 25 mg, comprimé</p>"
+        "304":
+          description: Document non modifié (If-None-Match correspondant à l'ETag fort)
+          headers:
+            ETag:
+              description: ETag fort correspondant à la version en cache du client
+              schema:
+                type: string
+            Cache-Control:
+              description: Politique de cache des documents
+              schema:
+                type: string
+              examples:
+                cache-control-header:
+                  value: "public, max-age=3600, s-maxage=86400"
+        "400":
+          description: Code CIS invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-request:
+                  value:
+                    error: "Bad Request"
+                    message: "CIS should have 8 digits"
+                    code: 400
+        "404":
+          description: Médicament inconnu ou document absent de la source ANSM (cache négatif)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                medicament-not-found:
+                  value:
+                    error: "Not Found"
+                    message: "Medicament not found"
+                    code: 404
+                document-not-available:
+                  value:
+                    error: "Not Found"
+                    message: "Document not available for this medicament"
+                    code: 404
+        "501":
+          description: Fonctionnalité documents ANSM désactivée sur ce serveur (DOCS_ENABLED=false)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                disabled:
+                  value:
+                    error: "Not Implemented"
+                    message: "ANSM documents feature is disabled on this server"
+                    code: 501
+        "502":
+          description: Échec de récupération du document auprès de l'ANSM (réseau ou parsing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                bad-gateway:
+                  value:
+                    error: "Bad Gateway"
+                    message: "Failed to retrieve document from ANSM"
+                    code: 502
+        "500":
+          description: Erreur interne du serveur (cache de documents)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                internal-error:
+                  value:
+                    error: "Internal Server Error"
+                    message: "Document cache error"
+                    code: 500
+
   /v1/generiques:
     get:
       summary: Rechercher des groupes génériques par libellé (v1)
@@ -1680,3 +1959,54 @@ components:
             type: integer
           examples: [[60012345, 60023456]]
           title: Exemples de CIS concernés
+    AnsmDocument:
+      type: object
+      title: AnsmDocument
+      description: |
+        Document ANSM (RCP ou notice patient) sectionné, servi par
+        `/v1/medicaments/{cis}/rcp` et `/v1/medicaments/{cis}/notice`.
+        Les champs `source` et `miseAJour` sont obligatoires dans chaque
+        réponse (attribution requise par la licence Etalab 2.0 sur les
+        données ANSM).
+      properties:
+        cis:
+          type: string
+          pattern: "^[0-9]{1,10}$"
+          title: Code CIS du médicament
+        type:
+          type: string
+          enum: ["rcp", "notice"]
+          title: Type de document
+        titre:
+          type: string
+          title: Titre du médicament tel que publié par l'ANSM
+        miseAJour:
+          type: string
+          format: date
+          title: Date de mise à jour ANSM du document (YYYY-MM-DD)
+        source:
+          type: string
+          title: Attribution de la source (ANSM - Base de données publique des médicaments)
+        sections:
+          type: array
+          title: Sections du document dans l'ordre de publication
+          items:
+            $ref: "#/components/schemas/AnsmDocumentSection"
+      required: ["cis", "type", "titre", "miseAJour", "source", "sections"]
+    AnsmDocumentSection:
+      type: object
+      title: AnsmDocumentSection
+      description: |
+        Une rubrique du document. Pour les RCP, `id` suit la numérotation
+        canonique (1 à 12, 4.1 à 4.9...) ; pour les notices, `id` est
+        dérivé du titre de la rubrique (slug).
+      properties:
+        id:
+          type: string
+          title: Identifiant stable de la section
+        titre:
+          type: string
+          title: Titre de la rubrique
+        contenu:
+          type: string
+          title: Contenu HTML sanitisé (liste blanche stricte : p, strong, em, table, ul/ol/li...)

@@ -15,7 +15,7 @@ files/
 src/
 **src/*.json
 src/*
-
+.tmp
 secrets/
 
 # Environment variables

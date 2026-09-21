@@ -28,7 +28,10 @@ type Server struct {
 	router        chi.Router
 	dataContainer *data.DataContainer
 	config        *config.Config
-	httpHandler   interfaces.HTTPHandler
+	// httpHandler is the concrete handler type: the ANSM document routes
+	// (ServeRCPV1/ServeNoticeV1) are not part of the frozen
+	// interfaces.HTTPHandler contract and exist only on *handlers.Handler.
+	httpHandler   *handlers.Handler
 	healthChecker interfaces.HealthChecker
 	startTime     time.Time
 
@@ -39,14 +42,16 @@ type Server struct {
 	profilingServer *http.Server
 }
 
-// NewServer creates a new server instance
-func NewServer(cfg *config.Config, dataContainer *data.DataContainer) *Server {
+// NewServer creates a new server instance. The optional docsOpts wire the
+// ANSM document (RCP/notice) dependencies into the handler: without them
+// (DOCS_ENABLED=false) the document endpoints answer 501.
+func NewServer(cfg *config.Config, dataContainer *data.DataContainer, docsOpts ...handlers.HandlerOption) *Server {
 	router := chi.NewRouter()
 
 	// Dependencies
 	validator := validation.NewDataValidator()
 	healthChecker := health.NewHealthChecker(dataContainer)
-	httpHandler := handlers.NewHTTPHandler(dataContainer, validator, healthChecker)
+	httpHandler := handlers.NewHandler(dataContainer, validator, healthChecker, docsOpts...)
 
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
@@ -112,6 +117,10 @@ func (s *Server) setupRoutes() {
 	s.router.Get("/v1/medicaments/export", s.httpHandler.ExportMedicaments)
 	s.router.Get("/v1/medicaments", s.httpHandler.ServeMedicamentsV1)
 	s.router.Get("/v1/medicaments/{cis}", s.httpHandler.FindMedicamentByCIS)
+	// ANSM document endpoints: a deeper static segment below {cis} that
+	// chi routes independently of GET /v1/medicaments/{cis}.
+	s.router.Get("/v1/medicaments/{cis}/rcp", s.httpHandler.ServeRCPV1)
+	s.router.Get("/v1/medicaments/{cis}/notice", s.httpHandler.ServeNoticeV1)
 	s.router.Get("/v1/presentations/{cip}", s.httpHandler.ServePresentationsV1)
 	s.router.Get("/v1/generiques/{groupID}", s.httpHandler.FindGeneriquesByGroupID)
 	s.router.Get("/v1/generiques", s.httpHandler.ServeGeneriquesV1)
