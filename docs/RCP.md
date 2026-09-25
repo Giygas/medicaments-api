@@ -29,6 +29,15 @@ Le HTML source est assaini avec une liste blanche stricte
 les attributs `colspan`/`rowspan` survivent. Tout le reste (scripts, styles,
 classes, identifiants, gestionnaires d'événements, liens externes) est retiré.
 
+Le contenu est ensuite **normalisé** : les artefacts de mise en page de la
+source ANSM sont supprimés — points de suite d'alignement des compositions
+(`Amisulpride........ 200 mg` → `Amisulpride 200 mg`, les ellipses `...`
+authentiques sont préservées), caractères de contrôle invisibles hérités de
+l'encodage source, suites d'espaces (ramenées à une espace simple) et
+paragraphes vides. Le wording reste verbatim ; cette normalisation a été
+validée par un audit du corpus (300 pages CIS, 444 documents, zéro
+altération de texte).
+
 ## Points de terminaison
 
 | Endpoint                          | Coût (tokens) | Cache                      |

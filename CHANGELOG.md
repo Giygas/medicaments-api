@@ -5,6 +5,18 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-09-25
+
+#### Changé
+
+- **Nettoyage du `contenu` des documents ANSM** : les artefacts de mise en page hérités de la mise en page imprimée de l'ANSM sont désormais supprimés du contenu des sections RCP et notices
+  - **Points de suite** d'alignement des compositions : `Lévothyroxine sodique............ 75 microgrammes` devient `Lévothyroxine sodique 75 microgrammes` (les ellipses authentiques `...` sont préservées)
+  - **Caractères de contrôle invisibles** présents dans certaines pages sources (corruption héritée, ex. octets U+0005)
+  - **Suites d'espaces** : fausses listes à puce (`·` suivi d'une tabulation), espaces multiples et de fin de ligne — remplacées par des espaces simples
+  - **Paragraphes vides** supprimés
+  - Le wording reste strictement verbatim : seuls les caractères de mise en page sont retirés, jamais des mots — garanti par un audit du corpus (300 pages CIS aléatoires, 444 documents, 9 811 sections, zéro violation de l'invariant « seul les points et les espaces changent »)
+  - Le format de réponse est inchangé (mêmes champs, mêmes identifiants de rubriques) ; les documents précédemment mis en cache sont ré-extraits une unique fois lors du déploiement (invalidation du cache)
+
 ## [2.2.0] - 2026-09-21
 
 #### Ajouté
