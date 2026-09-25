@@ -189,7 +189,7 @@ func buildSections(panel *goquery.Selection, docType string) []Section {
 		out = append(out, Section{
 			ID:      ids.assign(r.title),
 			Titre:   r.title,
-			Contenu: Sanitize(strings.Join(r.fragments, "")),
+			Contenu: normalizeContenu(Sanitize(strings.Join(r.fragments, ""))),
 		})
 	}
 	return dropEmptyParents(out)

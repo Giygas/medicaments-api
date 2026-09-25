@@ -7,7 +7,7 @@
 [![API](https://img.shields.io/badge/API-RESTful-orange)](https://medicaments-api.giygas.dev/docs)
 [![Performance](https://img.shields.io/badge/performance-80K%2B%20req%2Fs-brightgreen)](https://medicaments-api.giygas.dev/health)
 [![Uptime](https://img.shields.io/badge/uptime-99.9%25-brightgreen)](https://medicaments-api.giygas.dev/health)
-[![Changelog](https://img.shields.io/badge/Changelog-v2.2.0-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/Changelog-v2.3.0-blue)](CHANGELOG.md)
 
 API RESTful haute performance fournissant un accès programmatique aux données des médicaments français via une architecture basée sur 6 interfaces principales, parsing concurrent de 5 fichiers TSV BDPM, mises à jour atomiques zero-downtime, cache HTTP intelligent (ETag/Last-Modified), rate limiting par token bucket, et support Docker complet avec stack observabilité.
 
@@ -362,6 +362,7 @@ Pour l'historique complet des versions et des changements détaillés, consultez
 
 ### Versions
 
+- **v2.3.0** (Septembre 2026) - Nettoyage du contenu des documents ANSM (points de suite, caractères de contrôle, espaces multiples)
 - **v2.2.0** (Septembre 2026) - Documents ANSM (RCP & notices) en JSON sectionné avec cache disque paresseux, recherche insensible aux accents, champs de prix nullables
 - **v2.1.0** (Septembre 2026) - Champs de prix des présentations (prix public, honoraires de dispensation), toolchain Go 1.27
 - **v2.0.0** (Septembre 2026) - Suppression des endpoints legacy (410 Gone avec headers de succession), API concentrée sur /v1

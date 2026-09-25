@@ -17,7 +17,7 @@ info:
     - [Guide de migration vers v1](https://github.com/Giygas/medicaments-api/blob/main/docs/MIGRATION.md)
     - [Base de données BDPM](https://base-donnees-publique.medicaments.gouv.fr)
 
-  version: 2.2.0
+  version: 2.3.0
   contact:
     name: GitHub Repository
     url: https://github.com/giygas/medicaments-api
